@@ -312,7 +312,15 @@
     #bantexMainTable { table-layout: fixed; }
     #bantexMainTable th, #bantexMainTable td { word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
     #pasienTableContainer { overflow-x: hidden; }
-    
+
+    /* Badge "Asal Sektor" — hasil gabungan sheet COT + Luar COT saat import Excel, dibedakan warna
+       supaya langsung terlihat sekali pandang tanpa perlu buka dua tabel terpisah. */
+    .badge-sektor { display:inline-block; padding:3px 9px; border-radius:20px; font-size:9.5px; font-weight:800; letter-spacing:0.3px; white-space:nowrap; }
+    .badge-sektor-cot { background:rgba(59,130,246,0.18); color:#93c5fd; border:1px solid rgba(59,130,246,0.4); }
+    .badge-sektor-luar { background:rgba(245,158,11,0.18); color:#fde68a; border:1px solid rgba(245,158,11,0.4); }
+    .badge-sektor-lain { background:rgba(148,163,184,0.18); color:#cbd5e1; border:1px solid rgba(148,163,184,0.4); }
+    .badge-sektor-none { background:rgba(100,116,139,0.15); color:#64748b; border:1px solid rgba(100,116,139,0.3); }
+
     tr.status-selesai td { background-color: rgba(16, 185, 129, 0.12) !important; }
     tr.status-berlangsung td { background-color: rgba(37, 99, 235, 0.12) !important; }
     tr.status-urgency td { background-color: rgba(249, 115, 22, 0.12) !important; }
@@ -794,6 +802,7 @@
         <select id="filterDivisi" onchange="renderBantexTable()" style="padding:8px; border-radius:10px; border:1px solid var(--border); font-size:11px; background:rgba(15,23,42,0.6); color:white;"><option value="">Semua Divisi</option></select>
         <select id="filterResiden" onchange="renderBantexTable()" style="padding:8px; border-radius:10px; border:1px solid var(--border); font-size:11px; background:rgba(15,23,42,0.6); color:white;"><option value="">Semua Residen</option></select>
         <select id="filterDPJP" onchange="renderBantexTable()" style="padding:8px; border-radius:10px; border:1px solid var(--border); font-size:11px; background:rgba(15,23,42,0.6); color:white;"><option value="">Semua DPJP</option></select>
+        <select id="filterSektor" onchange="renderBantexTable()" style="padding:8px; border-radius:10px; border:1px solid var(--border); font-size:11px; background:rgba(15,23,42,0.6); color:white;"><option value="">Semua Sektor (COT + Luar COT)</option><option value="COT">COT</option><option value="Luar COT">Luar COT</option></select>
       </div>
 
       <!-- TOGGLE TAMPILAN MOBILE: GRID 4 KOTAK (DEFAULT) VS LIST DETAIL -->
@@ -812,13 +821,13 @@
         <table class="bantex-table" id="bantexMainTable">
           <colgroup>
             <col style="width:3%"><col style="width:10%"><col style="width:5%"><col style="width:5%">
-            <col style="width:5%"><col style="width:8%"><col style="width:6%"><col style="width:12%">
-            <col style="width:11%"><col style="width:8%"><col style="width:4%"><col style="width:7%">
-            <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
+            <col style="width:6%"><col style="width:5%"><col style="width:7%"><col style="width:6%">
+            <col style="width:10%"><col style="width:10%"><col style="width:7%"><col style="width:4%">
+            <col style="width:6%"><col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
           </colgroup>
           <thead>
             <tr>
-              <th>NO</th><th>Nama Pasien</th><th>RM</th><th>Divisi</th><th>Residen</th><th>DPJP Anestesi</th><th>Ruangan Asal Pasien</th><th>Diagnosis</th><th>Tindakan</th><th>DPJP Bedah</th><th>OK</th><th>Status</th><th>Mulai</th><th>Selesai</th><th>Masuk PACU</th><th>Keluar PACU</th>
+              <th>NO</th><th>Nama Pasien</th><th>RM</th><th>Divisi</th><th>Asal Sektor</th><th>Residen</th><th>DPJP Anestesi</th><th>Ruangan Asal Pasien</th><th>Diagnosis</th><th>Tindakan</th><th>DPJP Bedah</th><th>OK</th><th>Status</th><th>Mulai</th><th>Selesai</th><th>Masuk PACU</th><th>Keluar PACU</th>
             </tr>
           </thead>
           <tbody id="bantexTableBody"></tbody>
@@ -1300,6 +1309,7 @@
     <div class="form-group"><label>Rencana Tindakan:</label><input type="text" id="newTindakan"></div>
     <div class="form-group"><label>DPJP Bedah:</label><input type="text" id="newBedah"></div>
     <div class="form-group"><label>Ruangan Tujuan Pasca Tindakan:</label><select id="newTujuan"><option value="">Bangsal Biasa / Belum Ditentukan</option><option value="ICU">ICU</option><option value="HCU">HCU</option><option value="NICU">NICU</option><option value="PICU">PICU</option></select></div>
+    <div class="form-group"><label>Asal Sektor:</label><select id="newAsalSektor"><option value="COT">COT</option><option value="Luar COT">Luar COT</option></select></div>
     <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
       <button class="btn btn-secondary" onclick="closeAddPatientModal()">Batal</button>
       <button class="btn btn-success" onclick="saveNewPatient()">Simpan Pasien</button>
@@ -2313,7 +2323,22 @@
     reader.onload = function(evt) {
       const data = new Uint8Array(evt.target.result); 
       const workbookObj = XLSX.read(data, { type: 'array' }); 
-      let newSheetsData = {};
+      // ================= GABUNG SHEET "COT" + "LUAR COT" SAAT IMPORT =================
+      // Sebelumnya tiap sheet Excel disimpan sebagai "sheet" terpisah di sistem (dipilih lewat
+      // dropdown), sehingga tampil sebagai dua tabel yang harus dibuka bergantian. Sekarang SEMUA
+      // sheet dalam file Excel yang diimport digabung jadi SATU daftar pasien, dan tiap baris diberi
+      // penanda otomatis "asalSektor" dari nama sheet asalnya (COT / Luar COT / nama sheet lain apa
+      // pun) — supaya satu tabel di web tetap bisa membedakan asal pasien lewat badge warna.
+      function normalizeAsalSektorLabel(sName) {
+        const s = String(sName || '').trim().toUpperCase();
+        if (s === 'COT') return 'COT';
+        if (s === 'LUAR COT' || s === 'LUAR-COT' || s === 'LUARCOT') return 'Luar COT';
+        if (s.includes('LUAR')) return 'Luar COT';
+        if (s.includes('COT')) return 'COT';
+        return sName; // sheet dengan nama lain di luar pola COT/Luar COT: pakai nama aslinya sebagai sektor
+      }
+
+      let mergedPatientRows = [];
 
       workbookObj.SheetNames.forEach(sName => {
         const sheet = workbookObj.Sheets[sName]; 
@@ -2374,19 +2399,29 @@
               mulai: (mulaiColIdx !== -1 && row[mulaiColIdx]) ? String(row[mulaiColIdx]).trim() : '',
               selesai: (selesaiColIdx !== -1 && row[selesaiColIdx]) ? String(row[selesaiColIdx]).trim() : '',
               tujuanRawat: (tujuanColIdx !== -1 && row[tujuanColIdx]) ? String(row[tujuanColIdx]).trim().toUpperCase() : '',
-              masukPacu: '', keluarPacu: ''
+              masukPacu: '', keluarPacu: '',
+              // Penanda otomatis asal sektor (dari nama sheet Excel-nya) — dipakai badge warna di web.
+              asalSektor: normalizeAsalSektorLabel(sName)
             });
           }
         }
-        if (sheetRows.length > 0) newSheetsData[sName] = sheetRows;
+        mergedPatientRows = mergedPatientRows.concat(sheetRows);
       });
+
+      // Nomor urut ulang lintas-sheet setelah digabung, supaya kolom "NO" tetap berurutan rapi
+      // di satu tabel gabungan (bukan mulai dari 1 lagi tiap ganti sektor).
+      mergedPatientRows.forEach((r, i) => { r.no = i + 1; });
+      const newSheetsData = mergedPatientRows.length > 0 ? { "Semua Pasien": mergedPatientRows } : {};
 
       if (Object.keys(newSheetsData).length === 0) return alert("Gagal mengekstrak data dari Excel. Pastikan format kolom (Nama, RM, Residen, DPJP Anestesi, Ruangan, Divisi, Diagnosis, Tindakan, DPJP Bedah, OK, Status, Jam) sesuai template.");
       db.ref('bantex_sheets').set(newSheetsData, (err) => {
         if (!err) {
-          const totalRows = Object.values(newSheetsData).reduce((a,b) => a + b.length, 0);
-          alert(`Berhasil mengimpor ${totalRows} data pasien dari ${Object.keys(newSheetsData).length} sheet Excel ke dalam sistem (terintegrasi realtime ke semua menu)!`);
-          logSystemChange('Import data pasien dari Excel', `${f.name} — ${totalRows} pasien / ${Object.keys(newSheetsData).length} sheet`);
+          const totalRows = mergedPatientRows.length;
+          const sektorCountMap = {};
+          mergedPatientRows.forEach(r => { sektorCountMap[r.asalSektor] = (sektorCountMap[r.asalSektor] || 0) + 1; });
+          const sektorSummary = Object.keys(sektorCountMap).map(k => `${k}: ${sektorCountMap[k]}`).join(', ');
+          alert(`Berhasil mengimpor ${totalRows} data pasien dari ${workbookObj.SheetNames.length} sheet Excel (${sektorSummary}) — digabung ke dalam satu tabel gabungan (terintegrasi realtime ke semua menu)!`);
+          logSystemChange('Import data pasien dari Excel (gabung sheet)', `${f.name} — ${totalRows} pasien (${sektorSummary})`);
           // Jika sebelumnya hari ini sempat ditandai Hari Libur lalu ternyata ada Excel yang diimport,
           // otomatis hapus tanda libur tsb supaya banner tidak tampil membingungkan.
           db.ref(`holiday_flags/${todayDateStrWITA()}`).remove();
@@ -3535,6 +3570,7 @@
         <div class="form-group"><label>DPJP Bedah/Operator</label><input type="text" id="pdEdit_dpjpBedah" class="login-input" value="${f(p.dpjpBedah)}"></div>
         <div class="form-group"><label>Ruangan Asal</label><input type="text" id="pdEdit_kamar" class="login-input" value="${f(p.kamar)}"></div>
         <div class="form-group"><label>Kamar Operasi (OK)</label><input type="text" id="pdEdit_ok" class="login-input" value="${f(p.ok)}"></div>
+        <div class="form-group"><label>Asal Sektor</label><input type="text" id="pdEdit_asalSektor" class="login-input" list="pdAsalSektorOptions" value="${f(p.asalSektor)}" placeholder="COT / Luar COT"><datalist id="pdAsalSektorOptions"><option value="COT"><option value="Luar COT"></datalist></div>
         <div class="form-group" style="grid-column:1/-1;"><label>Diagnosis</label><textarea id="pdEdit_diagnosis" class="login-input" rows="2">${f(p.diagnosis)}</textarea></div>
         <div class="form-group" style="grid-column:1/-1;"><label>Rencana Tindakan</label><textarea id="pdEdit_rencanaTindakan" class="login-input" rows="2">${f(p.rencanaTindakan)}</textarea></div>
         <div class="form-group" style="grid-column:1/-1;"><label>Status Laporan</label><select id="pdEdit_statusCatatan" class="login-input">${statusOpt}</select></div>
@@ -3580,6 +3616,7 @@
     p.keluarPacu = val('pdEdit_keluarPacu');
     p.tujuanRawat = val('pdEdit_tujuanRawat');
     p.catatanKlinis = val('pdEdit_catatanKlinis');
+    p.asalSektor = val('pdEdit_asalSektor');
 
     if (p.statusCatatan === 'Sudah dikerja' || (p.selesai && p.selesai.trim() !== '')) recordDPJPExecutionToFirebase(p);
     if (p.mulai && p.mulai.trim() !== '') applyAutoStatusOnMulai(p);
@@ -3662,7 +3699,7 @@
       kamar: s(p.kamar), divisi: s(p.divisi), diagnosis: s(p.diagnosis), rencanaTindakan: s(p.rencanaTindakan),
       dpjpBedah: s(p.dpjpBedah), ok: s(p.ok), tujuanRawat: s(p.tujuanRawat), statusCatatan: s(p.statusCatatan),
       mulai: s(p.mulai), selesai: s(p.selesai), masukPacu: s(p.masukPacu), keluarPacu: s(p.keluarPacu),
-      catatanKlinis: s(p.catatanKlinis)
+      catatanKlinis: s(p.catatanKlinis), asalSektor: s(p.asalSektor)
     };
   }
   function normalizeSheetsData(raw) {
@@ -4160,12 +4197,22 @@
   }
 
   // REVISI INTEGRASI PASIEN ELEKTIF & EMERGENCY PADA MONITOR DASHBOARD
+  // Badge warna "Asal Sektor" (COT = biru, Luar COT = jingga/kuning, lainnya = abu-abu netral)
+  // supaya di satu tabel gabungan, asal pasien tetap bisa dibedakan sekali lihat.
+  function sektorBadgeHTML(sektor) {
+    const s = (sektor || '').trim();
+    if (!s) return '<span class="badge-sektor badge-sektor-none">-</span>';
+    const cls = s.toUpperCase() === 'COT' ? 'badge-sektor-cot' : (s.toUpperCase().includes('LUAR') ? 'badge-sektor-luar' : 'badge-sektor-lain');
+    return `<span class="badge-sektor ${cls}">${s}</span>`;
+  }
+
   function renderBantexTable() {
     const tb = document.getElementById('bantexTableBody'); tb.innerHTML='';
     const carousel = document.getElementById('patientCarousel'); carousel.innerHTML='';
     const commandMonitorBody = document.getElementById('commandMonitorBody'); commandMonitorBody.innerHTML='';
 
     const fd=document.getElementById('filterDivisi').value, fr=document.getElementById('filterResiden').value, fp=document.getElementById('filterDPJP').value, kw=document.getElementById('searchKeyword').value.toUpperCase();
+    const fsEl = document.getElementById('filterSektor'); const fs = fsEl ? fsEl.value : '';
 
     // "PASIEN SAYA SAJA" — akun Konsulen/DPJP HANYA melihat pasien di bawah bimbingannya sendiri
     // di SELURUH tabel Pasien & Operasi (bukan hanya Live Monitoring), setara logika
@@ -4175,7 +4222,7 @@
       ? activeSheetData.filter(p => (p.dpjpAnestesi || '').toUpperCase().includes(currentUsername.toUpperCase().trim()))
       : activeSheetData;
 
-    const flt = baseData.filter(p => (!fd||p.divisi===fd) && (!fr||p.residen===fr) && (!fp||p.dpjpAnestesi===fp) && (!kw||`${p.nama} ${p.rm} ${p.dpjpAnestesi} ${p.residen} ${p.divisi} ${p.kamar}`.toUpperCase().includes(kw)));
+    const flt = baseData.filter(p => (!fd||p.divisi===fd) && (!fr||p.residen===fr) && (!fp||p.dpjpAnestesi===fp) && (!fs||(p.asalSektor||'')===fs) && (!kw||`${p.nama} ${p.rm} ${p.dpjpAnestesi} ${p.residen} ${p.divisi} ${p.kamar}`.toUpperCase().includes(kw)));
 
     // 1. Masukkan Pasien Berlangsung ke Dashboard Table
     let runningPatientsForDashboard = [];
@@ -4226,7 +4273,7 @@
     }
 
     if(flt.length===0) {
-      tb.innerHTML='<tr><td colspan="16" style="text-align:center; color:#888;">Nihil (Belum ada data pasien)</td></tr>';
+      tb.innerHTML='<tr><td colspan="17" style="text-align:center; color:#888;">Nihil (Belum ada data pasien)</td></tr>';
       carousel.innerHTML='<div style="text-align:center; color:#888; width:100%; padding:20px;">Nihil (Belum ada data pasien)</div>';
       return;
     }
@@ -4358,6 +4405,7 @@
       <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)"><strong>${p.nama}</strong> <i class="fa-solid fa-pen-to-square" style="font-size:9px; color:var(--accent); margin-left:4px;"></i></td>
       <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${p.rm}</td>
       <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${p.divisi}</td>
+      <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${sektorBadgeHTML(p.asalSektor)}</td>
       <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${p.residen}</td>
       <td><input type="text" class="input-text" style="width:140px; font-weight:700;" value="${p.dpjpAnestesi}" onchange="updateDPJPAnestesiDesktop(${idx},this.value)"></td>
       <td><input type="text" class="input-text" style="width:110px;" value="${p.kamar||''}" placeholder="Ruangan..." onchange="updateF(${idx},'kamar',this.value)"></td>
@@ -4437,7 +4485,7 @@
       activeSheetData = allSheetsData[currentSheetName];
     }
 
-    const newPatientObj = { no:activeSheetData.length+1, nama:n, rm:document.getElementById('newRM').value.trim()||'-', divisi:document.getElementById('newDivisi').value.trim()||'-', residen:document.getElementById('newResiden').value.trim()||currentUsername, dpjpAnestesi:resolveDPJPName(document.getElementById('newDPJP').value.trim()), kamar:kmrVal, diagnosis:document.getElementById('newDiagnosis').value.trim()||'-', rencanaTindakan:document.getElementById('newTindakan').value.trim()||'-', dpjpBedah:document.getElementById('newBedah').value.trim()||'-', ok:okVal, tujuanRawat:document.getElementById('newTujuan').value||'', statusCatatan:st==='elektif'?'':st, mulai:'', selesai:'', masukPacu:'', keluarPacu:'' };
+    const newPatientObj = { no:activeSheetData.length+1, nama:n, rm:document.getElementById('newRM').value.trim()||'-', divisi:document.getElementById('newDivisi').value.trim()||'-', residen:document.getElementById('newResiden').value.trim()||currentUsername, dpjpAnestesi:resolveDPJPName(document.getElementById('newDPJP').value.trim()), kamar:kmrVal, diagnosis:document.getElementById('newDiagnosis').value.trim()||'-', rencanaTindakan:document.getElementById('newTindakan').value.trim()||'-', dpjpBedah:document.getElementById('newBedah').value.trim()||'-', ok:okVal, tujuanRawat:document.getElementById('newTujuan').value||'', statusCatatan:st==='elektif'?'':st, mulai:'', selesai:'', masukPacu:'', keluarPacu:'', asalSektor:document.getElementById('newAsalSektor').value||'COT' };
     activeSheetData.push(newPatientObj);
     syncUrgencyStatusToEmergencySystem(newPatientObj);
     saveAllSheetsData(() => {
@@ -4465,7 +4513,12 @@
           const isD = (p.selesai && p.selesai.trim() !== '') || p.statusCatatan === 'Sudah dikerja';
           const kamarVal = (p.kamar || '').toUpperCase().trim();
           const tindakanVal = (p.rencanaTindakan || '').toUpperCase();
-          const isLuarLocation = snUpper.includes('LUAR') || kamarVal.includes('ENDOSKOPI') || kamarVal.includes('BRONKOSKOPI') || kamarVal.includes('RADIOLOGI') || kamarVal.includes('CATHLAB') || kamarVal.includes('CATLAB') || kamarVal.includes('RADIOTERAPI') || tindakanVal.includes('ENDOSKOPI') || tindakanVal.includes('BRONKOSKOPI') || tindakanVal.includes('RADIOLOGI') || tindakanVal.includes('CATHLAB') || tindakanVal.includes('CATLAB') || tindakanVal.includes('RADIOTERAPI');
+          // Sumber utama penanda COT/Luar COT: field asalSektor (dari sheet Excel saat import, atau
+          // dipilih manual). Kalau belum ada (data lama sebelum fitur ini / entri manual lama),
+          // fallback ke heuristik nama sheet + kata kunci ruangan/tindakan seperti sebelumnya.
+          const asalSektorUpper = (p.asalSektor || '').toUpperCase();
+          const isLuarLocation = asalSektorUpper ? asalSektorUpper.includes('LUAR') :
+            (snUpper.includes('LUAR') || kamarVal.includes('ENDOSKOPI') || kamarVal.includes('BRONKOSKOPI') || kamarVal.includes('RADIOLOGI') || kamarVal.includes('CATHLAB') || kamarVal.includes('CATLAB') || kamarVal.includes('RADIOTERAPI') || tindakanVal.includes('ENDOSKOPI') || tindakanVal.includes('BRONKOSKOPI') || tindakanVal.includes('RADIOLOGI') || tindakanVal.includes('CATHLAB') || tindakanVal.includes('CATLAB') || tindakanVal.includes('RADIOTERAPI'));
 
           if (isLuarLocation) { tLuar++; if (isD) sLuar++; } 
           else { tCot++; if (isD) sCot++; }
