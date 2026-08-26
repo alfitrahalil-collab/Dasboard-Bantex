@@ -5,6 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Chief Anestesi Monitoring System 2026</title>
 
+  <!-- ================= PWA: Progressive Web App (agar bisa diinstal di HP) =================
+       PENTING: manifest.json, service-worker.js, dan file icon-*.png HARUS berada satu folder
+       yang sama dengan app.html di server/hosting (mis. Firebase Hosting), dan diakses via
+       HTTPS (atau localhost). Service Worker TIDAK akan aktif jika file dibuka langsung dari
+       file:// di komputer/HP — itu batasan keamanan browser, bukan bug di kode ini. -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CAMS 2026">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+
   <!-- External Libraries -->
   <script src="https://unpkg.com/@zxing/library@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -34,6 +49,22 @@
       --border: rgba(59, 130, 246, 0.2);
     }
 
+    /* TEMA WARNA PER ROLE — supaya Admin/Chief/Wakil Chief/Konsulen langsung terlihat beda
+       secara visual saat login (aksen tombol, border aktif, glow sidebar, dsb menyesuaikan
+       otomatis lewat variabel CSS di bawah). Role lain (Residen/Chief Divisi) tetap warna default. */
+    body[data-role="admin"] {
+      --accent: #3b82f6; --accent-glow: rgba(59, 130, 246, 0.4); --border: rgba(59, 130, 246, 0.25);
+    }
+    body[data-role="chief"] {
+      --accent: #8b5cf6; --accent-glow: rgba(139, 92, 246, 0.4); --border: rgba(139, 92, 246, 0.25);
+    }
+    body[data-role="wakil_chief"] {
+      --accent: #06b6d4; --accent-glow: rgba(6, 182, 212, 0.4); --border: rgba(6, 182, 212, 0.25);
+    }
+    body[data-role="konsulen"] {
+      --accent: #f59e0b; --accent-glow: rgba(245, 158, 11, 0.4); --border: rgba(245, 158, 11, 0.25);
+    }
+
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); color: var(--text); font-size: 13px; }
 
@@ -43,6 +74,15 @@
 
     .sidebar { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: var(--sidebar-bg); color: white; z-index: 1001; transition: left 0.3s ease; display: flex; flex-direction: column; border-right: 1px solid var(--border); box-shadow: 6px 0 30px rgba(59,130,246,0.15); }
     .sidebar.active { left: 0; }
+    /* DESKTOP/LAPTOP (>=993px): sidebar tampil permanen (bukan off-canvas), hamburger & overlay
+       disembunyikan, konten utama digeser ke kanan selebar sidebar. Di bawah breakpoint ini
+       (termasuk semua HP <=768px) perilaku off-canvas + hamburger di atas tetap berlaku. */
+    @media (min-width: 993px) {
+      .sidebar { left: 0 !important; box-shadow: none; }
+      .sidebar-overlay { display: none !important; }
+      #hamburgerBtn { display: none; }
+      .app-header, .container { margin-left: 280px !important; }
+    }
     #notifBellPanel { border-left: 1px solid var(--border); border-right: none; box-shadow: -6px 0 30px rgba(59,130,246,0.15); }
     #notifBellPanel.active { right: 0 !important; }
 
@@ -127,6 +167,9 @@
 
     .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 16px; }
     @media(min-width: 900px){ .metrics-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media(min-width: 1280px){ .metrics-grid { grid-template-columns: repeat(5, 1fr); } }
+    /* Layar HP sangat sempit (<420px): 2 kolom mulai berhimpitan — turunkan jadi 1 kolom vertikal. */
+    @media(max-width: 420px){ .metrics-grid { grid-template-columns: 1fr; } }
     .metric-card { background: rgba(30, 41, 59, 0.75); backdrop-filter: blur(10px); padding: 18px; border-radius: 20px; border: 1px solid var(--border); border-top: 4px solid var(--accent); position: relative; box-shadow: 0 8px 20px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.2s, background 0.2s, box-shadow 0.2s; }
     .metric-card:hover { transform: translateY(-3px); background: rgba(51, 65, 85, 0.9); box-shadow: 0 12px 30px rgba(59,130,246,0.25); }
     .metric-card.success { border-top-color: var(--success); }
@@ -163,16 +206,25 @@
     .badge-status.ongoing { background: rgba(245, 158, 11, 0.2); color: #fde68a; }
     .badge-status.completed { background: rgba(16, 185, 129, 0.2); color: #a7f3d0; }
 
-    /* SCANNER & OCR */
+    /* SCANNER & OCR — container fleksibel berbasis aspect-ratio (bukan tinggi tetap) supaya video
+       kamera tidak gepeng/distorsi di lebar layar apa pun, tetap center, dan menyesuaikan diri baik
+       saat HP portrait maupun landscape. */
     .barcode-section { background: rgba(30, 41, 59, 0.7); border: 1px solid var(--accent); }
-    .scanner-video-container { width: 100%; height: 200px; background: #000; border-radius: 14px; overflow: hidden; margin: 12px 0; display: none; }
+    .scanner-video-container { width: 100%; max-width: 480px; aspect-ratio: 4 / 3; height: auto; background: #000; border-radius: 14px; overflow: hidden; margin: 12px auto; display: none; }
     .scanner-video-container video { width: 100%; height: 100%; object-fit: cover; }
     #ocrStatus { font-size: 11px; font-weight: 600; color: #93c5fd; margin-top: 6px; }
 
-    /* ABSENSI FACE RECOGNITION CONTAINER */
-    .face-camera-box { position: relative; width: 100%; max-width: 320px; height: 240px; margin: 10px auto; background: #000; border-radius: 16px; overflow: hidden; border: 2px solid var(--accent); }
+    /* ABSENSI FACE RECOGNITION CONTAINER — sama, pakai aspect-ratio agar proporsional di semua ukuran layar. */
+    .face-camera-box { position: relative; width: 100%; max-width: 300px; aspect-ratio: 1 / 1; height: auto; margin: 10px auto; background: #000; border-radius: 50%; overflow: hidden; border: 4px solid var(--accent); box-shadow: 0 0 0 4px rgba(34,211,238,0.15); }
     .face-camera-box video { width: 100%; height: 100%; object-fit: cover; }
-    .face-camera-box canvas { position: absolute; top: 0; left: 0; }
+    .face-camera-box canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    .gps-gate-box { max-width: 360px; margin: 0 auto 14px; padding: 12px; border-radius: 12px; border: 1px dashed var(--border); text-align: center; }
+    /* Mode landscape di HP/tablet kecil: batasi lebar maksimum supaya kamera tidak jadi raksasa
+       memenuhi layar mendatar — tetap center dan proporsional. */
+    @media (orientation: landscape) and (max-width: 900px) {
+      .scanner-video-container { max-width: 380px; }
+      .face-camera-box { max-width: 240px; }
+    }
 
     /* TAMPILAN PATIENT LIST MOBILE — GRID 4 KOTAK ALA HANDPHONE (2 KOLOM) */
     .patient-carousel-container {
@@ -252,11 +304,41 @@
     table.bantex-table { width: 100%; border-collapse: collapse; font-size: 11px; color: var(--text); }
     table.bantex-table th, table.bantex-table td { border: 1px solid var(--border); padding: 10px; text-align: left; }
     table.bantex-table th { background-color: #0f172a; color: #fff; font-weight: 800; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; }
+
+    /* Tabel Daftar Pasien Utama (16 kolom, termasuk Diagnosis/Tindakan berteks panjang) — dipaksa
+       table-layout:fixed dengan lebar kolom dari <colgroup> di HTML, sehingga tabel SELALU pas
+       100% lebar container-nya (tidak pernah melebar ke luar / memicu scrollbar horizontal browser).
+       Teks panjang otomatis wrap ke bawah (bertambah tinggi baris), bukan mendorong tabel melebar. */
+    #bantexMainTable { table-layout: fixed; }
+    #bantexMainTable th, #bantexMainTable td { word-wrap: break-word; overflow-wrap: break-word; white-space: normal; }
+    #pasienTableContainer { overflow-x: hidden; }
     
     tr.status-selesai td { background-color: rgba(16, 185, 129, 0.12) !important; }
     tr.status-berlangsung td { background-color: rgba(37, 99, 235, 0.12) !important; }
     tr.status-urgency td { background-color: rgba(249, 115, 22, 0.12) !important; }
     tr.status-merah td { background-color: rgba(239, 68, 68, 0.12) !important; }
+
+    /* ================= TABEL -> KARTU DI HP (<=767px) =================
+       Semua tabel data (Realisasi DPJP, Skor Bulanan PPDS/IKVE, Log Audit, Master Residen, dsb —
+       bukan hanya daftar pasien utama yang sudah punya tampilan grid 4-kotak sendiri) otomatis
+       berubah dari tabel lebar menjadi deretan kartu vertikal, supaya tidak perlu scroll horizontal
+       di HP. Header kolom (th) disembunyikan, dan setiap sel (td) menampilkan label kolomnya lewat
+       atribut data-label (diisi otomatis oleh JS applyResponsiveTableLabels(), lihat script) —
+       jadi TIDAK perlu mengubah satupun fungsi render tabel yang sudah ada. */
+    @media (max-width: 767px) {
+      table.bantex-table thead { display: none; }
+      table.bantex-table, table.bantex-table tbody, table.bantex-table tr, table.bantex-table td { display: block; width: 100%; }
+      table.bantex-table { border: none; }
+      table.bantex-table tr { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: rgba(15,23,42,0.55); }
+      table.bantex-table tr:last-child { margin-bottom: 0; }
+      table.bantex-table td { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: right; border: none; border-bottom: 1px solid rgba(255,255,255,0.07); padding: 10px 12px; }
+      table.bantex-table td:last-child { border-bottom: none; }
+      table.bantex-table td[data-label]::before { content: attr(data-label); font-weight: 800; color: var(--text-light); text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.4px; text-align: left; margin-right: auto; padding-right: 10px; flex-shrink: 0; }
+      /* Baris "Tidak ada data"/colspan: tampilkan apa adanya, tanpa label kolom yang tidak relevan. */
+      table.bantex-table td[colspan] { display: block; text-align: center; }
+      table.bantex-table td[colspan]::before { content: none; }
+      table.bantex-table td input.input-text, table.bantex-table td input.input-time, table.bantex-table td select.select-status { max-width: 60%; text-align: right; }
+    }
 
     table.bantex-table input.input-text, table.bantex-table select.select-status, table.bantex-table input.input-time {
       background: rgba(15, 23, 42, 0.6);
@@ -265,6 +347,19 @@
       padding: 4px 6px;
       border-radius: 6px;
       font-size: 11px;
+    }
+
+    /* ================= FORM & TOMBOL DI HP (<=767px) =================
+       Font input WAJIB >=16px supaya Safari iOS/Chrome Android tidak auto-zoom saat kolom
+       diketuk (di bawah 16px, kedua browser itu otomatis memperbesar viewport). Tombol dibuat
+       lebih besar (tinggi minimum ala target sentuh 44px dari HIG/Material) agar mudah ditekan jempol. */
+    @media (max-width: 767px) {
+      .form-group input, .form-group select, .form-group textarea,
+      .login-input, input.input-text, input.input-time, select.select-status,
+      #usernameInput, #passwordInput { font-size: 16px; }
+      .form-group input, .form-group select, .form-group textarea { padding: 13px 14px; }
+      .btn, .btn-login { min-height: 46px; font-size: 14px; padding: 12px 16px; }
+      .menu-btn { min-width: 44px; min-height: 44px; font-size: 22px; }
     }
 
     /* BUTTONS */
@@ -350,8 +445,13 @@
       <select id="regResidenNameSelect" class="login-input" onchange="autoFillResidenUserPass()"></select>
     </div>
     <div class="form-group" id="manualNameGroup" style="text-align:left; display:none;">
-      <label style="color:var(--text-light); font-size:11px; font-weight:800;">Nama Lengkap & Gelar Konsulen:</label>
-      <input type="text" id="regNamaInput" class="login-input" placeholder="Contoh: Dr. dr. Syafri Kamsul, Sp.An" />
+      <label style="color:var(--text-light); font-size:11px; font-weight:800;">Pilih Nama dari Daftar Resmi DPJP (WAJIB agar notifikasi pasien Anda berfungsi):</label>
+      <select id="regKonsulenDPJPSelect" class="login-input" onchange="autoFillKonsulenUserPass()">
+        <option value="">-- Pilih Nama DPJP dari Daftar Resmi --</option>
+      </select>
+      <p style="font-size:9px; color:var(--text-light); margin:4px 0 8px 0; line-height:1.5;">Username Anda akan otomatis diisi dengan <b>kode DPJP resmi</b> (mis. "SKA") — ini WAJIB sama persis dengan kode di sistem penjadwalan, karena notifikasi Mulai/Selesai/PACU pasien Anda dikirim berdasarkan kode ini.</p>
+      <input type="text" id="regNamaInput" class="login-input" style="display:none;" placeholder="Nama tidak ada di daftar? Tulis nama lengkap & gelar di sini" />
+      <p id="regNamaManualWarning" style="display:none; font-size:9px; color:#fde68a; margin:4px 0 8px 0; line-height:1.5;">⚠️ Karena nama Anda belum ada di daftar resmi DPJP, notifikasi otomatis pasien (Mulai/Selesai/PACU) TIDAK akan berfungsi untuk akun ini sampai Admin menambahkan Anda ke daftar resmi dan Anda mendaftar ulang dengan memilih nama dari daftar.</p>
     </div>
     <input type="text" id="regUserInput" class="login-input" placeholder="Username / NIM (Otomatis/Manual)" />
     <input type="password" id="regPassInput" class="login-input" placeholder="Password / PIN" />
@@ -374,7 +474,7 @@
 <!-- APP HEADER WITH FUTURISTIC DESIGN -->
 <div class="app-header">
   <div style="display:flex; align-items:center; gap:14px;">
-    <button class="menu-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+    <button class="menu-btn" id="hamburgerBtn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
     <div class="app-brand-container">
       <div class="app-logo-icon"><i class="fa-solid fa-heart-pulse"></i></div>
       <div class="app-title-wrapper">
@@ -397,6 +497,7 @@
         <div id="notifBellList" style="overflow-y:auto; flex:1;"></div>
       </div>
     </div>
+    <button id="btnInstallPWA" class="btn btn-primary" style="display:none; padding:5px 10px; font-size:11px;" onclick="triggerInstallPWA()"><i class="fa-solid fa-mobile-screen-button"></i> Install App</button>
     <span id="userDisplayName" style="font-size:11px; font-weight:700; color:var(--text-light);"></span>
     <button class="btn btn-danger" style="padding:5px 10px; font-size:11px;" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
   </div>
@@ -704,9 +805,17 @@
       <!-- DAFTAR PASIEN MOBILE: GRID 4 KOTAK ALA HANDPHONE (TAP UNTUK EDIT) -->
       <div class="patient-carousel-container" id="patientCarousel"></div>
 
-      <!-- TABEL DAFTAR PASIEN DESKTOP -->
-      <div class="table-container">
-        <table class="bantex-table">
+      <!-- TABEL DAFTAR PASIEN DESKTOP — table-layout:fixed + colgroup lebar proporsional supaya
+           tabel selalu pas 100% lebar container (tidak overflow ke kanan / tidak butuh scrollbar
+           horizontal), dan kolom teks panjang (Diagnosis/Tindakan) otomatis wrap ke bawah. -->
+      <div class="table-container" id="pasienTableContainer">
+        <table class="bantex-table" id="bantexMainTable">
+          <colgroup>
+            <col style="width:3%"><col style="width:10%"><col style="width:5%"><col style="width:5%">
+            <col style="width:5%"><col style="width:8%"><col style="width:6%"><col style="width:12%">
+            <col style="width:11%"><col style="width:8%"><col style="width:4%"><col style="width:7%">
+            <col style="width:4%"><col style="width:4%"><col style="width:4%"><col style="width:4%">
+          </colgroup>
           <thead>
             <tr>
               <th>NO</th><th>Nama Pasien</th><th>RM</th><th>Divisi</th><th>Residen</th><th>DPJP Anestesi</th><th>Ruangan Asal Pasien</th><th>Diagnosis</th><th>Tindakan</th><th>DPJP Bedah</th><th>OK</th><th>Status</th><th>Mulai</th><th>Selesai</th><th>Masuk PACU</th><th>Keluar PACU</th>
@@ -882,15 +991,23 @@
   <div id="page-absensi" class="tab-page">
     <div class="card" style="background:rgba(30, 41, 59, 0.7); border-color:var(--accent);">
       <div class="card-title" style="color:var(--accent);"><i class="fa-solid fa-user-check"></i> Absensi Residen (Monre GPS & Face Recognition)</div>
-      <p style="font-size:11px; color:var(--text-light); margin-bottom:12px;">Posisikan wajah Anda pada kamera. Sistem akan memverifikasi Identitas Wajah dan Lokasi GPS secara bersamaan.</p>
-      
-      <div class="face-camera-box">
-        <video id="faceVideo" autoplay muted playsinline></video>
+      <p style="font-size:11px; color:var(--text-light); margin-bottom:12px;">Validasi 2 Faktor: (1) Lokasi GPS radius ≤50m dari Rumah Sakit wajib lolos terlebih dahulu, baru (2) Kamera Face ID akan aktif untuk verifikasi wajah.</p>
+
+      <div class="gps-gate-box" id="gpsGateBox">
+        <div style="font-size:28px;"><i class="fa-solid fa-satellite-dish"></i></div>
+        <div id="gpsGateStatus" style="font-weight:700; margin-top:6px; font-size:12px;">Menunggu izin lokasi GPS...</div>
+        <button class="btn btn-primary" id="btnCheckGPS" onclick="checkGPSBeforeFace()" style="margin-top:10px;"><i class="fa-solid fa-location-crosshairs"></i> Verifikasi Lokasi GPS</button>
       </div>
 
-      <div style="display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:10px;">
-        <button class="btn btn-primary" id="btnStartFaceCam" onclick="startFaceRecognitionCamera()"><i class="fa-solid fa-camera"></i> Buka Kamera Face ID</button>
-        <button class="btn btn-success" id="btnDoAttendance" onclick="doMonreAttendanceWithFace()" disabled><i class="fa-solid fa-crosshairs"></i> Absen Hadir Sekarang</button>
+      <div id="faceCamSection" style="display:none;">
+        <div class="face-camera-box">
+          <video id="faceVideo" autoplay muted playsinline></video>
+        </div>
+        <canvas id="faceCaptureCanvas" style="display:none;"></canvas>
+
+        <div style="display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap; margin-top:10px;">
+          <button class="btn btn-success" id="btnDoAttendance" onclick="doMonreAttendanceWithFace()" disabled><i class="fa-solid fa-crosshairs"></i> Absen Hadir Sekarang</button>
+        </div>
       </div>
 
       <div id="monreStatus" style="margin-top:12px; text-align:center; font-weight:700;"></div>
@@ -1333,6 +1450,10 @@
   }
 
   function switchPage(pageId) {
+    // Guard: akun DPJP (Konsulen) tidak diberi akses ke Kalkulator Pediatric, Absensi Monre,
+    // dan Link Sistem Eksternal meski dipanggil manual.
+    if (currentUserRole === 'konsulen' && (pageId === 'page-pediatric' || pageId === 'page-absensi' || pageId === 'page-link')) return;
+
     document.querySelectorAll('.tab-page').forEach(page => page.classList.remove('active-page'));
     document.querySelectorAll('.sidebar-menu a').forEach(nav => nav.classList.remove('active'));
 
@@ -1351,7 +1472,7 @@
     if (pageId === 'page-scanner') startCameraScanner();
     else stopCameraScanner();
 
-    if (pageId === 'page-absensi') startFaceRecognitionCamera();
+    if (pageId === 'page-absensi') resetAbsensiGate();
     else stopFaceCam();
   }
 
@@ -1371,7 +1492,7 @@
   const WA_API_TOKEN = "TOKEN_API_FONNTE_ANDA"; 
   const WA_GROUP_TARGET = "120363xxxxxxxxxx@g.us"; 
   const ADMIN_WA_NUMBER = "081234567890"; 
-  const MONRE_LAT = -5.1332; const MONRE_LNG = 119.4883; const MAX_RADIUS_METERS = 100;
+  const MONRE_LAT = -5.1332; const MONRE_LNG = 119.4883; const MAX_RADIUS_METERS = 50;
 
   const dpjpMapping = {
     "SKA": "Prof. DR. dr. Syafri Kamsul Arif, Sp.An-TI, Subsp.T.I (K), Subsp.An.Kv.(K)",
@@ -1673,6 +1794,38 @@
     MASTER_RESIDENTS.forEach(r => {
       sel.innerHTML += `<option value="${r.nama}|${r.inisial}">${r.nama} (${r.inisial})</option>`;
     });
+    initRegisterKonsulenDropdown();
+  }
+  // Daftar nama DPJP resmi diambil dari dpjpMapping (kode -> nama lengkap) — SUMBER YANG SAMA
+  // dipakai untuk mencocokkan notifikasi aktivitas pasien ke akun Konsulen (lihat notifyDPJPOnAction).
+  // Memilih dari daftar ini (bukan mengetik manual) memastikan username akun = kode DPJP resmi,
+  // sehingga notifikasi Mulai/Selesai/PACU pasti sampai ke akun yang benar.
+  function initRegisterKonsulenDropdown() {
+    const sel = document.getElementById('regKonsulenDPJPSelect');
+    if(!sel) return;
+    sel.innerHTML = '<option value="">-- Pilih Nama DPJP dari Daftar Resmi --</option>' +
+      Object.entries(dpjpMapping).map(([code, name]) => `<option value="${code}">${name} (${code})</option>`).join('') +
+      '<option value="__manual__">-- Nama saya tidak ada di daftar --</option>';
+  }
+  function autoFillKonsulenUserPass() {
+    const val = document.getElementById('regKonsulenDPJPSelect').value;
+    const manualInput = document.getElementById('regNamaInput');
+    const manualWarning = document.getElementById('regNamaManualWarning');
+    if (val === '__manual__') {
+      manualInput.style.display = 'block';
+      manualWarning.style.display = 'block';
+      manualInput.value = '';
+      document.getElementById('regUserInput').value = '';
+      document.getElementById('regPassInput').value = '';
+    } else if (val) {
+      manualInput.style.display = 'none';
+      manualWarning.style.display = 'none';
+      document.getElementById('regUserInput').value = val; // username = kode DPJP resmi (mis. "SKA")
+      document.getElementById('regPassInput').value = val + '123';
+    } else {
+      manualInput.style.display = 'none';
+      manualWarning.style.display = 'none';
+    }
   }
 
   function toggleRegisterNameInput() {
@@ -1714,22 +1867,32 @@
       if(!selVal) return alert("Pilih nama residen dari daftar!");
       nama = selVal.split('|')[0];
     } else {
-      nama = document.getElementById('regNamaInput').value.trim();
-      if(!nama) return alert("Masukkan nama lengkap konsulen!");
+      const dpjpVal = document.getElementById('regKonsulenDPJPSelect').value;
+      if (!dpjpVal) return alert("Pilih nama DPJP dari daftar resmi (atau pilih \"Nama saya tidak ada di daftar\")!");
+      if (dpjpVal === '__manual__') {
+        nama = document.getElementById('regNamaInput').value.trim();
+        if(!nama) return alert("Masukkan nama lengkap konsulen!");
+      } else {
+        nama = dpjpMapping[dpjpVal] || dpjpVal;
+      }
     }
 
     const user = document.getElementById('regUserInput').value.trim(); 
     const pass = document.getElementById('regPassInput').value.trim();
     if (!user || !pass) return alert("Mohon lengkapi username dan password!");
     
-    db.ref('users_accounts/' + user).set({ nama, username:user, password:pass, role:role, approved:false }, (err) => { 
-      if (!err) { 
+    // Semua role, TERMASUK Konsulen/DPJP, tetap wajib menunggu Approval Admin/Chief
+    // sebelum akun aktif (permintaan eksplisit: approval Admin tetap berlaku untuk semua akun).
+    db.ref('users_accounts/' + user).set({ nama, username:user, password:pass, role:role, approved:false }, (err) => {
+      if (!err) {
         const msg = `🚨 *PENDAFTARAN AKUN BARU (${role.toUpperCase()})*\n\nNama: ${nama}\nUsername: ${user}\n\nSilakan buka Panel Admin untuk memberikan Approval akses sistem.`;
         sendWhatsAppNotification(ADMIN_WA_NUMBER, msg);
 
-        document.getElementById('loginSuccess').style.display = 'block'; 
-        setTimeout(()=>switchAuthBox('login'), 2000); 
-      } 
+        const successEl = document.getElementById('loginSuccess');
+        successEl.style.display = 'block';
+        successEl.innerText = 'Berhasil Terdaftar! Menunggu Approval Admin.';
+        setTimeout(()=>switchAuthBox('login'), 2000);
+      }
     });
   }
 
@@ -1765,6 +1928,18 @@
       const isAdmin = isAdminLevel();
       const isKonsulen = (currentUserRole === "konsulen");
 
+      // Tema warna berbeda per role (Admin/Chief/Wakil Chief/Konsulen) supaya secara visual
+      // langsung terlihat sedang login sebagai akun apa — lihat aturan CSS [data-role="..."].
+      document.body.setAttribute('data-role', currentUserRole || 'residen');
+
+      // Akun Konsulen/DPJP: sembunyikan menu Absensi Monre (GPS & Face ID khusus residen jaga)
+      // dan Link Sistem Eksternal (Input Ruang OP / Pasien Emergensi — operasional residen),
+      // karena kedua menu ini tidak relevan untuk peran supervisi DPJP.
+      const navAbsensi = document.getElementById('nav-page-absensi');
+      const navLink = document.getElementById('nav-page-link');
+      if (navAbsensi) navAbsensi.style.display = isKonsulen ? 'none' : '';
+      if (navLink) navLink.style.display = isKonsulen ? 'none' : '';
+
       document.getElementById("menuAdminArea").style.display = isAdmin ? "block" : "none";
       if (isAdminLevel() && currentUserRole !== "admin") {
         const badgeHost = document.getElementById("nav-page-admin");
@@ -1788,6 +1963,11 @@
         const filterSel = document.getElementById('activeMonitorFilter');
         if (filterSel) { filterSel.value = 'dpjp'; }
       }
+
+      // Akun DPJP (Konsulen) tidak memerlukan menu Kalkulator Formula Anestesi Pediatric
+      // (menu ini khusus untuk kebutuhan klinis Residen di lapangan).
+      const navPediatric = document.getElementById('nav-page-pediatric');
+      if (navPediatric) navPediatric.style.display = (currentUserRole === 'konsulen') ? 'none' : '';
 
       db.ref('master_residents').on('value', snap => {
         if(snap.exists()) {
@@ -1874,9 +2054,64 @@
     safeSession.clear(); location.reload();
   }
 
-  // ABSENSI GPS & FACE RECOGNITION
+  // ABSENSI GPS & FACE RECOGNITION (2-Faktor: GPS Geofence dahulu, baru Face ID)
   let faceStream = null;
   let isFaceVerified = false;
+  let gpsGateVerifiedDistance = null; // meter, null jika belum lolos GPS
+  let capturedFacePhotoBase64 = null;
+
+  function resetAbsensiGate() {
+    stopFaceCam();
+    isFaceVerified = false;
+    gpsGateVerifiedDistance = null;
+    capturedFacePhotoBase64 = null;
+    const faceSec = document.getElementById('faceCamSection');
+    const gateBox = document.getElementById('gpsGateBox');
+    const gateStatus = document.getElementById('gpsGateStatus');
+    const monreStatus = document.getElementById('monreStatus');
+    if (faceSec) faceSec.style.display = 'none';
+    if (gateBox) gateBox.style.display = 'block';
+    if (gateStatus) { gateStatus.style.color = ''; gateStatus.innerText = 'Menunggu izin lokasi GPS...'; }
+    if (monreStatus) monreStatus.innerText = '';
+  }
+
+  function checkGPSBeforeFace() {
+    const gateStatus = document.getElementById('gpsGateStatus');
+    const btnGPS = document.getElementById('btnCheckGPS');
+    if (!("geolocation" in navigator)) {
+      gateStatus.style.color = 'var(--danger)';
+      gateStatus.innerText = '⚠️ GPS Tidak Didukung Perangkat Ini. Absensi Ditolak.';
+      return;
+    }
+    gateStatus.style.color = 'var(--accent)';
+    gateStatus.innerText = '📡 Mengambil koordinat GPS presisi...';
+    if (btnGPS) btnGPS.disabled = true;
+
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const d = calculateDistanceMeters(pos.coords.latitude, pos.coords.longitude, MONRE_LAT, MONRE_LNG);
+      if (btnGPS) btnGPS.disabled = false;
+
+      if (d <= MAX_RADIUS_METERS) {
+        // FAKTOR 1 (GPS) LOLOS -> buka FAKTOR 2 (Face ID)
+        gpsGateVerifiedDistance = d;
+        gateStatus.style.color = 'var(--success)';
+        gateStatus.innerText = `✅ Lokasi GPS Terverifikasi (${Math.round(d)}m dari RS). Membuka Kamera Face ID...`;
+        document.getElementById('gpsGateBox').style.display = 'none';
+        document.getElementById('faceCamSection').style.display = 'block';
+        startFaceRecognitionCamera();
+      } else {
+        // FAKTOR 1 GAGAL -> sistem terkunci, absensi otomatis ditolak, Face ID TIDAK dibuka
+        gpsGateVerifiedDistance = null;
+        gateStatus.style.color = 'var(--danger)';
+        gateStatus.innerText = `❌ DITOLAK OTOMATIS: Anda berada ${Math.round(d)}m dari lokasi RS (radius maksimal ${MAX_RADIUS_METERS}m). Sistem Terkunci — Face ID tidak diaktifkan.`;
+        autoRecordDisciplineViolation(currentUsername, "DIS-02", `Absen di luar lokasi/radius Monre (${Math.round(d)} meter dari lokasi, radius izin ${MAX_RADIUS_METERS}m)`);
+      }
+    }, () => {
+      if (btnGPS) btnGPS.disabled = false;
+      gateStatus.style.color = 'var(--danger)';
+      gateStatus.innerText = '⚠️ Akses GPS Ditolak. Absensi tidak dapat dilanjutkan tanpa verifikasi lokasi.';
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  }
 
   async function startFaceRecognitionCamera() {
     const el = document.getElementById('monreStatus');
@@ -1914,15 +2149,17 @@
       const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions());
       if (detections.length > 0) {
         isFaceVerified = true;
+        captureFacePhoto(video);
         el.style.color = 'var(--success)';
-        el.innerText = '✅ Wajah Terdeteksi! Silakan Klik "Absen Hadir Sekarang".';
+        el.innerText = '✅ Wajah Terdeteksi & Foto Diambil! Silakan Klik "Absen Hadir Sekarang".';
         btnAbsen.disabled = false;
         return;
       }
     } else {
       isFaceVerified = true;
+      captureFacePhoto(video);
       el.style.color = 'var(--success)';
-      el.innerText = '✅ Kamera Siap. Klik "Absen Hadir Sekarang".';
+      el.innerText = '✅ Kamera Siap & Foto Diambil. Klik "Absen Hadir Sekarang".';
       btnAbsen.disabled = false;
       return;
     }
@@ -1939,50 +2176,57 @@
     if(btnAbsen) btnAbsen.disabled = true;
   }
 
+  // Faktor 2: ambil frame wajah dari video -> base64 (canvas.toDataURL), siap dikirim ke backend
+  function captureFacePhoto(video) {
+    try {
+      const canvas = document.getElementById('faceCaptureCanvas');
+      if (!canvas || !video || !video.videoWidth) return;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      capturedFacePhotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+    } catch (ex) {
+      console.error('Gagal mengambil foto wajah:', ex);
+    }
+  }
+
+  // Absensi FINAL: hanya boleh berjalan setelah Faktor 1 (GPS <=50m) lolos DAN Faktor 2 (Face ID) terverifikasi.
+  // GPS TIDAK dicek ulang di sini agar konsisten dengan lokasi yang sudah divalidasi saat gate dibuka.
   function doMonreAttendanceWithFace() {
     const el = document.getElementById('monreStatus');
+
+    if (gpsGateVerifiedDistance === null) {
+      el.style.color = 'var(--danger)';
+      el.innerText = '❌ Lokasi GPS belum/tidak terverifikasi (radius >50m). Absensi Ditolak.';
+      return;
+    }
     if (!isFaceVerified) {
       el.style.color = 'var(--danger)';
-      el.innerText = '❌ Verifikasi Wajah Gagal. Pastikan Wajah Terlihat Jelas.';
+      el.innerText = '❌ Verifikasi Wajah (Face ID) Gagal. Pastikan Wajah Terlihat Jelas.';
       return;
     }
 
-    el.style.color = 'var(--accent)';
-    el.innerText = '🔍 Memverifikasi GPS...';
+    const d = gpsGateVerifiedDistance;
+    const now = new Date();
+    const tStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    const dStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const isLate = now.getHours() > 7 || (now.getHours() === 7 && now.getMinutes() > 10);
+    const payloadBase = { residen: currentUsername, waktu: tStr, jarakMeters: Math.round(d), faceVerified: true, fotoWajahBase64: capturedFacePhotoBase64 || '' };
 
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const d = calculateDistanceMeters(pos.coords.latitude, pos.coords.longitude, MONRE_LAT, MONRE_LNG);
-        const now = new Date();
-        const tStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-        const dStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-        const isLate = now.getHours() > 7 || (now.getHours() === 7 && now.getMinutes() > 10);
-
-        if (d <= MAX_RADIUS_METERS) {
-          if (!isLate) {
-            el.style.color = 'var(--success)';
-            el.innerText = `✅ SUKSES HADIR TEPAT WAKTU (${Math.round(d)}m) Jam ${tStr}`;
-            db.ref(`attendance_logs/${dStr}/${currentUsername}`).set({ residen: currentUsername, waktu: tStr, jarakMeters: Math.round(d), status: "Hadir Tepat Waktu", faceVerified: true });
-          } else {
-            el.style.color = 'var(--warning)';
-            el.innerText = `⚠️ TERLAMBAT (${Math.round(d)}m) Jam ${tStr}. Terintegrasi ke Pelaporan Disiplin IKVE.`;
-            db.ref(`attendance_logs/${dStr}/${currentUsername}`).set({ residen: currentUsername, waktu: tStr, jarakMeters: Math.round(d), status: "Terlambat", faceVerified: true });
-            
-            autoRecordDisciplineViolation(currentUsername, "DIS-01", `Terlambat Absen Morning Report (Jam: ${tStr}, Radius: ${Math.round(d)}m)`);
-          }
-        } else {
-          el.style.color = 'var(--danger)';
-          el.innerText = `❌ DITOLAK: Di luar radius (${Math.round(d)}m). Terintegrasi ke Pelaporan Disiplin.`;
-          
-          autoRecordDisciplineViolation(currentUsername, "DIS-02", `Absen di luar lokasi/radius Monre (${Math.round(d)} meter dari lokasi)`);
-        }
-      }, () => {
-        el.style.color = 'var(--danger)';
-        el.innerText = '⚠️ Akses GPS Ditolak.';
-      });
+    if (!isLate) {
+      el.style.color = 'var(--success)';
+      el.innerText = `✅ SUKSES HADIR TEPAT WAKTU (GPS ${Math.round(d)}m, Face ID Terverifikasi) Jam ${tStr}`;
+      db.ref(`attendance_logs/${dStr}/${currentUsername}`).set({ ...payloadBase, status: "Hadir Tepat Waktu" });
     } else {
-      el.innerText = '⚠️ GPS Tidak Didukung.';
+      el.style.color = 'var(--warning)';
+      el.innerText = `⚠️ TERLAMBAT (GPS ${Math.round(d)}m) Jam ${tStr}. Terintegrasi ke Pelaporan Disiplin IKVE.`;
+      db.ref(`attendance_logs/${dStr}/${currentUsername}`).set({ ...payloadBase, status: "Terlambat" });
+      autoRecordDisciplineViolation(currentUsername, "DIS-01", `Terlambat Absen Morning Report (Jam: ${tStr}, Radius: ${Math.round(d)}m)`);
     }
+
+    const btnAbsen = document.getElementById('btnDoAttendance');
+    if (btnAbsen) btnAbsen.disabled = true;
   }
 
   function autoRecordDisciplineViolation(inisialUpper, kode, deskripsiStr) {
@@ -3228,7 +3472,8 @@
       nama: s(p.nama), rm: s(p.rm), residen: s(p.residen), dpjpAnestesi: s(p.dpjpAnestesi),
       kamar: s(p.kamar), divisi: s(p.divisi), diagnosis: s(p.diagnosis), rencanaTindakan: s(p.rencanaTindakan),
       dpjpBedah: s(p.dpjpBedah), ok: s(p.ok), tujuanRawat: s(p.tujuanRawat), statusCatatan: s(p.statusCatatan),
-      mulai: s(p.mulai), selesai: s(p.selesai), masukPacu: s(p.masukPacu), keluarPacu: s(p.keluarPacu)
+      mulai: s(p.mulai), selesai: s(p.selesai), masukPacu: s(p.masukPacu), keluarPacu: s(p.keluarPacu),
+      catatanKlinis: s(p.catatanKlinis)
     };
   }
   function normalizeSheetsData(raw) {
@@ -3449,14 +3694,30 @@
   // Detail lengkap saat satu kartu pasien di Live Monitoring (Antrian/Berlangsung/Selesai) diklik.
   // Menggunakan modal analytics yang sama dengan detail ICU/HCU agar konsisten, dan menampilkan
   // apakah sumber datanya dari Pasien Utama (Elektif) atau Emergency/Urgency Jaga.
+  // Tentukan tahap saat ini (Pre-Op/Running/PACU/Selesai) dari field waktu yang sudah terisi.
+  function deriveLiveMonitorStage(p) {
+    const hasSelesai = (p.selesai && p.selesai.trim() !== '') || (p.statusCatatan||'').toLowerCase().includes('sudah dikerja') || p.statusEmergencyTahap === 'selesai';
+    const hasPacu = p.masukPacu && p.masukPacu.trim() !== '';
+    const hasMulai = (p.mulai && p.mulai.trim() !== '') || p.statusEmergencyTahap === 'sedang_berlangsung';
+    if (hasSelesai) return 'selesai';
+    if (hasPacu) return 'pacu';
+    if (hasMulai) return 'running';
+    return 'preop';
+  }
+
+  // Klik satu baris/kartu pasien di Live Monitoring -> modal pop-up (tanpa reload halaman) berisi
+  // detail LENGKAP + form interaktif untuk langsung mengubah tahap pasien (Pre-Op/Running/PACU/
+  // Selesai) dan menambahkan catatan klinis tambahan, baik untuk pasien sumber Elektif maupun
+  // Emergency/Urgency — disimpan kembali ke sumber data aslinya masing-masing.
   function openActiveMonitorDetail(storeIdx) {
     const p = activeMonitorPatientStore[storeIdx];
     if (!p) return;
     const modal = document.getElementById('analyticsModal');
     const isEmg = p.source === 'EMERGENCY';
-    document.getElementById('analyticsModalTitle').innerHTML = `<i class="fa-solid fa-user-clock"></i> Detail Pasien Live Monitoring ${isEmg ? '(Emergency/Urgency)' : '(Elektif)'}`;
+    const stage = deriveLiveMonitorStage(p);
+    document.getElementById('analyticsModalTitle').innerHTML = `<i class="fa-solid fa-user-clock"></i> Detail & Edit Pasien Live Monitoring ${isEmg ? '(Emergency/Urgency)' : '(Elektif)'}`;
     document.getElementById('analyticsModalBody').innerHTML = `
-      <table class="data-table" style="width:100%;">
+      <table class="data-table" style="width:100%; margin-bottom:14px;">
         <tbody>
           <tr><td style="font-weight:700; width:35%;">Nama</td><td>${p.nama || '-'}</td></tr>
           <tr><td style="font-weight:700;">No. RM</td><td>${p.rm || '-'}</td></tr>
@@ -3469,7 +3730,6 @@
           <tr><td style="font-weight:700;">Kamar Operasi (OK)</td><td>${p.ok || '-'}</td></tr>
           <tr><td style="font-weight:700;">Diagnosis</td><td>${(p.diagnosis || p.tindakan_diagnosis || '-')}</td></tr>
           <tr><td style="font-weight:700;">Rencana Tindakan</td><td>${(p.rencanaTindakan || p.tindakan || '-')}</td></tr>
-          <tr><td style="font-weight:700;">Status Laporan</td><td>${p.statusCatatan || p.statusEmergencyTahap || '-'}</td></tr>
           <tr><td style="font-weight:700;">Jam Mulai</td><td>${p.mulai || '-'}</td></tr>
           <tr><td style="font-weight:700;">Jam Selesai</td><td>${p.selesai || '-'}</td></tr>
           <tr><td style="font-weight:700;">Masuk PACU</td><td>${p.masukPacu || '-'}</td></tr>
@@ -3477,8 +3737,83 @@
           <tr><td style="font-weight:700;">Tujuan Rawat</td><td>${p.tujuanRawat || '-'}</td></tr>
         </tbody>
       </table>
+      <div style="background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.3); border-radius:12px; padding:14px;">
+        <div style="font-weight:800; font-size:12px; color:#93c5fd; margin-bottom:10px;"><i class="fa-solid fa-pen-to-square"></i> Edit Cepat Status Pasien</div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label>Tahap Pasien</label>
+          <select id="lmEditStage">
+            <option value="preop" ${stage==='preop'?'selected':''}>Pre-Op (Belum Mulai)</option>
+            <option value="running" ${stage==='running'?'selected':''}>Running (Sedang Berlangsung)</option>
+            <option value="pacu" ${stage==='pacu'?'selected':''}>PACU (Ruang Pemulihan)</option>
+            <option value="selesai" ${stage==='selesai'?'selected':''}>Selesai</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label>Catatan Klinis Tambahan</label>
+          <textarea id="lmEditCatatan" rows="3" placeholder="Catatan tambahan (opsional)...">${p.catatanKlinis || ''}</textarea>
+        </div>
+        <button class="btn btn-success" style="width:100%;" onclick="saveLiveMonitorEdit(${storeIdx})"><i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan</button>
+      </div>
     `;
     modal.style.display = 'flex';
+  }
+
+  // Simpan perubahan tahap + catatan klinis dari modal Live Monitoring, ke sumber data aslinya
+  // (activeSheetData untuk Elektif, emergency_patients untuk Emergency/Urgency) — memakai jalur
+  // simpan & notifikasi yang SAMA dengan Edit Cepat Pasien/Quick Edit lainnya di sistem, supaya
+  // tetap konsisten (normalisasi anti-undefined, notifikasi DPJP, sinkronisasi urgency, dsb).
+  function saveLiveMonitorEdit(storeIdx) {
+    const p = activeMonitorPatientStore[storeIdx];
+    if (!p) return;
+    const stage = document.getElementById('lmEditStage').value;
+    const catatan = document.getElementById('lmEditCatatan').value.trim();
+    const nowWITA = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Makassar' }));
+    const HHMM = `${String(nowWITA.getHours()).padStart(2,'0')}:${String(nowWITA.getMinutes()).padStart(2,'0')}`;
+
+    if (p.source === 'EMERGENCY') {
+      db.ref('emergency_patients').transaction(currentVal => {
+        let data = toArraySafe(currentVal);
+        const idx = data.findIndex(x => x.id === p.id);
+        if (idx === -1) return data;
+        const rec = data[idx];
+        rec.catatanKlinis = catatan;
+        if (stage === 'running' || stage === 'pacu' || stage === 'selesai') {
+          if (!rec.mulai) rec.mulai = HHMM;
+          rec.statusType = rec.statusType === 'completed' ? 'completed' : 'ongoing';
+          if (rec.statusEmergencyTahap !== 'selesai') rec.statusEmergencyTahap = 'sedang_berlangsung';
+        }
+        if (stage === 'pacu' && !rec.masukPacu) rec.masukPacu = HHMM;
+        if (stage === 'selesai') {
+          if (!rec.selesai) rec.selesai = HHMM;
+          rec.statusType = 'completed';
+          rec.statusEmergencyTahap = 'selesai';
+        }
+        data[idx] = rec;
+        return data;
+      }, (error, committed) => {
+        if (error) { alert('⚠️ Gagal menyimpan perubahan: ' + (error.message||error)); return; }
+        if (committed) { closeAnalyticsModal(); }
+      });
+    } else {
+      const idx = activeSheetData.findIndex(x => x.rm === p.rm && x.nama === p.nama);
+      if (idx === -1) { alert('⚠️ Data pasien tidak ditemukan lagi di Papan Utama (mungkin sudah diubah pihak lain) — silakan tutup dan buka ulang.'); return; }
+      const rec = activeSheetData[idx];
+      rec.catatanKlinis = catatan;
+      if (stage === 'running' || stage === 'pacu' || stage === 'selesai') {
+        if (!rec.mulai) { rec.mulai = HHMM; applyAutoStatusOnMulai(rec); notifyDPJPOnAction(rec, `Running (${HHMM})`); }
+      }
+      if (stage === 'pacu' && !rec.masukPacu) { rec.masukPacu = HHMM; notifyDPJPOnAction(rec, `Masuk PACU (${HHMM})`); }
+      if (stage === 'selesai') {
+        if (!rec.selesai) { rec.selesai = HHMM; notifyDPJPOnAction(rec, `Selesai (${HHMM})`); }
+        rec.statusCatatan = 'Sudah dikerja';
+        recordDPJPExecutionToFirebase(rec);
+      }
+      syncUrgencyStatusToEmergencySystem(rec);
+      saveAllSheetsData(() => {
+        renderActiveStatusLists(); renderBantexTable(); recalculateDashboardAndReport();
+        closeAnalyticsModal();
+      });
+    }
   }
 
   function renderMonthlyDPJPReport() {
@@ -3642,13 +3977,22 @@
     const commandMonitorBody = document.getElementById('commandMonitorBody'); commandMonitorBody.innerHTML='';
 
     const fd=document.getElementById('filterDivisi').value, fr=document.getElementById('filterResiden').value, fp=document.getElementById('filterDPJP').value, kw=document.getElementById('searchKeyword').value.toUpperCase();
-    const flt = activeSheetData.filter(p => (!fd||p.divisi===fd) && (!fr||p.residen===fr) && (!fp||p.dpjpAnestesi===fp) && (!kw||`${p.nama} ${p.rm} ${p.dpjpAnestesi} ${p.residen} ${p.divisi} ${p.kamar}`.toUpperCase().includes(kw)));
+
+    // "PASIEN SAYA SAJA" — akun Konsulen/DPJP HANYA melihat pasien di bawah bimbingannya sendiri
+    // di SELURUH tabel Pasien & Operasi (bukan hanya Live Monitoring), setara logika
+    // "WHERE dpjp_id = session_id" pada backend. Ini enforcement, bukan sekadar filter default,
+    // supaya data pasien divisi lain tidak bocor ke akun DPJP yang tidak berkepentingan.
+    const baseData = (currentUserRole === 'konsulen')
+      ? activeSheetData.filter(p => (p.dpjpAnestesi || '').toUpperCase().includes(currentUsername.toUpperCase().trim()))
+      : activeSheetData;
+
+    const flt = baseData.filter(p => (!fd||p.divisi===fd) && (!fr||p.residen===fr) && (!fp||p.dpjpAnestesi===fp) && (!kw||`${p.nama} ${p.rm} ${p.dpjpAnestesi} ${p.residen} ${p.divisi} ${p.kamar}`.toUpperCase().includes(kw)));
 
     // 1. Masukkan Pasien Berlangsung ke Dashboard Table
     let runningPatientsForDashboard = [];
 
-    // Dari Pasien Elektif yang sedang berlangsung
-    activeSheetData.forEach(p => {
+    // Dari Pasien Elektif yang sedang berlangsung (tunduk juga pada enforcement "Pasien Saya Saja" DPJP)
+    baseData.forEach(p => {
       const isSelesai = (p.selesai && p.selesai.trim() !== '') || (p.statusCatatan && p.statusCatatan.toLowerCase().includes('sudah dikerja'));
       const isMulai = p.mulai && p.mulai.trim() !== '';
       if (isMulai && !isSelesai) {
@@ -3657,7 +4001,10 @@
     });
 
     // Dari Pasien Emergency yang sedang berlangsung
-    emergencyPatientsList.forEach(p => {
+    const emergencyBaseForDashboard = (currentUserRole === 'konsulen')
+      ? emergencyPatientsList.filter(p => (p.dpjpAnestesi || '').toUpperCase().includes(currentUsername.toUpperCase().trim()))
+      : emergencyPatientsList;
+    emergencyBaseForDashboard.forEach(p => {
       const isOngoing = p.statusType === 'ongoing' || p.statusEmergencyTahap === 'sedang_berlangsung' || (p.mulai && p.mulai.trim() !== '');
       const isSelesai = p.statusType === 'completed' || p.statusEmergencyTahap === 'selesai';
       if (isOngoing && !isSelesai) {
@@ -4156,11 +4503,20 @@
   function renderICUHCUList() {
     const buckets = { ICU: [], HCU: [], NICU: [], PICU: [] };
     icuHcuPatientDetailStore = [];
-    activeSheetData.forEach(p => {
+
+    // Enforcement "Pasien Saya Saja" untuk akun Konsulen/DPJP juga berlaku di list ICU/HCU/NICU/PICU.
+    const icuBaseElektif = (currentUserRole === 'konsulen')
+      ? activeSheetData.filter(p => (p.dpjpAnestesi || '').toUpperCase().includes(currentUsername.toUpperCase().trim()))
+      : activeSheetData;
+    const icuBaseEmergency = (currentUserRole === 'konsulen')
+      ? emergencyPatientsList.filter(p => (p.dpjpAnestesi || '').toUpperCase().includes(currentUsername.toUpperCase().trim()))
+      : emergencyPatientsList;
+
+    icuBaseElektif.forEach(p => {
       const c = detectICUCategory(p);
       if (c) buckets[c].push({ nama: p.nama, rm: p.rm, divisi: p.divisi, dpjpAnestesi: p.dpjpAnestesi, sumber: 'Pasien Utama', full: p, category: c });
     });
-    emergencyPatientsList.forEach(p => {
+    icuBaseEmergency.forEach(p => {
       const c = detectICUCategory(p);
       if (c) buckets[c].push({ nama: p.nama, rm: p.rm, divisi: p.divisi, dpjpAnestesi: p.dpjpAnestesi, sumber: 'Emergency/Urgency', full: p, category: c });
     });
@@ -4646,7 +5002,7 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
               </span>
             </td>
             <td>
-              <button onclick="alert('Alur Tabayyun (Klarifikasi 1x24 Jam) aktif untuk ${r.nama}. Status verifikasi dapat dikoordinasikan langsung dengan KPS / Konsulen.')" style="background:#334155; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px;">
+              <button onclick="openTabayyunModal('${r.inisial}', '${r.nama.replace(/'/g,"\\'")}')" style="background:#334155; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer; font-size:11px;">
                 🔍 Klarifikasi 24J
               </button>
             </td>
@@ -4660,7 +5016,167 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
     });
   }
 
+  // ================= ALUR TABAYYUN (KLARIFIKASI 1x24 JAM) — KEKUATAN HUKUM DPJP =================
+  // DPJP/Konsulen memberikan putusan per-catatan pelanggaran: "Sah/Terbukti" atau
+  // "Dibatalkan (Klarifikasi Terbukti Darurat Medis)". Jika dibatalkan, catatan supervisi
+  // legal-medis (textarea) WAJIB diisi agar keputusan punya kekuatan hukum di audit log sistem.
+  function openTabayyunModal(inisial, namaResiden) {
+    const now = new Date();
+    const mStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+    db.ref(`ikve_records/${mStr}/${inisial}`).once('value', snap => {
+      const data = snap.val() || {};
+      const records = Object.keys(data).map(k => ({ key: k, ...data[k] }))
+        .filter(rec => rec.domain !== 'POS'); // hanya pelanggaran (DIS/SAF/ETI) yang butuh Tabayyun
+
+      const titleEl = document.getElementById('analyticsModalTitle');
+      const bodyEl = document.getElementById('analyticsModalBody');
+      titleEl.innerHTML = `<i class="fa-solid fa-scale-balanced"></i> Tabayyun (Klarifikasi 1x24 Jam) — ${namaResiden}`;
+
+      if (records.length === 0) {
+        bodyEl.innerHTML = '<p style="color:#94a3b8;">Tidak ada catatan pelanggaran bulan ini yang memerlukan klarifikasi DPJP.</p>';
+      } else {
+        bodyEl.innerHTML = records.map(rec => `
+          <div style="background:rgba(15,23,42,0.6); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:12px;">
+            <div style="font-size:11px; color:#94a3b8; margin-bottom:4px;">${rec.waktu} • Domain: <b>${rec.domain}</b> (${rec.skor > 0 ? '+' : ''}${rec.skor} poin) • Status saat ini: <b>${rec.tahap || '-'}</b></div>
+            <div style="font-size:12px; margin-bottom:8px;">${(rec.deskripsi || '').replace(/</g,'&lt;')}</div>
+            <div class="form-group" style="margin-bottom:6px;">
+              <label style="font-size:11px;">Putusan Klarifikasi DPJP:</label>
+              <select id="tby_verdict_${rec.key}" class="login-input" onchange="toggleTabayyunCatatanRequired('${rec.key}')">
+                <option value="Tahap 3: Tervalidasi" ${rec.tahap === 'Tahap 3: Tervalidasi' ? 'selected' : ''}>Sah/Terbukti (Tervalidasi)</option>
+                <option value="Dibatalkan" ${rec.tahap === 'Dibatalkan' ? 'selected' : ''}>Dibatalkan (Klarifikasi Terbukti Darurat Medis)</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin-bottom:6px;">
+              <label style="font-size:11px;">Catatan Supervisi Legal-Medis <span id="tby_req_${rec.key}" style="color:var(--danger);"></span>:</label>
+              <textarea id="tby_catatan_${rec.key}" class="login-input" rows="2" placeholder="Wajib diisi jika dibatalkan: dasar medis/legal keputusan...">${rec.catatanSupervisiDPJP || ''}</textarea>
+            </div>
+            <button class="btn btn-primary" style="padding:6px 12px; font-size:11px;" onclick="saveTabayyunVerdict('${mStr}','${inisial}','${rec.key}')"><i class="fa-solid fa-gavel"></i> Simpan Putusan</button>
+            <span id="tby_saved_${rec.key}" style="font-size:11px; color:var(--success); margin-left:8px;"></span>
+          </div>
+        `).join('');
+      }
+
+      document.getElementById('analyticsModal').style.display = 'flex';
+    });
+  }
+
+  function toggleTabayyunCatatanRequired(recKey) {
+    const verdict = document.getElementById(`tby_verdict_${recKey}`).value;
+    const reqLabel = document.getElementById(`tby_req_${recKey}`);
+    if (reqLabel) reqLabel.innerText = verdict === 'Dibatalkan' ? '(WAJIB DIISI)' : '';
+  }
+
+  function saveTabayyunVerdict(mStr, inisial, recKey) {
+    const verdictEl = document.getElementById(`tby_verdict_${recKey}`);
+    const catatanEl = document.getElementById(`tby_catatan_${recKey}`);
+    const savedEl = document.getElementById(`tby_saved_${recKey}`);
+    const verdict = verdictEl.value;
+    const catatan = catatanEl.value.trim();
+
+    // Validasi JS: jika DPJP membatalkan sanksi, catatan supervisi legal-medis WAJIB diisi
+    // agar pembatalan memiliki kekuatan hukum yang tercatat di audit log.
+    if (verdict === 'Dibatalkan' && !catatan) {
+      alert('⚠️ Catatan Supervisi Legal-Medis WAJIB diisi jika memutuskan "Dibatalkan (Klarifikasi Terbukti Darurat Medis)". Keputusan pembatalan tanpa dasar tertulis tidak dapat disimpan.');
+      catatanEl.focus();
+      return;
+    }
+
+    const updatePayload = {
+      tahap: verdict,
+      statusKlarifikasi: verdict === 'Dibatalkan' ? 'Dibatalkan (Klarifikasi Darurat Medis)' : 'Tervalidasi (Tabayyun Selesai)',
+      catatanSupervisiDPJP: catatan,
+      diputuskanOleh: roleLabel(currentUserRole) + (currentUsername ? ` (${currentUsername})` : ''),
+      waktuPutusan: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' })
+    };
+
+    db.ref(`ikve_records/${mStr}/${inisial}/${recKey}`).update(updatePayload, (err) => {
+      if (err) {
+        alert('⚠️ Gagal menyimpan putusan Tabayyun: ' + (err.message || err));
+        return;
+      }
+      if (savedEl) savedEl.innerText = '✅ Tersimpan ke audit log.';
+    });
+  }
+
+  // ================= RESPONSIVE TABLE -> CARD DI HP: AUTO-LABEL SEL TABEL =================
+  // Supaya CSS "table.bantex-table td[data-label]::before { content: attr(data-label) }" di atas
+  // bisa menampilkan nama kolom di depan tiap nilai saat tabel berubah jadi kartu di layar HP,
+  // setiap <td> butuh atribut data-label berisi teks header kolomnya (dari <th> yang sepadan).
+  // Daripada mengedit SATU-PERSATU puluhan fungsi render tabel yang sudah ada (Realisasi DPJP, Skor
+  // IKVE Bulanan, Log Audit, Master Residen, dsb — yang semuanya membangun ulang <tbody> lewat
+  // innerHTML kapan saja data Firebase berubah), dipasang MutationObserver global yang otomatis
+  // memberi label ulang setiap kali ada tabel yang isinya berubah. Jadi kompatibel otomatis dengan
+  // tabel BARU yang ditambahkan di masa depan juga, selama memakai class "bantex-table".
+  function applyResponsiveTableLabels(root) {
+    (root || document).querySelectorAll('table.bantex-table').forEach(table => {
+      const headThs = table.querySelectorAll('thead th');
+      if (!headThs.length) return;
+      const labels = Array.from(headThs).map(th => th.textContent.trim());
+      table.querySelectorAll('tbody tr').forEach(tr => {
+        Array.from(tr.children).forEach((td, i) => {
+          if (td.hasAttribute('colspan')) return; // baris "Tidak ada data" dsb — tidak perlu label
+          if (labels[i] !== undefined && td.getAttribute('data-label') !== labels[i]) {
+            td.setAttribute('data-label', labels[i]);
+          }
+        });
+      });
+    });
+  }
+  let _tableLabelPending = false;
+  const _tableLabelObserver = new MutationObserver(() => {
+    // Debounce lewat requestAnimationFrame: banyak tabel bisa update beberapa kali dalam satu
+    // "tick" (mis. saat listenRealtimeData menembak beberapa render sekaligus) — cukup label ulang
+    // sekali per frame, bukan per mutation, supaya tidak membebani.
+    if (_tableLabelPending) return;
+    _tableLabelPending = true;
+    requestAnimationFrame(() => { _tableLabelPending = false; applyResponsiveTableLabels(); });
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    applyResponsiveTableLabels();
+    _tableLabelObserver.observe(document.body, { childList: true, subtree: true });
+  });
+
   window.onload = checkSession;
+
+  // ================= PWA: REGISTRASI SERVICE WORKER & TOMBOL INSTALL =================
+  // Butuh app.html diakses lewat HTTPS (atau localhost) dengan manifest.json, service-worker.js,
+  // dan icon-*.png satu folder. Dibungkus try/catch supaya TIDAK mengganggu aplikasi utama jika
+  // dibuka lewat file:// (mis. saat development) di mana Service Worker memang tidak diizinkan browser.
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js').catch((err) => {
+        console.warn('Registrasi Service Worker (PWA) gagal:', err);
+      });
+    });
+  }
+
+  let deferredInstallPromptEvent = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPromptEvent = e;
+    const btn = document.getElementById('btnInstallPWA');
+    if (btn) btn.style.display = 'inline-flex';
+  });
+
+  function triggerInstallPWA() {
+    if (!deferredInstallPromptEvent) {
+      alert('Aplikasi sudah terinstal, atau browser Anda belum mendukung instalasi otomatis.\nAlternatif: buka menu browser (⋮) lalu pilih "Tambahkan ke Layar Utama" / "Install App".');
+      return;
+    }
+    deferredInstallPromptEvent.prompt();
+    deferredInstallPromptEvent.userChoice.finally(() => {
+      deferredInstallPromptEvent = null;
+      const btn = document.getElementById('btnInstallPWA');
+      if (btn) btn.style.display = 'none';
+    });
+  }
+
+  window.addEventListener('appinstalled', () => {
+    const btn = document.getElementById('btnInstallPWA');
+    if (btn) btn.style.display = 'none';
+    deferredInstallPromptEvent = null;
+  });
 </script>
 </body>
 </html>
