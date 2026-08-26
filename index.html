@@ -2711,7 +2711,8 @@
           tindakan: planLines.join('\n') || '-',
           dpjpBedah: dpjpBedah, dpjpAnestesi: dpjpAnestesi,
           ruangan: ruangan, statusType: 'queued', statusEmergencyTahap: 'antrean',
-          waktuDipanggil: '', mulai: '', selesai: '', masukPacu: '', keluarPacu: ''
+          waktuDipanggil: '', mulai: '', selesai: '', masukPacu: '', keluarPacu: '',
+          residen: '', ok: '', tujuanRawat: '', sumberData: 'WA Parser (Auto)'
         };
 
         let isDuplicate = existingData.concat(newQueuedItems).some(p => (rm !== '-' && p.rm === rm) || ((p.nama||'').toUpperCase() === nama.toUpperCase() && nama !== "Pasien Emergency"));
@@ -2760,7 +2761,8 @@
       diagnosis: diagnosis || '-', tindakan: tindakan || '-',
       dpjpBedah: dpjpBedah || '-', dpjpAnestesi: dpjpAnestesiRaw ? resolveDPJPName(dpjpAnestesiRaw) : 'Tanpa DPJP',
       ruangan: ruangan || 'Emergency', statusType: 'queued', statusEmergencyTahap: 'antrean',
-      waktuDipanggil: '', mulai: '', selesai: '', masukPacu: '', keluarPacu: ''
+      waktuDipanggil: '', mulai: '', selesai: '', masukPacu: '', keluarPacu: '',
+      residen: '', ok: '', tujuanRawat: '', sumberData: 'Input Manual'
     };
 
     // Cek duplikat RM dulu di luar transaction (butuh confirm() yang tidak boleh dipanggil berulang
@@ -2821,12 +2823,12 @@
           }
 
           const cardHTML = `
-            <div class="emergency-card ${p.statusType}">
+            <div class="emergency-card ${p.statusType}" style="cursor:pointer;" onclick="openEmergencyPatientEditModal('${p.id}')" title="Klik untuk buka & edit detail lengkap pasien ini">
               <h4>${p.nama}<span class="badge-status ${p.statusType}">${statusBadgeText}</span></h4>
               <p><b>RM:</b> ${p.rm} | <b>Ruangan Asal:</b> ${p.ruangan || 'Emergency'}</p>
               <p><b>Divisi:</b> ${p.divisi}</p>
               ${p.waktuDipanggil ? `<p style="color:var(--warning); font-weight:700;">🕒 Waktu Dipanggil: ${p.waktuDipanggil}</p>` : ''}
-              <div style="margin: 6px 0; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 10px;">
+              <div style="margin: 6px 0; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 10px;" onclick="event.stopPropagation()">
                 <div style="font-size:10px; font-weight:700; margin-bottom:2px; color:var(--text-light);">Edit DPJP Bedah/Operator:</div>
                 <input type="text" value="${p.dpjpBedah||''}" onchange="updateEmergencyField('${p.id}', 'dpjpBedah', this.value)" style="width:100%; padding:6px; font-size:11px; border:1px solid var(--border); border-radius:6px; background:rgba(15,23,42,0.6); color:white;">
                 <div style="font-size:10px; font-weight:700; margin:6px 0 2px 0; color:var(--text-light);">Edit DPJP Anestesi (Inisial/Nama):</div>
@@ -2835,7 +2837,10 @@
               <div class="emergency-details-box"><b>Diagnosis:</b>\n${p.diagnosis}</div>
               <div class="emergency-details-box"><b>Rencana:</b>\n${p.tindakan}</div>
               <p style="font-size:10px; color:#93c5fd;"><b>Waktu:</b> Mulai: ${p.mulai||'-'} | Selesai: ${p.selesai||'-'}</p>
-              <div style="margin-top:8px; display:flex; gap:4px; flex-wrap:wrap;">${actionButtons}</div>
+              <div style="margin-top:8px; display:flex; gap:4px; flex-wrap:wrap;" onclick="event.stopPropagation()">
+                <button class="btn btn-primary" style="padding:4px 10px; font-size:10px;" onclick="openEmergencyPatientEditModal('${p.id}')"><i class="fa-solid fa-pen-to-square"></i> Edit Detail Lengkap</button>
+                ${actionButtons}
+              </div>
             </div>
           `;
 
@@ -2940,6 +2945,90 @@
       }
       return data;
     }, (error) => { if (error) { console.error('Gagal update field emergency:', error); alert('⚠️ Gagal menyimpan perubahan: ' + (error.message||error)); } });
+  }
+
+  // ================= KLIK-UNTUK-EDIT LENGKAP: List Pasien Emergency WA =================
+  // Membuka form edit lengkap (semua field, format sama seperti Pasien & Operasi) saat kotak
+  // pasien di List Emergency diklik. Perubahan status TAHAP (Antrean/Dipanggil/Masuk OK/Selesai)
+  // tetap lewat tombol aksi khusus di kotak (punya efek samping notifikasi/integrasi papan utama);
+  // form ini untuk melengkapi/mengoreksi seluruh data pasien.
+  function openEmergencyPatientEditModal(emgId) {
+    const p = (emergencyPatientsList || []).find(x => x.id === emgId);
+    if (!p) { alert('⚠️ Data pasien tidak ditemukan (mungkin sudah dihapus/berubah). Coba tutup dan buka lagi.'); return; }
+
+    const titleEl = document.getElementById('analyticsModalTitle');
+    const bodyEl = document.getElementById('analyticsModalBody');
+    titleEl.innerHTML = `<i class="fa-solid fa-truck-medical"></i> Edit Detail Pasien Emergency/Urgency — ${p.nama || '-'}`;
+
+    const f = (val) => (val === undefined || val === null) ? '' : String(val).replace(/"/g, '&quot;');
+    const tujuanOptions = ['', 'ICU', 'HCU', 'NICU', 'PICU'].map(t =>
+      `<option value="${t}" ${p.tujuanRawat === t ? 'selected' : ''}>${t === '' ? 'Bangsal Biasa / Belum Ditentukan' : t}</option>`
+    ).join('');
+
+    bodyEl.innerHTML = `
+      <div class="grid-2" style="gap:8px;">
+        <div class="form-group"><label>Nama</label><input type="text" id="emgEdit_nama" class="login-input" value="${f(p.nama)}"></div>
+        <div class="form-group"><label>No. RM</label><input type="text" id="emgEdit_rm" class="login-input" value="${f(p.rm)}"></div>
+        <div class="form-group"><label>Sumber Data</label><input type="text" id="emgEdit_sumberData" class="login-input" value="${f(p.sumberData)}" placeholder="mis. WA Parser (Auto) / Input Manual"></div>
+        <div class="form-group"><label>Divisi</label><input type="text" id="emgEdit_divisi" class="login-input" value="${f(p.divisi)}"></div>
+        <div class="form-group"><label>Residen</label><input type="text" id="emgEdit_residen" class="login-input" value="${f(p.residen)}"></div>
+        <div class="form-group"><label>DPJP Anestesi</label><input type="text" id="emgEdit_dpjpAnestesi" class="login-input" value="${f(p.dpjpAnestesi)}"></div>
+        <div class="form-group"><label>DPJP Bedah/Operator</label><input type="text" id="emgEdit_dpjpBedah" class="login-input" value="${f(p.dpjpBedah)}"></div>
+        <div class="form-group"><label>Ruangan Asal</label><input type="text" id="emgEdit_ruangan" class="login-input" value="${f(p.ruangan)}"></div>
+        <div class="form-group"><label>Kamar Operasi (OK)</label><input type="text" id="emgEdit_ok" class="login-input" value="${f(p.ok)}"></div>
+        <div class="form-group" style="grid-column:1/-1;"><label>Diagnosis</label><textarea id="emgEdit_diagnosis" class="login-input" rows="2">${f(p.diagnosis)}</textarea></div>
+        <div class="form-group" style="grid-column:1/-1;"><label>Rencana Tindakan</label><textarea id="emgEdit_tindakan" class="login-input" rows="2">${f(p.tindakan)}</textarea></div>
+        <div class="form-group"><label>Jam Mulai</label><input type="text" id="emgEdit_mulai" class="login-input" value="${f(p.mulai)}" placeholder="HH:MM"></div>
+        <div class="form-group"><label>Jam Selesai</label><input type="text" id="emgEdit_selesai" class="login-input" value="${f(p.selesai)}" placeholder="HH:MM"></div>
+        <div class="form-group"><label>Masuk PACU</label><input type="text" id="emgEdit_masukPacu" class="login-input" value="${f(p.masukPacu)}" placeholder="HH:MM"></div>
+        <div class="form-group"><label>Keluar PACU</label><input type="text" id="emgEdit_keluarPacu" class="login-input" value="${f(p.keluarPacu)}" placeholder="HH:MM"></div>
+        <div class="form-group"><label>Tujuan Rawat</label><select id="emgEdit_tujuanRawat" class="login-input">${tujuanOptions}</select></div>
+      </div>
+      <p style="font-size:10.5px; color:var(--text-light); margin-top:4px;">ℹ️ Perubahan TAHAP pasien (Antrean → Dipanggil → Masuk OK → Selesai) tetap dilakukan lewat tombol aksi di kotak pasien (mengaktifkan notifikasi & integrasi otomatis ke Papan Utama) — form ini untuk melengkapi/mengoreksi data.</p>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+        <button class="btn btn-danger" onclick="closeAnalyticsModal()">Batal</button>
+        <button class="btn btn-success" onclick="saveEmergencyPatientEdit('${emgId}')"><i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan</button>
+      </div>
+    `;
+
+    document.getElementById('analyticsModal').style.display = 'flex';
+  }
+
+  function saveEmergencyPatientEdit(emgId) {
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const namaBaru = val('emgEdit_nama');
+    if (!namaBaru) { alert('⚠️ Nama pasien wajib diisi.'); return; }
+
+    const updated = {
+      nama: namaBaru,
+      rm: val('emgEdit_rm'),
+      sumberData: val('emgEdit_sumberData'),
+      divisi: val('emgEdit_divisi'),
+      residen: val('emgEdit_residen'),
+      dpjpAnestesi: resolveDPJPName(val('emgEdit_dpjpAnestesi')),
+      dpjpBedah: val('emgEdit_dpjpBedah'),
+      ruangan: val('emgEdit_ruangan'),
+      ok: val('emgEdit_ok'),
+      diagnosis: val('emgEdit_diagnosis'),
+      tindakan: val('emgEdit_tindakan'),
+      mulai: val('emgEdit_mulai'),
+      selesai: val('emgEdit_selesai'),
+      masukPacu: val('emgEdit_masukPacu'),
+      keluarPacu: val('emgEdit_keluarPacu'),
+      tujuanRawat: val('emgEdit_tujuanRawat')
+    };
+
+    db.ref('emergency_patients').transaction(currentVal => {
+      let data = toArraySafe(currentVal);
+      const idx = data.findIndex(x => x.id === emgId);
+      if (idx !== -1) data[idx] = { ...data[idx], ...updated };
+      return data;
+    }, (error, committed) => {
+      if (error) { console.error('Gagal menyimpan detail pasien emergency:', error); alert('⚠️ Gagal menyimpan perubahan ke server: ' + (error.message || error) + '. Coba lagi.'); return; }
+      if (!committed) return;
+      closeAnalyticsModal();
+      logSystemChange('Mengedit detail pasien Emergency/Urgency', `${updated.nama} (RM: ${updated.rm || '-'})`);
+    });
   }
 
   function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
@@ -3295,6 +3384,8 @@
           diagnosis: p.diagnosis || '-', tindakan: p.rencanaTindakan || '-',
           dpjpBedah: p.dpjpBedah || '-', dpjpAnestesi: p.dpjpAnestesi || 'Tanpa DPJP',
           ruangan: p.kamar || '-', ok: p.ok || '',
+          residen: p.residen || '', tujuanRawat: p.tujuanRawat || '',
+          sumberData: idx !== -1 ? (data[idx].sumberData || 'Diurgencykan dari Pasien Utama') : 'Diurgencykan dari Pasien Utama',
           statusType: statusType, statusEmergencyTahap: statusTahap,
           waktuDipanggil: idx !== -1 ? (data[idx].waktuDipanggil || '') : '',
           mulai: p.mulai || '', selesai: p.selesai || '', masukPacu: p.masukPacu || '', keluarPacu: p.keluarPacu || ''
@@ -3412,6 +3503,104 @@
     });
   }
   const statusOptions = ["Sudah dikerja", "Pasien tidak optimal (Optimalisasi)", "Pasien diurgencykan", "Pasien di emergencykan", "Jumlah konsul ditarik", "Tidak dapat ruangan", "Ditarik di konsul ke periop", "Operator berhalangan", "Konsul ditarik operator", "Pasien tidak datang", "Pasien menolak tindakan", "Pasien ditunda operator", "Pasien menolak operasi", "Pasien dijadwalkan ulang", "Pasien pulang paksa", "Pasien tidak optimal dari poli.", "Pasien meninggal"];
+
+  // ================= KLIK-UNTUK-EDIT LENGKAP: Pasien & Operasi (Detail Pasien) =================
+  // Sebelumnya, klik pada baris/kartu pasien di tabel Pasien & Operasi TIDAK membuka apa-apa —
+  // hanya sel tertentu (DPJP, Kamar, OK, Status, jam) yang punya input inline. Field seperti Nama,
+  // No. RM, Divisi, Residen, Diagnosis, dan Rencana Tindakan sama sekali tidak bisa diedit dari
+  // tampilan ini. Modal ini melengkapi itu: klik pada info pasien (bukan pada input inline yang
+  // sudah ada) membuka form "Detail Pasien" lengkap — format field sama dengan Edit Detail Pasien
+  // Emergency, supaya konsisten di seluruh aplikasi.
+  function openPatientDetailEditModal(idx) {
+    const p = activeSheetData[idx];
+    if (!p) { alert('⚠️ Data pasien tidak ditemukan (mungkin sudah dihapus/berubah). Coba tutup dan buka lagi.'); return; }
+
+    const titleEl = document.getElementById('analyticsModalTitle');
+    const bodyEl = document.getElementById('analyticsModalBody');
+    titleEl.innerHTML = `<i class="fa-solid fa-user-pen"></i> Detail Pasien — ${p.nama || '-'}`;
+
+    const f = (val) => (val === undefined || val === null) ? '' : String(val).replace(/"/g, '&quot;');
+    const statusOpt = `<option value="">-- Status --</option>` + statusOptions.map(o => `<option value="${o}" ${p.statusCatatan===o?'selected':''}>${o}</option>`).join('');
+    const tujuanOptions = ['', 'ICU', 'HCU', 'NICU', 'PICU'].map(t =>
+      `<option value="${t}" ${p.tujuanRawat === t ? 'selected' : ''}>${t === '' ? 'Bangsal Biasa / Belum Ditentukan' : t}</option>`
+    ).join('');
+
+    bodyEl.innerHTML = `
+      <div class="grid-2" style="gap:8px;">
+        <div class="form-group"><label>Nama</label><input type="text" id="pdEdit_nama" class="login-input" value="${f(p.nama)}"></div>
+        <div class="form-group"><label>No. RM</label><input type="text" id="pdEdit_rm" class="login-input" value="${f(p.rm)}"></div>
+        <div class="form-group"><label>Divisi</label><input type="text" id="pdEdit_divisi" class="login-input" value="${f(p.divisi)}"></div>
+        <div class="form-group"><label>Residen</label><input type="text" id="pdEdit_residen" class="login-input" value="${f(p.residen)}"></div>
+        <div class="form-group"><label>DPJP Anestesi</label><input type="text" id="pdEdit_dpjpAnestesi" class="login-input" value="${f(p.dpjpAnestesi)}"></div>
+        <div class="form-group"><label>DPJP Bedah/Operator</label><input type="text" id="pdEdit_dpjpBedah" class="login-input" value="${f(p.dpjpBedah)}"></div>
+        <div class="form-group"><label>Ruangan Asal</label><input type="text" id="pdEdit_kamar" class="login-input" value="${f(p.kamar)}"></div>
+        <div class="form-group"><label>Kamar Operasi (OK)</label><input type="text" id="pdEdit_ok" class="login-input" value="${f(p.ok)}"></div>
+        <div class="form-group" style="grid-column:1/-1;"><label>Diagnosis</label><textarea id="pdEdit_diagnosis" class="login-input" rows="2">${f(p.diagnosis)}</textarea></div>
+        <div class="form-group" style="grid-column:1/-1;"><label>Rencana Tindakan</label><textarea id="pdEdit_rencanaTindakan" class="login-input" rows="2">${f(p.rencanaTindakan)}</textarea></div>
+        <div class="form-group" style="grid-column:1/-1;"><label>Status Laporan</label><select id="pdEdit_statusCatatan" class="login-input">${statusOpt}</select></div>
+        <div class="form-group"><label>Jam Mulai</label><input type="time" id="pdEdit_mulai" class="login-input" value="${f(p.mulai)}"></div>
+        <div class="form-group"><label>Jam Selesai</label><input type="time" id="pdEdit_selesai" class="login-input" value="${f(p.selesai)}"></div>
+        <div class="form-group"><label>Masuk PACU</label><input type="time" id="pdEdit_masukPacu" class="login-input" value="${f(p.masukPacu)}"></div>
+        <div class="form-group"><label>Keluar PACU</label><input type="time" id="pdEdit_keluarPacu" class="login-input" value="${f(p.keluarPacu)}"></div>
+        <div class="form-group"><label>Tujuan Rawat</label><select id="pdEdit_tujuanRawat" class="login-input">${tujuanOptions}</select></div>
+        <div class="form-group" style="grid-column:1/-1;"><label>Catatan Klinis</label><textarea id="pdEdit_catatanKlinis" class="login-input" rows="2" placeholder="Catatan tambahan (opsional)...">${f(p.catatanKlinis)}</textarea></div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+        <button class="btn btn-danger" onclick="closeAnalyticsModal()">Batal</button>
+        <button class="btn btn-success" onclick="savePatientDetailEditModal(${idx})"><i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan</button>
+      </div>
+    `;
+
+    document.getElementById('analyticsModal').style.display = 'flex';
+  }
+
+  function savePatientDetailEditModal(idx) {
+    const p = activeSheetData[idx];
+    if (!p) return closeAnalyticsModal();
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const namaBaru = val('pdEdit_nama');
+    if (!namaBaru) { alert('⚠️ Nama pasien wajib diisi.'); return; }
+
+    const prevTimes = { mulai: p.mulai || '', selesai: p.selesai || '', masukPacu: p.masukPacu || '', keluarPacu: p.keluarPacu || '' };
+
+    p.nama = namaBaru;
+    p.rm = val('pdEdit_rm');
+    p.divisi = val('pdEdit_divisi');
+    p.residen = val('pdEdit_residen');
+    p.dpjpAnestesi = resolveDPJPName(val('pdEdit_dpjpAnestesi'));
+    p.dpjpBedah = val('pdEdit_dpjpBedah');
+    p.kamar = val('pdEdit_kamar');
+    p.ok = val('pdEdit_ok');
+    p.diagnosis = val('pdEdit_diagnosis');
+    p.rencanaTindakan = val('pdEdit_rencanaTindakan');
+    p.statusCatatan = val('pdEdit_statusCatatan');
+    p.mulai = val('pdEdit_mulai');
+    p.selesai = val('pdEdit_selesai');
+    p.masukPacu = val('pdEdit_masukPacu');
+    p.keluarPacu = val('pdEdit_keluarPacu');
+    p.tujuanRawat = val('pdEdit_tujuanRawat');
+    p.catatanKlinis = val('pdEdit_catatanKlinis');
+
+    if (p.statusCatatan === 'Sudah dikerja' || (p.selesai && p.selesai.trim() !== '')) recordDPJPExecutionToFirebase(p);
+    if (p.mulai && p.mulai.trim() !== '') applyAutoStatusOnMulai(p);
+    syncUrgencyStatusToEmergencySystem(p);
+
+    // Notifikasi bel DPJP hanya untuk field jam yang benar-benar berubah nilainya (sama seperti Edit Cepat).
+    const timeLabelMap = { mulai: 'Pasien MULAI', selesai: 'Pasien SELESAI', masukPacu: 'Pasien MASUK PACU', keluarPacu: 'Pasien KELUAR PACU' };
+    Object.keys(timeLabelMap).forEach(f => {
+      const newVal = p[f] || '';
+      if (newVal !== '' && newVal !== prevTimes[f]) notifyDPJPOnAction(p, `${timeLabelMap[f]} (${newVal})`);
+    });
+
+    saveAllSheetsData(() => {
+      renderActiveStatusLists();
+      renderBantexTable();
+      recalculateDashboardAndReport();
+      closeAnalyticsModal();
+      logSystemChange('Mengedit Detail Pasien (Pasien & Operasi)', `${p.nama} (RM: ${p.rm || '-'})`);
+    });
+  }
+
   const reportKeys = ["Total konsul operasi elektif", "Jumlah konsul ditarik", "Tidak dapat ruangan", "Ditarik di konsul ke periop", "Sudah dikerja", "Operator berhalangan", "Konsul ditarik operator", "Pasien tidak datang", "Pasien menolak tindakan", "Pasien diurgencykan", "Pasien ditunda operator", "Pasien menolak operasi", "Pasien di emergencykan", "Pasien dijadwalkan ulang", "Pasien pulang paksa", "Pasien tidak optimal dari poli.", "Pasien tidak optimal (Optimalisasi)", "Pasien meninggal", "Rencana dalam kamar bedah", "Rencana diluar kamar bedah"];
   let reportData = {}; reportKeys.forEach(k=>reportData[k]="0");
 
@@ -4071,7 +4260,8 @@
       if (mobilePatientView === 'grid') {
         // KOTAK RINGKAS (TAMPILAN 4 KOTAK ALA HANDPHONE) — TAP UNTUK EDIT CEPAT
         cardHTML = `
-          <div class="patient-tile ${statusClass}" onclick="openQuickEditPatient(${idx})">
+          <div class="patient-tile ${statusClass}" style="position:relative;" onclick="openQuickEditPatient(${idx})">
+            <button onclick="event.stopPropagation(); openPatientDetailEditModal(${idx})" title="Detail Pasien (edit lengkap: Diagnosis, Tindakan, dsb)" style="position:absolute; top:4px; right:4px; background:rgba(0,0,0,0.35); border:none; color:#fff; width:20px; height:20px; border-radius:50%; font-size:9px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-user-pen"></i></button>
             <span class="tile-no">#${p.no}</span>
             <div class="tile-name">${p.nama}</div>
             <div class="tile-rm">RM: ${p.rm}</div>
@@ -4083,12 +4273,15 @@
       } else {
         cardHTML = `
         <div class="patient-card ${statusClass}">
-          <div class="patient-header">
+          <div class="patient-header" style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">
             <div>
-              <h3 class="patient-name">#${p.no}. ${p.nama}</h3>
+              <h3 class="patient-name">#${p.no}. ${p.nama} <i class="fa-solid fa-pen-to-square" style="font-size:10px; color:var(--accent);"></i></h3>
               <div style="font-size:11px; color:var(--text-light); margin-top:2px;">${p.rencanaTindakan || '-'}</div>
             </div>
             <span class="patient-rm">RM: ${p.rm}</span>
+          </div>
+          <div style="text-align:right; margin:-4px 0 6px 0;">
+            <button class="btn btn-primary" style="padding:3px 8px; font-size:9.5px;" onclick="openPatientDetailEditModal(${idx})"><i class="fa-solid fa-user-pen"></i> Detail Pasien</button>
           </div>
 
           <div class="patient-info-grid">
@@ -4160,10 +4353,16 @@
 
       let opt = `<option value="">-- Status --</option>` + statusOptions.map(o=>`<option value="${o}" ${st===o?'selected':''}>${o}</option>`).join('');
 
-      tb.innerHTML+=`<tr class="${statusClass}"><td>${p.no}</td><td><strong>${p.nama}</strong></td><td>${p.rm}</td><td>${p.divisi}</td><td>${p.residen}</td>
+      tb.innerHTML+=`<tr class="${statusClass}">
+      <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${p.no}</td>
+      <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)"><strong>${p.nama}</strong> <i class="fa-solid fa-pen-to-square" style="font-size:9px; color:var(--accent); margin-left:4px;"></i></td>
+      <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${p.rm}</td>
+      <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${p.divisi}</td>
+      <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${p.residen}</td>
       <td><input type="text" class="input-text" style="width:140px; font-weight:700;" value="${p.dpjpAnestesi}" onchange="updateDPJPAnestesiDesktop(${idx},this.value)"></td>
       <td><input type="text" class="input-text" style="width:110px;" value="${p.kamar||''}" placeholder="Ruangan..." onchange="updateF(${idx},'kamar',this.value)"></td>
-      <td>${p.diagnosis}</td><td>${p.rencanaTindakan}</td>
+      <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${p.diagnosis}</td>
+      <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${p.rencanaTindakan}</td>
       <td><input type="text" class="input-text" style="width:110px;" value="${p.dpjpBedah||''}" placeholder="DPJP Bedah..." onchange="updateF(${idx},'dpjpBedah',this.value)"></td>
       <td><input type="text" class="input-text" style="width:50px;" value="${p.ok||''}" placeholder="OK..." onchange="updateF(${idx},'ok',this.value)"></td>
       <td><select class="select-status" onchange="updateF(${idx},'statusCatatan',this.value)">${opt}</select></td>
