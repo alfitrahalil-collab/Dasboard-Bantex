@@ -124,6 +124,15 @@
     .app-title { font-weight: 900; color: #fff; font-size: 15px; letter-spacing: 0.5px; text-transform: uppercase; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
     .app-subtitle { font-size: 9px; color: #93c5fd; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700; }
 
+    /* Kotak "Cari Pasien Global" di header — sempit di HP supaya tombol bel/install/logout tetap
+       muat, dan subtitle judul disembunyikan lebih dulu agar ruang diprioritaskan untuk pencarian. */
+    @media (max-width: 767px) {
+      #globalSearchWrap { max-width: none; flex: 1 1 auto; margin: 0 6px; }
+      .app-subtitle { display: none; }
+      .app-title { font-size: 12px; }
+    }
+    .global-search-result-item:hover { background: rgba(59,130,246,0.15) !important; }
+
     .container { max-width: 1440px; margin: 0 auto; padding: 20px; padding-bottom: 80px; }
 
     /* REALTIME CLOCK & COMMAND CENTER HEADER BANNER */
@@ -164,6 +173,10 @@
     /* CARDS & METRICS */
     .card { background: var(--card-bg); padding: 20px; border-radius: 20px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.4); margin-bottom: 16px; }
     .card-title { font-size: 12px; font-weight: 800; color: var(--text-light); margin: 0 0 14px 0; display: flex; align-items: center; justify-content: space-between; text-transform: uppercase; letter-spacing: 0.8px; }
+    .collapsible-header { cursor: pointer; user-select: none; }
+    .collapsible-header .collapse-chevron { transition: transform 0.2s; font-size: 12px; }
+    .collapsible-header.is-open .collapse-chevron { transform: rotate(180deg); }
+    .wa-template-box { background: rgba(15,23,42,0.6); border: 1px dashed rgba(255,255,255,0.2); border-radius: 10px; padding: 10px 12px; font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.6; color: #a7f3d0; white-space: pre-wrap; margin-bottom: 10px; }
 
     .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 16px; }
     @media(min-width: 900px){ .metrics-grid { grid-template-columns: repeat(4, 1fr); } }
@@ -258,6 +271,7 @@
     .patient-tile.status-selesai { border-left: 5px solid var(--success) !important; background-color: rgba(16, 185, 129, 0.15) !important; }
     .patient-tile.status-berlangsung { border-left: 5px solid var(--accent) !important; background-color: rgba(37, 99, 235, 0.15) !important; }
     .patient-tile.status-urgency { border-left: 5px solid var(--orange) !important; background-color: rgba(249, 115, 22, 0.15) !important; }
+    .patient-tile.status-optimalisasi { border-left: 5px solid #a855f7 !important; background-color: rgba(168, 85, 247, 0.15) !important; }
     .patient-tile.status-merah { border-left: 5px solid var(--danger) !important; background-color: rgba(239, 68, 68, 0.15) !important; }
     .patient-tile .tile-no { position:absolute; top:8px; right:10px; font-size:9px; font-weight:800; color:var(--text-light); }
     .patient-tile .tile-name { font-size:12px; font-weight:800; color:#fff; margin:0 16px 0 0; line-height:1.25; }
@@ -284,6 +298,7 @@
     .patient-card.status-selesai { border-left: 6px solid var(--success) !important; background-color: rgba(16, 185, 129, 0.15) !important; }
     .patient-card.status-berlangsung { border-left: 6px solid var(--accent) !important; background-color: rgba(37, 99, 235, 0.15) !important; }
     .patient-card.status-urgency { border-left: 6px solid var(--orange) !important; background-color: rgba(249, 115, 22, 0.15) !important; }
+    .patient-card.status-optimalisasi { border-left: 6px solid #a855f7 !important; background-color: rgba(168, 85, 247, 0.15) !important; }
     .patient-card.status-merah { border-left: 6px solid var(--danger) !important; background-color: rgba(239, 68, 68, 0.15) !important; }
 
     .patient-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
@@ -324,6 +339,7 @@
     tr.status-selesai td { background-color: rgba(16, 185, 129, 0.12) !important; }
     tr.status-berlangsung td { background-color: rgba(37, 99, 235, 0.12) !important; }
     tr.status-urgency td { background-color: rgba(249, 115, 22, 0.12) !important; }
+    tr.status-optimalisasi td { background-color: rgba(168, 85, 247, 0.12) !important; }
     tr.status-merah td { background-color: rgba(239, 68, 68, 0.12) !important; }
 
     /* ================= TABEL -> KARTU DI HP (<=767px) =================
@@ -411,6 +427,7 @@
     <li><a id="nav-page-realisasi" onclick="switchPage('page-realisasi')"><i class="fa-solid fa-user-doctor"></i> Realisasi DPJP Bulanan</a></li>
     <li><a id="nav-page-absensi" onclick="switchPage('page-absensi')"><i class="fa-solid fa-location-dot"></i> Absensi Monre GPS & Face ID</a></li>
     <li><a id="nav-page-laporan" onclick="switchPage('page-laporan')"><i class="fa-solid fa-file-lines"></i> Reports & Analytics</a></li>
+    <li><a id="nav-page-kebijakan" onclick="switchPage('page-kebijakan')"><i class="fa-solid fa-scale-balanced" style="color:#67e8f9;"></i> Analisis & Basis Kebijakan</a></li>
     <li><a id="nav-page-link" onclick="switchPage('page-link')"><i class="fa-solid fa-link"></i> Link Sistem Eksternal</a></li>
     <li><a id="nav-page-pediatric" onclick="switchPage('page-pediatric')"><i class="fa-solid fa-calculator" style="color:#6ee7b7;"></i> Formula Anestesi Pediatric</a></li>
     <li id="menuAdminArea" style="display:none; margin-top:20px; border-top:1px solid var(--border); padding-top:10px;">
@@ -491,6 +508,12 @@
       </div>
     </div>
   </div>
+  <div id="globalSearchWrap" style="position:relative; flex:1; max-width:320px; min-width:0; margin:0 10px;">
+    <input type="text" id="globalPatientSearch" placeholder="🔍 Cari nama pasien (semua data)..." autocomplete="off"
+      oninput="renderGlobalSearchResults()" onfocus="renderGlobalSearchResults()"
+      style="width:100%; padding:9px 12px; border-radius:12px; border:1px solid var(--border); font-size:12px; background:rgba(15,23,42,0.6); color:white;">
+    <div id="globalSearchResultsPanel" style="display:none; position:absolute; top:calc(100% + 6px); left:0; right:0; max-height:420px; overflow-y:auto; background:#0f172a; border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.5); z-index:1200;"></div>
+  </div>
   <div style="display:flex; align-items:center; gap:12px;">
     <div style="position:relative;">
       <button class="menu-btn" style="position:relative;" onclick="toggleNotifBell()" title="Notifikasi Perubahan Sistem">
@@ -559,9 +582,14 @@
         </div>
       </div>
       <div class="metric-card danger" onclick="openAnalyticsModal('batal')">
-        <h4>BATAL / OPTIMALISASI</h4>
+        <h4>PASIEN BATAL</h4>
         <div class="value" id="mBatal">0</div>
-        <span class="metric-badge" style="color: var(--danger);">Audit Log</span>
+        <span class="metric-badge" style="color: var(--danger);">Batal Murni (Bukan Optimalisasi)</span>
+      </div>
+      <div class="metric-card" style="border-top-color:#a855f7;" onclick="openAnalyticsModal('optimalisasi')">
+        <h4>PASIEN OPTIMALISASI</h4>
+        <div class="value" id="mOptimalisasi" style="color:#c084fc;">0</div>
+        <span class="metric-badge" style="color:#c084fc;">Perlu Follow-up, Berpotensi Dijadwal Ulang</span>
       </div>
     </div>
 
@@ -673,32 +701,52 @@
   <!-- ================= PAGE 2: EMERGENCY PATIENT LIST (WA PARSER) ================= -->
   <div id="page-emergency" class="tab-page">
     <div class="card">
-      <div class="card-title" style="color:var(--danger);"><i class="fa-solid fa-truck-medical"></i> Input & Parser Laporan WhatsApp Emergency</div>
-      <p style="font-size:11px; color:var(--text-light); margin-bottom:10px;">Paste pesan WhatsApp di sini. Pasien baru otomatis masuk ke antrean urgency/emergency.</p>
-
-      <div class="form-group">
-        <textarea id="waEmergencyPaste" rows="10" placeholder="Paste teks WhatsApp tambahan / konsul di sini..."></textarea>
+      <div class="card-title collapsible-header" style="color:var(--danger);" onclick="toggleCollapseCard(this)">
+        <span><i class="fa-solid fa-truck-medical"></i> Input & Parser Laporan WhatsApp Emergency</span>
+        <i class="fa-solid fa-chevron-down collapse-chevron"></i>
       </div>
-      <div style="display:flex; gap:8px;">
-        <button class="btn btn-danger" style="flex:1;" onclick="parseAndSaveWAEmergency(true)"><i class="fa-solid fa-plus"></i> + Tambahkan Pasien Baru (Otomatis)</button>
-        <button class="btn btn-secondary" style="padding:8px;" onclick="parseAndSaveWAEmergency(false)"><i class="fa-solid fa-arrows-rotate"></i> Reset & Overwrite</button>
+      <div class="collapsible-body" style="display:none;">
+        <p style="font-size:11px; color:var(--text-light); margin-bottom:10px;">Paste pesan WhatsApp di sini. Pasien baru otomatis masuk ke antrean urgency/emergency. <b>Gunakan Format Baku di bawah</b> supaya parsing selalu akurat.</p>
+
+        <div class="card-title collapsible-header" style="font-size:10.5px; color:#67e8f9; margin-bottom:6px;" onclick="event.stopPropagation(); toggleCollapseCard(this)">
+          <span><i class="fa-solid fa-file-lines"></i> Lihat Format Baku (Template) &amp; Salin</span>
+          <i class="fa-solid fa-chevron-down collapse-chevron"></i>
+        </div>
+        <div class="collapsible-body" style="display:none;">
+          <div class="wa-template-box" id="waTemplateBox"></div>
+          <button class="btn btn-secondary" style="width:100%; margin-bottom:10px; font-size:11px;" onclick="copyWATemplateToClipboard()"><i class="fa-solid fa-copy"></i> Salin Format Baku ke Clipboard</button>
+          <p style="font-size:10px; color:var(--text-light); margin:0 0 10px 0;">Bisa untuk lebih dari 1 pasien sekaligus — cukup ulangi format di atas per pasien, dimulai dengan nomor urut baru (mis. "2.", "3.", dst) di baris paling atas tiap blok. Baris <b>Nama</b> dan <b>RM</b> WAJIB diisi — kalau tidak ada, blok itu akan dilewati (tidak masuk ke antrean) dan Anda akan diberi tahu supaya bisa ditambahkan manual.</p>
+        </div>
+
+        <div class="form-group">
+          <textarea id="waEmergencyPaste" rows="10" placeholder="Paste teks WhatsApp di sini, ikuti Format Baku di atas..."></textarea>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-danger" style="flex:1;" onclick="parseAndSaveWAEmergency(true)"><i class="fa-solid fa-plus"></i> + Tambahkan Pasien Baru (Otomatis)</button>
+          <button class="btn btn-secondary" style="padding:8px;" onclick="parseAndSaveWAEmergency(false)"><i class="fa-solid fa-arrows-rotate"></i> Reset & Overwrite</button>
+        </div>
       </div>
     </div>
 
     <div class="card" style="border-color: rgba(239, 68, 68, 0.35);">
-      <div class="card-title" style="color:var(--danger);"><i class="fa-solid fa-keyboard"></i> Input Manual Pasien Emergency/Urgency</div>
-      <p style="font-size:11px; color:var(--text-light); margin-bottom:10px;">Gunakan form ini jika tidak ada teks WhatsApp untuk di-paste. Pasien langsung masuk ke Antrean Urgency/Emergency.</p>
-      <div class="grid-2" style="gap:10px;">
-        <div class="form-group"><label>Nama Pasien</label><input type="text" id="emgManualNama" placeholder="Nama pasien"></div>
-        <div class="form-group"><label>No. RM</label><input type="text" id="emgManualRM" placeholder="No. RM"></div>
-        <div class="form-group"><label>Divisi</label><input type="text" id="emgManualDivisi" placeholder="mis. Bedah Digestif"></div>
-        <div class="form-group"><label>Ruangan Asal</label><input type="text" id="emgManualRuangan" placeholder="mis. IGD / Bangsal"></div>
-        <div class="form-group"><label>DPJP Bedah/Operator</label><input type="text" id="emgManualDpjpBedah" placeholder="Nama DPJP Bedah"></div>
-        <div class="form-group"><label>DPJP Anestesi</label><input type="text" id="emgManualDpjpAnestesi" placeholder="Inisial/Nama DPJP Anestesi"></div>
-        <div class="form-group" style="grid-column:1/-1;"><label>Diagnosis</label><textarea id="emgManualDiagnosis" rows="2" placeholder="Diagnosis pasien"></textarea></div>
-        <div class="form-group" style="grid-column:1/-1;"><label>Rencana Tindakan</label><textarea id="emgManualTindakan" rows="2" placeholder="Rencana tindakan/operasi"></textarea></div>
+      <div class="card-title collapsible-header" style="color:var(--danger);" onclick="toggleCollapseCard(this)">
+        <span><i class="fa-solid fa-keyboard"></i> Input Manual Pasien Emergency/Urgency</span>
+        <i class="fa-solid fa-chevron-down collapse-chevron"></i>
       </div>
-      <button class="btn btn-danger" style="width:100%; margin-top:6px;" onclick="addManualEmergencyPatient()"><i class="fa-solid fa-plus"></i> Tambahkan ke Antrean Urgency/Emergency</button>
+      <div class="collapsible-body" style="display:none;">
+        <p style="font-size:11px; color:var(--text-light); margin-bottom:10px;">Gunakan form ini jika tidak ada teks WhatsApp untuk di-paste. Pasien langsung masuk ke Antrean Urgency/Emergency.</p>
+        <div class="grid-2" style="gap:10px;">
+          <div class="form-group"><label>Nama Pasien</label><input type="text" id="emgManualNama" placeholder="Nama pasien"></div>
+          <div class="form-group"><label>No. RM</label><input type="text" id="emgManualRM" placeholder="No. RM"></div>
+          <div class="form-group"><label>Divisi</label><input type="text" id="emgManualDivisi" placeholder="mis. Bedah Digestif"></div>
+          <div class="form-group"><label>Ruangan Asal</label><input type="text" id="emgManualRuangan" placeholder="mis. IGD / Bangsal"></div>
+          <div class="form-group"><label>DPJP Bedah/Operator</label><input type="text" id="emgManualDpjpBedah" placeholder="Nama DPJP Bedah"></div>
+          <div class="form-group"><label>DPJP Anestesi</label><input type="text" id="emgManualDpjpAnestesi" placeholder="Inisial/Nama DPJP Anestesi"></div>
+          <div class="form-group" style="grid-column:1/-1;"><label>Diagnosis</label><textarea id="emgManualDiagnosis" rows="2" placeholder="Diagnosis pasien"></textarea></div>
+          <div class="form-group" style="grid-column:1/-1;"><label>Rencana Tindakan</label><textarea id="emgManualTindakan" rows="2" placeholder="Rencana tindakan/operasi"></textarea></div>
+        </div>
+        <button class="btn btn-danger" style="width:100%; margin-top:6px;" onclick="addManualEmergencyPatient()"><i class="fa-solid fa-plus"></i> Tambahkan ke Antrean Urgency/Emergency</button>
+      </div>
     </div>
 
     <div class="card">
@@ -969,6 +1017,7 @@
           <button class="btn btn-success" style="padding:6px 10px;" onclick="exportMonthlyReportToExcel()"><i class="fa-solid fa-download"></i> Download Excel</button>
         </div>
       </div>
+      <div id="dpjpRealisasiOwnNotice" style="display:none; font-size:11px; background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.35); color:#93c5fd; padding:8px 10px; border-radius:10px; margin-bottom:10px;">ℹ️ Anda login sebagai akun Konsulen/DPJP — tabel di bawah HANYA menampilkan realisasi pasien Anda sendiri, bukan DPJP lain.</div>
       <div style="overflow-x:auto;">
         <table class="bantex-table" style="text-align:center;">
           <thead><tr><th style="text-align:left;">Nama DPJP</th><th>Hari Ini (Elektif)</th><th>Hari Ini (Urg)</th><th>Bulan Ini (Elektif)</th><th>Bulan Ini (Urg)</th><th>Total</th></tr></thead>
@@ -986,10 +1035,10 @@
           <button class="btn btn-success" style="padding:6px 10px;" onclick="exportDetailRealisasiTindakanToExcel()"><i class="fa-solid fa-download"></i> Download Excel Detail (Bulan Ini)</button>
         </div>
       </div>
-      <p style="font-size:10px; color:var(--text-light); margin:0 0 10px 0;">Setiap pasien yang statusnya berubah menjadi <b>Selesai</b> otomatis tercatat di sini secara real-time (mengikuti bulan yang dipilih pada filter di atas), lengkap dengan diagnosis, tindakan, DPJP, dan jam tindakan — siap diexport menjadi Laporan Realisasi Tindakan.</p>
+      <p style="font-size:10px; color:var(--text-light); margin:0 0 10px 0;">Setiap pasien yang statusnya berubah menjadi <b>Selesai</b> otomatis tercatat di sini secara real-time (mengikuti bulan yang dipilih pada filter di atas), lengkap dengan diagnosis, tindakan, DPJP, dan jam tindakan — siap diexport menjadi Laporan Realisasi Tindakan. Akun Konsulen/DPJP hanya melihat &amp; mengexport realisasi pasiennya sendiri. Admin/Chief/Wakil Chief dapat mengedit setiap baris (kolom Aksi).</p>
       <div style="overflow-x:auto;">
         <table class="bantex-table" style="text-align:center; font-size:11px;">
-          <thead><tr><th>Tgl</th><th style="text-align:left;">Nama / RM</th><th>Divisi</th><th style="text-align:left;">Diagnosis</th><th style="text-align:left;">Tindakan</th><th>DPJP Bedah</th><th>DPJP Anestesi</th><th>Residen</th><th>Kategori</th><th>Mulai</th><th>Selesai</th><th>Msk PACU</th><th>Kel PACU</th></tr></thead>
+          <thead><tr><th>Tgl</th><th style="text-align:left;">Nama / RM</th><th>Divisi</th><th style="text-align:left;">Diagnosis</th><th style="text-align:left;">Tindakan</th><th>DPJP Bedah</th><th>DPJP Anestesi</th><th>Residen</th><th>Kategori</th><th>Mulai</th><th>Selesai</th><th>Msk PACU</th><th>Kel PACU</th><th>Aksi</th></tr></thead>
           <tbody id="detailRealisasiTindakanBody"></tbody>
         </table>
       </div>
@@ -1061,6 +1110,82 @@
       <div class="card-title"><i class="fa-solid fa-square-poll-vertical"></i> Laporan Otomatis Kesimpulan (Rekap Angka Harian)</div>
       <div class="report-grid" id="reportFieldsContainer"></div>
       <button class="btn btn-success" style="width:100%; margin-top:16px;" onclick="copyReportToWA()"><i class="fa-solid fa-copy"></i> Salin Kesimpulan ke WA</button>
+    </div>
+  </div>
+
+  <!-- ================= PAGE: ANALISIS & BASIS KEBIJAKAN ================= -->
+  <div id="page-kebijakan" class="tab-page">
+    <div class="card" style="border-top:4px solid #67e8f9; background:linear-gradient(135deg, rgba(30,41,59,0.85) 0%, rgba(15,60,70,0.35) 100%);">
+      <div class="card-title" style="margin:0 0 6px 0; color:#67e8f9;"><i class="fa-solid fa-scale-balanced"></i> Analisis & Basis Kebijakan</div>
+      <p style="font-size:11px; color:var(--text-light); margin:0 0 12px 0;">Membaca data historis (bukan snapshot hari ini saja) untuk mendukung pengambilan kebijakan: efisiensi/utilisasi OK, beban kerja & keselamatan residen, pola pembatalan operasi, dan kepatuhan supervisi DPJP.</p>
+      <div id="kebijakanDataGapNotice" style="display:none; font-size:11px; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.35); color:#fde68a; padding:10px 12px; border-radius:10px; margin-bottom:12px;"></div>
+      <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+        <div class="form-group" style="margin:0;"><label style="font-size:10px;">Dari Tanggal</label><input type="date" id="kebijakanDateStart" class="login-input"></div>
+        <div class="form-group" style="margin:0;"><label style="font-size:10px;">Sampai Tanggal</label><input type="date" id="kebijakanDateEnd" class="login-input"></div>
+        <button class="btn btn-primary" onclick="runKebijakanAnalysis()"><i class="fa-solid fa-magnifying-glass-chart"></i> Jalankan Analisis</button>
+      </div>
+    </div>
+
+    <div class="metrics-grid" id="kebijakanKPIGrid" style="margin-bottom:16px;">
+      <div class="metric-card"><h4>TOTAL KASUS</h4><div class="value" id="kbTotalKasus">-</div></div>
+      <div class="metric-card success"><h4>TINGKAT SELESAI</h4><div class="value" id="kbTingkatSelesai">-</div></div>
+      <div class="metric-card" style="border-color:var(--danger);"><h4>TINGKAT PEMBATALAN (MURNI)</h4><div class="value" id="kbTingkatBatal">-</div></div>
+      <div class="metric-card" style="border-color:#a855f7;"><h4>TINGKAT OPTIMALISASI</h4><div class="value" id="kbTingkatOptimalisasi" style="color:#c084fc;">-</div></div>
+      <div class="metric-card warning"><h4>RATA-RATA KASUS/HARI</h4><div class="value" id="kbRataKasusHari">-</div></div>
+    </div>
+
+    <!-- 1) EFISIENSI & UTILISASI OK -->
+    <div class="card" style="border-top:4px solid #3b82f6;">
+      <div class="card-title" style="color:#93c5fd;"><i class="fa-solid fa-hospital"></i> 1) Efisiensi & Utilisasi OK (per Sektor)</div>
+      <canvas id="chartKebijakanSektorTren" height="90"></canvas>
+      <div id="kebijakanUtilisasiBody" style="font-size:11px; line-height:1.6; color:#e2e8f0; margin-top:10px;"></div>
+    </div>
+
+    <!-- 3) POLA PEMBATALAN & OPTIMALISASI (dipisah — lihat catatan isTrueBatalStatus/isOptimalisasiStatus) -->
+    <div class="grid-2" style="margin-bottom:16px;">
+      <div class="card" style="border-top:4px solid #ef4444;">
+        <div class="card-title" style="color:#fca5a5;"><i class="fa-solid fa-ban"></i> 3) Alasan Pembatalan Terbanyak (Batal Murni)</div>
+        <p style="font-size:9.5px; color:var(--text-light); margin:0 0 6px 0;">Tidak termasuk kasus Optimalisasi (lihat tabel terpisah di sebelah kanan) — keduanya berbeda secara klinis.</p>
+        <div style="overflow-x:auto;"><table class="bantex-table" id="tblAlasanBatal"><thead><tr><th>Alasan</th><th>Jumlah</th><th>% dari Total</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card" style="border-top:4px solid #a855f7;">
+        <div class="card-title" style="color:#c084fc;"><i class="fa-solid fa-notes-medical"></i> Alasan Optimalisasi Terbanyak</div>
+        <p style="font-size:9.5px; color:var(--text-light); margin:0 0 6px 0;">Pasien BELUM batal permanen — perlu follow-up kesiapan kondisi lalu dijadwalkan ulang.</p>
+        <div style="overflow-x:auto;"><table class="bantex-table" id="tblAlasanOptimalisasi"><thead><tr><th>Alasan</th><th>Jumlah</th><th>% dari Total</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-bottom:16px;">
+      <div class="card" style="border-top:4px solid #ef4444;">
+        <div class="card-title" style="color:#fca5a5;"><i class="fa-solid fa-diagram-project"></i> Tingkat Pembatalan per Divisi (Murni)</div>
+        <div style="overflow-x:auto;"><table class="bantex-table" id="tblBatalDivisi"><thead><tr><th>Divisi</th><th>Total Kasus</th><th>Batal</th><th>% Batal</th></tr></thead><tbody></tbody></table></div>
+      </div>
+      <div class="card" style="border-top:4px solid #a855f7;">
+        <div class="card-title" style="color:#c084fc;"><i class="fa-solid fa-diagram-project"></i> Tingkat Optimalisasi per Divisi</div>
+        <div style="overflow-x:auto;"><table class="bantex-table" id="tblOptimalisasiDivisi"><thead><tr><th>Divisi</th><th>Total Kasus</th><th>Optimalisasi</th><th>% Optimalisasi</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- 2) BEBAN KERJA & KESELAMATAN RESIDEN -->
+    <div class="card" style="border-top:4px solid #f59e0b;">
+      <div class="card-title" style="color:#fde68a;"><i class="fa-solid fa-user-shield"></i> 2) Beban Kerja & Keselamatan Residen (Rentang Terpilih)</div>
+      <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Residen dengan kasus tinggi SEKALIGUS banyak terlibat kasus batal ditandai ⚠️ — kombinasi ini paling relevan untuk kebijakan redistribusi jaga.</p>
+      <div style="overflow-x:auto;"><table class="bantex-table" id="tblBebanResiden"><thead><tr><th>Residen</th><th>Total Kasus</th><th>Kasus Batal</th><th>% Batal</th><th>Indikator</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <!-- 4) KEPATUHAN & SUPERVISI DPJP -->
+    <div class="card" style="border-top:4px solid #a78bfa;">
+      <div class="card-title" style="color:#c4b5fd;"><i class="fa-solid fa-user-doctor"></i> 4) Kepatuhan & Kualitas Supervisi DPJP (dari data IKVE)</div>
+      <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Dihitung dari bulan-bulan yang tercakup rentang tanggal di atas (data IKVE tersimpan per bulan). Dikelompokkan per Residen — data IKVE saat ini tidak menyimpan divisi pelapor, jadi rekap per-Divisi belum bisa dihasilkan dari sini.</p>
+      <div style="overflow-x:auto;"><table class="bantex-table" id="tblSupervisiDPJP"><thead><tr><th>Residen</th><th>Jumlah Pelanggaran (DIS/SAF/ETI)</th><th>Sudah Diklarifikasi (Tabayyun)</th><th>% Sudah Diklarifikasi</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <!-- REKOMENDASI KEBIJAKAN OTOMATIS -->
+    <div class="card" style="border-top:4px solid #22d3ee; background:linear-gradient(135deg, rgba(30,41,59,0.85) 0%, rgba(15,60,70,0.35) 100%);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+        <div class="card-title" style="margin:0; color:#67e8f9;"><i class="fa-solid fa-lightbulb"></i> Rekomendasi Kebijakan Otomatis</div>
+        <button class="btn btn-success" style="padding:6px 10px; font-size:11px;" onclick="copyKebijakanRekomendasiToWA()"><i class="fa-solid fa-copy"></i> Salin ke WA</button>
+      </div>
+      <div id="kebijakanRekomendasiBody" style="font-size:12px; line-height:1.7; color:#e2e8f0; white-space:pre-line; background:rgba(15,23,42,0.5); border-radius:12px; padding:14px; min-height:60px;">Jalankan analisis di atas untuk menghasilkan rekomendasi kebijakan otomatis dari data pada rentang tanggal terpilih.</div>
     </div>
   </div>
 
@@ -1484,6 +1609,8 @@
 
     if (pageId === 'page-absensi') resetAbsensiGate();
     else stopFaceCam();
+
+    if (pageId === 'page-kebijakan') { defaultKebijakanDateRange(); if (!lastKebijakanRekomendasiText) runKebijakanAnalysis(); }
   }
 
   // FIREBASE CONFIGURATION
@@ -1580,6 +1707,14 @@
   function isAdminLevel(roleVal) {
     const r = roleVal !== undefined ? roleVal : currentUserRole;
     return r === "admin" || r === "chief" || r === "wakil_chief";
+  }
+  // Pola pencocokan identitas DPJP yang SAMA dipakai di seluruh sistem ("Pasien Saya Saja" pada
+  // Live Monitoring, Pasien & Operasi, dan List Emergency) — dipusatkan di sini SATU tempat supaya
+  // enforcement "hanya pasien/realisasi milik akun DPJP ini" konsisten dan mudah dipakai ulang
+  // (mis. di halaman Realisasi DPJP Bulanan / Laporan Realisasi Tindakan).
+  function isMyDPJPPatient(dpjpAnestesiText) {
+    if (currentUserRole !== 'konsulen' || !currentUsername) return true; // hanya berlaku untuk akun Konsulen/DPJP
+    return (dpjpAnestesiText || '').toUpperCase().includes(currentUsername.toUpperCase().trim());
   }
   function roleLabel(r) {
     if (r === "chief") return "CHIEF";
@@ -1860,6 +1995,39 @@
     document.getElementById('regPassInput').value = inisial + "123";
   }
   
+  // ================= KEAMANAN PASSWORD (HASH + SALT, BUKAN PLAINTEXT) =================
+  // Sebelumnya password akun (users_accounts) disimpan APA ADANYA (plaintext) di Firebase
+  // Realtime Database — siapa pun dengan akses baca ke DB (mis. lewat Firebase Console atau
+  // rules yang longgar) bisa langsung melihat password asli semua residen/DPJP/admin.
+  // Perbaikan ini memakai Web Crypto API bawaan browser (SHA-256 + salt acak per akun) supaya
+  // yang tersimpan di database hanya HASH, bukan password aslinya.
+  // CATATAN JUJUR mengenai batasan pendekatan ini (bukan solusi sempurna):
+  //  - Ini tetap hashing di sisi KLIEN, bukan autentikasi server sungguhan (Firebase Auth).
+  //    Tidak ada rate-limiting brute-force di server, dan aturan akses Firebase (Database Rules)
+  //    tetap yang menentukan siapa boleh baca/tulis node 'users_accounts'.
+  //  - Untuk keamanan setara industri, migrasi penuh ke Firebase Authentication (email/password
+  //    resmi dari Firebase) adalah langkah berikutnya yang disarankan — namun itu perlu perubahan
+  //    struktural (setiap akun perlu didaftarkan ulang lewat Firebase Auth) di luar cakupan edit
+  //    file client ini saja.
+  //  - Akun super-admin bawaan (admin/anestesi123, dsb) tetap hardcoded di source code untuk
+  //    kemudahan akses darurat — ini sudah diketahui/didiskusikan sebelumnya, bukan regresi baru.
+  // Akun LAMA yang masih memakai field 'password' plaintext tetap bisa login seperti biasa
+  // (kompatibilitas mundur), dan otomatis dimigrasikan ke format hash+salt begitu berhasil
+  // login pertama kali setelah update ini (lihat attemptLogin()).
+  async function sha256Hex(text) {
+    const enc = new TextEncoder().encode(text);
+    const hashBuf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  function genPasswordSalt() {
+    const arr = new Uint8Array(16);
+    crypto.getRandomValues(arr);
+    return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  async function hashPasswordWithSalt(plainPass, salt) {
+    return sha256Hex(salt + ':' + plainPass);
+  }
+
   function sendWhatsAppNotification(targetNumber, messageText) {
     if(!WA_API_TOKEN || WA_API_TOKEN === "TOKEN_API_FONNTE_ANDA") return;
     fetch('https://api.fonnte.com/send', { 
@@ -1869,7 +2037,7 @@
     }).catch(err => console.warn("WA Notif Error:", err));
   }
 
-  function submitRegistration() {
+  async function submitRegistration() {
     const role = document.getElementById('regRoleInput').value;
     let nama = "";
     if(role === 'residen') {
@@ -1893,7 +2061,11 @@
     
     // Semua role, TERMASUK Konsulen/DPJP, tetap wajib menunggu Approval Admin/Chief
     // sebelum akun aktif (permintaan eksplisit: approval Admin tetap berlaku untuk semua akun).
-    db.ref('users_accounts/' + user).set({ nama, username:user, password:pass, role:role, approved:false }, (err) => {
+    // Password TIDAK disimpan apa adanya — hanya hash SHA-256 (dengan salt acak per akun)
+    // yang tersimpan di database (lihat blok "KEAMANAN PASSWORD" di atas).
+    const regSalt = genPasswordSalt();
+    const regPasswordHash = await hashPasswordWithSalt(pass, regSalt);
+    db.ref('users_accounts/' + user).set({ nama, username:user, passwordHash:regPasswordHash, passwordSalt:regSalt, role:role, approved:false }, (err) => {
       if (!err) {
         const msg = `🚨 *PENDAFTARAN AKUN BARU (${role.toUpperCase()})*\n\nNama: ${nama}\nUsername: ${user}\n\nSilakan buka Panel Admin untuk memberikan Approval akses sistem.`;
         sendWhatsAppNotification(ADMIN_WA_NUMBER, msg);
@@ -2017,7 +2189,7 @@
       }
 
       const now = new Date(); document.getElementById('monthlyFilterPicker').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-      initReportForm(); initCharts(); listenRealtimeData(); listenEmergencyPatients(); updateRealtimeClock(); checkAndShowHolidayBanner();
+      initReportForm(); initCharts(); listenRealtimeData(); listenEmergencyPatients(); updateRealtimeClock(); checkAndShowHolidayBanner(); renderWATemplateBox();
     } else { 
       document.getElementById("loginScreen").style.display = "flex"; 
       db.ref('master_residents').once('value', snap => {
@@ -2045,16 +2217,35 @@
       checkSession();
       return;
     }
-    db.ref('users_accounts/'+u).once('value', (snap) => {
+    db.ref('users_accounts/'+u).once('value', async (snap) => {
       const ud = snap.val();
-      if (ud && ud.password === p) {
+      if (!ud) { document.getElementById("loginError").style.display = "block"; return; }
+
+      let passOk = false;
+      if (ud.passwordHash && ud.passwordSalt) {
+        // Akun sudah memakai format hash+salt (aman) — verifikasi tanpa pernah membaca password asli.
+        const computedHash = await hashPasswordWithSalt(p, ud.passwordSalt);
+        passOk = (computedHash === ud.passwordHash);
+      } else if (ud.password !== undefined) {
+        // Akun LAMA masih plaintext (dibuat sebelum update keamanan ini). Tetap diverifikasi
+        // apa adanya supaya akun lama tidak mendadak terkunci, TAPI begitu berhasil login,
+        // otomatis dimigrasikan ke hash+salt dan field 'password' plaintext dihapus dari DB.
+        passOk = (ud.password === p);
+        if (passOk) {
+          const migSalt = genPasswordSalt();
+          const migHash = await hashPasswordWithSalt(p, migSalt);
+          db.ref('users_accounts/'+u).update({ passwordHash: migHash, passwordSalt: migSalt, password: null });
+        }
+      }
+
+      if (passOk) {
         if (ud.approved) {
           safeSession.setItem("loggedUser", ud.username);
           safeSession.setItem("loggedRole", ud.role || "residen");
           safeSession.setItem("loggedDivisiChief", ud.divisiChief || "");
           document.getElementById("loginError").style.display = "none";
-          checkSession(); 
-        } 
+          checkSession();
+        }
         else { alert("Akun Anda sedang dalam proses Approval oleh Admin."); }
       } else { document.getElementById("loginError").style.display = "block"; }
     });
@@ -2686,17 +2877,48 @@
     resultArea.innerHTML = html;
   }
 
+  // ================= FORMAT BAKU LAPORAN WHATSAPP EMERGENCY =================
+  // SATU format tetap untuk seluruh Chief/Residen yang mengirim laporan konsul WA, supaya parser
+  // di bawah tidak perlu menebak-nebak nama pasien dari tanda koma/garis miring (cara lama —
+  // sumber utama salah parse). "Nama:" sekarang WAJIB dan jadi sumber kebenaran utama; heuristik
+  // lama tetap dipertahankan HANYA sebagai fallback untuk pesan format lama yang belum diperbarui.
+  const WA_EMERGENCY_TEMPLATE =
+`1. [Divisi/Sub-bagian — contoh: Bedah Digestif]
+Nama: [Nama Pasien]
+RM: [Nomor RM]
+Ruangan: [Ruangan Asal — contoh: IGD]
+DPJP Bedah: [Nama DPJP Bedah/Operator]
+DPJP Anestesi: [Nama/Inisial DPJP Anestesi]
+Diagnosis: [Diagnosis pasien]
+Rencana: [Rencana tindakan/operasi]
+
+2. [Divisi pasien kedua, jika ada — ulangi format yang sama]
+Nama: ...
+RM: ...
+...`;
+
+  function renderWATemplateBox() {
+    const el = document.getElementById('waTemplateBox');
+    if (el) el.innerText = WA_EMERGENCY_TEMPLATE;
+  }
+  function copyWATemplateToClipboard() {
+    navigator.clipboard.writeText(WA_EMERGENCY_TEMPLATE).then(() => {
+      alert('✅ Format baku berhasil disalin! Tempel (paste) ke WhatsApp grup untuk dipakai bersama, atau langsung isi di kotak paste di bawah.');
+    }).catch(() => alert('⚠️ Gagal menyalin otomatis. Silakan salin manual dari kotak format di atas.'));
+  }
+
   function parseAndSaveWAEmergency(isAppendMode = true) {
     const text = document.getElementById('waEmergencyPaste').value;
     if (!text.trim()) return alert("Teks WA Kosong!");
-    let lastNewCount = 0, lastFailedBlocks = 0;
+    let lastNewCount = 0, lastFailedBlocks = 0, lastFailReasons = [];
 
     db.ref('emergency_patients').transaction(currentVal => {
       let existingData = isAppendMode ? toArraySafe(currentVal) : [];
       let newQueuedItems = [];
       let failedBlocks = 0;
+      let failReasons = [];
       let patientBlocks = text.split(/\n(?=\d+\.\s*)/g);
-      patientBlocks.forEach(block => {
+      patientBlocks.forEach((block, blockIdx) => {
        try {
         let lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
         if (lines.length < 1) return;
@@ -2704,15 +2926,20 @@
         let firstLine = lines[0];
         let divMatch = firstLine.match(/\d+\.\s*([^\n]+)/);
         let divisi = divMatch ? divMatch[1].replace(/[\*]/g, '').trim() : "EMERGENCY";
-        let nama = "Pasien Emergency", rm = "-", dpjpBedah = "-", dpjpAnestesi = "Tanpa DPJP", ruangan = "Emergency";
+        let nama = "", rm = "", dpjpBedah = "-", dpjpAnestesi = "Tanpa DPJP", ruangan = "Emergency";
         let diagLines = [], planLines = [], currentMode = "";
 
         lines.slice(1).forEach(line => {
-          if (line.match(/(?:RM|No\.RM)\s*:?\s*(\d+)/i)) {
-            let rmM = line.match(/(?:RM|No\.RM)\s*:?\s*(\d+)/i);
-            if (rmM) rm = rmM[1];
-          }
-          if (line.match(/^DPJP\s*:/i) || line.match(/^DPJP Bedah\s*:/i)) {
+          const rmM = line.match(/^(?:RM|No\.?\s*RM)\s*:?\s*(\d+)/i);
+          const namaM = line.match(/^Nama\s*:\s*(.+)/i);
+          if (namaM) {
+            // "Nama:" (Format Baku) SELALU jadi sumber kebenaran utama — menimpa hasil tebakan lama.
+            nama = namaM[1].replace(/[\*]/g, '').trim();
+            currentMode = "";
+          } else if (rmM) {
+            rm = rmM[1];
+            currentMode = "";
+          } else if (line.match(/^DPJP\s*:/i) || line.match(/^DPJP Bedah\s*:/i)) {
             dpjpBedah = line.replace(/^DPJP(?:\s*Bedah)?\s*:\s*/i, '').replace(/[\*]/g, '').trim();
             currentMode = "";
           } else if (line.match(/^DPJP Anestesi\s*:/i)) {
@@ -2733,11 +2960,25 @@
           } else {
             if (currentMode === "diag") diagLines.push(line);
             else if (currentMode === "plan") planLines.push(line);
-            else if (line.includes(',') || line.includes('/')) {
-              if (nama === "Pasien Emergency") nama = line.split('/')[0].split(',')[0].replace(/[\*]/g, '').trim();
+            // Fallback KOMPATIBILITAS untuk pesan format LAMA (belum pakai "Nama:") — tebak nama
+            // dari baris berisi koma/garis miring. Hanya dipakai kalau "Nama:" belum ditemukan.
+            else if (!nama && (line.includes(',') || line.includes('/'))) {
+              nama = line.split('/')[0].split(',')[0].replace(/[\*]/g, '').trim();
             }
           }
         });
+
+        // Validasi WAJIB: Nama dan RM harus ada (Format Baku). Kalau tidak, blok ini DILEWATI
+        // (bukan dipaksa masuk dengan placeholder "Pasien Emergency"/"-" seperti sebelumnya —
+        // itu justru sumber data tidak terstruktur/tidak akurat) dan dilaporkan jelas ke pengguna.
+        const missing = [];
+        if (!nama) missing.push('Nama');
+        if (!rm) missing.push('RM');
+        if (missing.length > 0) {
+          failedBlocks++;
+          failReasons.push(`Blok ${blockIdx + 1} ("${firstLine.slice(0, 40)}"): ${missing.join(' & ')} tidak ditemukan — gunakan Format Baku ("Nama: ..." / "RM: ...").`);
+          return;
+        }
 
         let itemObj = {
           id: 'EMG_' + Date.now() + '_' + Math.floor(Math.random()*10000),
@@ -2750,28 +2991,31 @@
           residen: '', ok: '', tujuanRawat: '', sumberData: 'WA Parser (Auto)'
         };
 
-        let isDuplicate = existingData.concat(newQueuedItems).some(p => (rm !== '-' && p.rm === rm) || ((p.nama||'').toUpperCase() === nama.toUpperCase() && nama !== "Pasien Emergency"));
+        let isDuplicate = existingData.concat(newQueuedItems).some(p => (rm !== '-' && p.rm === rm) || ((p.nama||'').toUpperCase() === nama.toUpperCase()));
         if (!isDuplicate) newQueuedItems.push(itemObj);
+        else { failedBlocks++; failReasons.push(`Blok ${blockIdx + 1} ("${nama}"): dilewati — sudah ada di antrean (duplikat RM/nama).`); }
        } catch (exBlock) {
         // Satu blok pasien yang formatnya tidak terbaca TIDAK BOLEH menggagalkan seluruh proses
         // paste — cukup blok itu yang dilewati, blok lain tetap masuk ke Antrean.
         console.error('Gagal memproses satu blok pasien emergency (dilewati):', exBlock, block);
         failedBlocks++;
+        failReasons.push(`Blok ${blockIdx + 1}: format tidak terbaca sama sekali.`);
        }
       });
 
-      lastNewCount = newQueuedItems.length; lastFailedBlocks = failedBlocks;
+      lastNewCount = newQueuedItems.length; lastFailedBlocks = failedBlocks; lastFailReasons = failReasons;
       if (newQueuedItems.length === 0) return; // return undefined => batalkan transaksi, tidak ada perubahan ditulis
 
       return [...existingData, ...newQueuedItems];
     }, (error, committed, snapshot) => {
       if (error) { console.error('Gagal simpan pasien emergency (paste):', error); alert('⚠️ Gagal menyimpan pasien emergency ke server: ' + (error.message||error) + '. Coba lagi, atau periksa koneksi internet.'); return; }
+      const reasonText = lastFailReasons.length ? `\n\nRincian:\n${lastFailReasons.join('\n')}` : '';
       if (!committed || lastNewCount === 0) {
-        if (lastFailedBlocks > 0) alert(`⚠️ Tidak ada pasien baru yang berhasil ditambahkan. ${lastFailedBlocks} blok teks tidak terbaca — cek format pesan WA-nya.`);
-        else alert("⚠️ Tidak ada data pasien baru yang terdeteksi dari teks yang ditempel (mungkin sudah pernah ditambahkan sebelumnya/duplikat). Periksa kembali format pesan WA-nya.");
+        if (lastFailedBlocks > 0) alert(`⚠️ Tidak ada pasien baru yang berhasil ditambahkan. ${lastFailedBlocks} blok tidak lolos validasi — cek Format Baku.${reasonText}`);
+        else alert("⚠️ Tidak ada data pasien baru yang terdeteksi dari teks yang ditempel. Periksa kembali Format Baku pesan WA-nya.");
         return;
       }
-      alert(`Berhasil! ${lastNewCount} pasien baru masuk ke Antrean Urgency/Emergency.` + (lastFailedBlocks > 0 ? `\n⚠️ ${lastFailedBlocks} blok teks tidak terbaca dan dilewati — cek format & tambahkan manual jika perlu.` : ''));
+      alert(`Berhasil! ${lastNewCount} pasien baru masuk ke Antrean Urgency/Emergency.` + (lastFailedBlocks > 0 ? `\n⚠️ ${lastFailedBlocks} blok dilewati — cek Format Baku & tambahkan manual jika perlu.${reasonText}` : ''));
       document.getElementById('waEmergencyPaste').value = '';
     });
   }
@@ -3126,8 +3370,13 @@
     });
   }
 
-  function approveForgotPassword(username, newPass) {
-    db.ref(`users_accounts/${username}/password`).set(newPass, (err) => {
+  async function approveForgotPassword(username, newPass) {
+    // Password baru juga disimpan sebagai hash+salt, bukan plaintext. Pesan WA ke user tetap
+    // memuat password barunya (satu kali, sebagai jalur pengiriman) — itu wajar; yang penting
+    // adalah database TIDAK menyimpan salinan plaintext-nya secara permanen.
+    const fpSalt = genPasswordSalt();
+    const fpHash = await hashPasswordWithSalt(newPass, fpSalt);
+    db.ref(`users_accounts/${username}`).update({ passwordHash: fpHash, passwordSalt: fpSalt, password: null }, (err) => {
       if(!err) {
         db.ref(`forgot_password_requests/${username}`).remove();
         const msg = `🔑 *RESET PASSWORD BERHASIL*\n\nPermintaan sandi baru untuk akun *${username}* telah disetujui admin. Password baru Anda: *${newPass}*.`;
@@ -3581,6 +3830,46 @@
         <div class="form-group"><label>Tujuan Rawat</label><select id="pdEdit_tujuanRawat" class="login-input">${tujuanOptions}</select></div>
         <div class="form-group" style="grid-column:1/-1;"><label>Catatan Klinis</label><textarea id="pdEdit_catatanKlinis" class="login-input" rows="2" placeholder="Catatan tambahan (opsional)...">${f(p.catatanKlinis)}</textarea></div>
       </div>
+      <div style="grid-column:1/-1; margin-top:14px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.15);">
+        <div style="font-size:11px; font-weight:800; color:#67e8f9; margin-bottom:8px;"><i class="fa-solid fa-notes-medical"></i> Variabel Klinis (untuk basis riset — opsional, isi sesuai data yang tersedia)</div>
+        <div class="grid-2" style="gap:8px;">
+          <div class="form-group">
+            <label>Status Fisik ASA</label>
+            <select id="pdEdit_asaStatus" class="login-input">
+              ${['', 'ASA I', 'ASA II', 'ASA III', 'ASA IV', 'ASA V', 'ASA VI'].map(o => `<option value="${o}" ${p.asaStatus===o?'selected':''}>${o===''?'-- Belum diisi --':o}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>&nbsp;</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin-top:6px;">
+              <input type="checkbox" id="pdEdit_asaEmergency" style="width:16px; height:16px;" ${p.asaEmergency==='true'||p.asaEmergency===true?'checked':''}> Kasus Emergency (tambahkan sufiks "E" pada ASA)
+            </label>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Teknik Anestesi</label>
+            <select id="pdEdit_teknikAnestesi" class="login-input">
+              ${['', 'General Anestesi (GA)', 'Regional - Spinal', 'Regional - Epidural', 'Regional - Blok Perifer', 'Sedasi (MAC)', 'Anestesi Lokal', 'Kombinasi GA + Regional', 'Lainnya'].map(o => `<option value="${o}" ${p.teknikAnestesi===o?'selected':''}>${o===''?'-- Belum diisi --':o}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Komplikasi Intraoperatif / Perianestesia (pilih semua yang relevan)</label>
+            <div style="display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11px; background:rgba(15,23,42,0.4); border-radius:8px; padding:8px;">
+              ${['Tidak ada komplikasi', 'Hipotensi', 'Hipertensi', 'Hipoksia/Desaturasi', 'Aritmia', 'Kesulitan Intubasi (Difficult Airway)', 'Aspirasi', 'Reaksi Alergi/Anafilaksis', 'Perdarahan Masif', 'PONV (Mual Muntah Pasca Operasi)', 'Hipotermia', 'Cardiac Arrest', 'Lainnya'].map(k => `
+                <label style="display:flex; align-items:center; gap:4px; font-weight:400;">
+                  <input type="checkbox" class="pdEdit_komplikasi_cb" value="${k}" style="width:14px; height:14px;" ${(p.komplikasi||[]).includes(k)?'checked':''}> ${k}
+                </label>
+              `).join('')}
+            </div>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;"><label>Catatan Komplikasi (detail tambahan, opsional)</label><textarea id="pdEdit_komplikasiCatatan" class="login-input" rows="2">${f(p.komplikasiCatatan)}</textarea></div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Outcome Akhir Pasien</label>
+            <select id="pdEdit_outcomeAkhir" class="login-input">
+              ${['', 'Pulang / Selesai Perawatan', 'Rawat Inap Lanjut (Bangsal)', 'Rawat Lanjut ICU/HCU', 'Rujuk ke RS Lain', 'Meninggal'].map(o => `<option value="${o}" ${p.outcomeAkhir===o?'selected':''}>${o===''?'-- Belum diisi --':o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
         <button class="btn btn-danger" onclick="closeAnalyticsModal()">Batal</button>
         <button class="btn btn-success" onclick="savePatientDetailEditModal(${idx})"><i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan</button>
@@ -3617,6 +3906,15 @@
     p.tujuanRawat = val('pdEdit_tujuanRawat');
     p.catatanKlinis = val('pdEdit_catatanKlinis');
     p.asalSektor = val('pdEdit_asalSektor');
+
+    // Variabel klinis riset (opsional)
+    p.asaStatus = val('pdEdit_asaStatus');
+    const asaEmergencyEl = document.getElementById('pdEdit_asaEmergency');
+    p.asaEmergency = asaEmergencyEl ? String(asaEmergencyEl.checked) : 'false';
+    p.teknikAnestesi = val('pdEdit_teknikAnestesi');
+    p.komplikasi = Array.from(document.querySelectorAll('.pdEdit_komplikasi_cb:checked')).map(cb => cb.value);
+    p.komplikasiCatatan = val('pdEdit_komplikasiCatatan');
+    p.outcomeAkhir = val('pdEdit_outcomeAkhir');
 
     if (p.statusCatatan === 'Sudah dikerja' || (p.selesai && p.selesai.trim() !== '')) recordDPJPExecutionToFirebase(p);
     if (p.mulai && p.mulai.trim() !== '') applyAutoStatusOnMulai(p);
@@ -3699,7 +3997,14 @@
       kamar: s(p.kamar), divisi: s(p.divisi), diagnosis: s(p.diagnosis), rencanaTindakan: s(p.rencanaTindakan),
       dpjpBedah: s(p.dpjpBedah), ok: s(p.ok), tujuanRawat: s(p.tujuanRawat), statusCatatan: s(p.statusCatatan),
       mulai: s(p.mulai), selesai: s(p.selesai), masukPacu: s(p.masukPacu), keluarPacu: s(p.keluarPacu),
-      catatanKlinis: s(p.catatanKlinis), asalSektor: s(p.asalSektor)
+      catatanKlinis: s(p.catatanKlinis), asalSektor: s(p.asalSektor),
+      // Variabel klinis riset (ditambahkan agar data mendukung analisis klinis sungguhan,
+      // bukan hanya logistik/operasional) — semua OPSIONAL, diisi belakangan lewat Detail Pasien.
+      asaStatus: s(p.asaStatus), asaEmergency: s(p.asaEmergency),
+      teknikAnestesi: s(p.teknikAnestesi),
+      komplikasi: Array.isArray(p.komplikasi) ? p.komplikasi.filter(Boolean) : (p.komplikasi ? [p.komplikasi] : []),
+      komplikasiCatatan: s(p.komplikasiCatatan),
+      outcomeAkhir: s(p.outcomeAkhir)
     };
   }
   function normalizeSheetsData(raw) {
@@ -3722,11 +4027,33 @@
           alert('⚠️ Gagal menyimpan perubahan ke server: ' + (err.message || err) + '\nSilakan coba lagi.');
           return;
         }
+        saveDailyPatientSnapshot(clean);
         if (onSuccess) onSuccess();
       });
     } catch (ex) {
       console.error('Exception saat menyimpan data pasien:', ex);
       alert('⚠️ Terjadi kesalahan saat menyimpan perubahan (' + ex.message + '). Perubahan BELUM tersimpan, silakan coba lagi.');
+    }
+  }
+
+  // ================= LOG HARIAN PERSISTEN UNTUK ANALISIS KEBIJAKAN (TREN ANTAR HARI) =================
+  // PENTING (keterbatasan data, harus jujur disampaikan): sebelum fitur ini ada, data di
+  // 'bantex_sheets' ditimpa total setiap kali Excel baru diimport (biasanya tiap hari kerja), jadi
+  // TIDAK ADA riwayat historis pasien/pembatalan yang tersimpan dari hari-hari sebelumnya — hanya
+  // snapshot hari yang sedang berjalan. Baris ini mulai merekam snapshot penuh (termasuk status
+  // pembatalan & asalSektor) ke path terpisah 'daily_patient_log/{YYYY-MM-DD}' setiap kali ada
+  // perubahan data pasien tersimpan, ditimpa berulang di hari yang sama (state akhir hari itu),
+  // sehingga TERBENTUK riwayat baru MULAI DARI SEKARANG. Analisis tren/pola pembatalan di halaman
+  // "Analisis & Basis Kebijakan" HANYA akan mencakup data sejak fitur ini aktif — data historis
+  // sebelum ini tidak bisa direkonstruksi karena memang tidak pernah disimpan.
+  function saveDailyPatientSnapshot(cleanSheetsData) {
+    try {
+      const allRows = [];
+      Object.keys(cleanSheetsData || {}).forEach(sn => { (cleanSheetsData[sn] || []).forEach(p => allRows.push(p)); });
+      const dStr = todayDateStrWITA();
+      db.ref(`daily_patient_log/${dStr}`).set({ tanggal: dStr, pasien: allRows, updatedAt: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' }) });
+    } catch (ex) {
+      console.error('Gagal menyimpan snapshot harian untuk analisis kebijakan:', ex);
     }
   }
   function saveAllSheetsData(onSuccess) {
@@ -4052,12 +4379,18 @@
       // kalau ada data lama yang sempat tercatat sebelum validasi ini dipasang.
       const s = new Set([...VALID_DPJP_DISPLAY_NAMES, ...Object.keys(md).filter(isValidRealDPJPName)]);
       s.forEach(n => {
+        // Akun Konsulen/DPJP HANYA melihat baris realisasinya sendiri di rekap ini — bukan
+        // realisasi DPJP lain — supaya ia tahu persis jumlah realisasi pasiennya sendiri.
+        if (!isMyDPJPPatient(n)) return;
         let he=0, hu=0, be=0, bu=0;
         if(md[n]) { Object.keys(md[n]).forEach(d => { Object.values(md[n][d]).forEach(p => { if(p.kategori==='urgency'){ bu++; if(d===tStr) hu++; } else { be++; if(d===tStr) he++; } }); }); }
         activeSheetData.forEach(p => { if(p.dpjpAnestesi===n && ((p.selesai&&p.selesai.trim()!=='')||p.statusCatatan==='Sudah dikerja')) { const st=(p.statusCatatan||'').toLowerCase(); if(st.includes('urgency')||st.includes('emergency')) hu++; else he++; } });
         if((be+bu)>0 || he>0 || hu>0) tb.innerHTML+=`<tr><td style="text-align:left;"><strong>${n}</strong></td><td><span style="color:#93c5fd;">${he}</span></td><td><span style="color:#fde68a;">${hu}</span></td><td><span style="color:#a7f3d0;">${be}</span></td><td><span style="color:#fca5a5;">${bu}</span></td><td><strong>${be+bu}</strong></td></tr>`;
       });
-      if(tb.innerHTML==='') tb.innerHTML='<tr><td colspan="6" style="color:#888;">Nihil</td></tr>';
+      if(tb.innerHTML==='') tb.innerHTML = `<tr><td colspan="6" style="color:#888;">${currentUserRole==='konsulen' ? 'Belum ada realisasi pasien Anda pada bulan ini.' : 'Nihil'}</td></tr>`;
+
+      const dpjpNotice = document.getElementById('dpjpRealisasiOwnNotice');
+      if (dpjpNotice) dpjpNotice.style.display = (currentUserRole === 'konsulen') ? 'block' : 'none';
     });
   }
 
@@ -4067,12 +4400,19 @@
     const m = document.getElementById('monthlyFilterPicker').value; if(!m) return;
     db.ref(`realisasi_tindakan_log/${m}`).on('value', snap => {
       const md = snap.val() || {};
-      let rows = Object.values(md);
+      // Simpan key Firebase asli (_key) di tiap baris — dibutuhkan admin/chief/wakil chief untuk
+      // mengedit baris ini kembali ke path yang tepat (realisasi_tindakan_log/{bulan}/{_key}).
+      let rows = Object.entries(md).map(([k, v]) => ({ ...v, _key: k }));
+      // Akun Konsulen/DPJP HANYA melihat (dan hanya bisa export) realisasi tindakan pasiennya
+      // sendiri — bukan pasien DPJP lain — supaya laporan ini benar-benar mencerminkan realisasi
+      // pribadinya. Admin/Chief/Wakil Chief tetap melihat semua baris (dan bisa mengedit).
+      if (currentUserRole === 'konsulen') rows = rows.filter(r => isMyDPJPPatient(r.dpjpAnestesi));
       rows.sort((a,b) => (b.waktuCatat||0) - (a.waktuCatat||0));
       detailRealisasiTindakanData = rows;
       const tb = document.getElementById('detailRealisasiTindakanBody');
       if (!tb) return;
-      if (rows.length === 0) { tb.innerHTML = '<tr><td colspan="13" style="color:#888;">Belum ada pasien selesai pada bulan ini</td></tr>'; return; }
+      if (rows.length === 0) { tb.innerHTML = `<tr><td colspan="14" style="color:#888;">${currentUserRole==='konsulen' ? 'Belum ada pasien Anda yang selesai pada bulan ini' : 'Belum ada pasien selesai pada bulan ini'}</td></tr>`; return; }
+      const canEdit = isAdminLevel();
       tb.innerHTML = rows.map(r => `
         <tr>
           <td>${r.tanggal || '-'}</td>
@@ -4088,8 +4428,79 @@
           <td>${r.selesai || '-'}</td>
           <td>${r.masukPacu || '-'}</td>
           <td>${r.keluarPacu || '-'}</td>
+          <td>${canEdit ? `<button class="btn btn-primary" style="padding:3px 8px; font-size:9.5px;" onclick="openEditRealisasiTindakanModal('${r._key}')"><i class="fa-solid fa-pen-to-square"></i> Edit</button>` : '-'}</td>
         </tr>
       `).join('');
+    });
+  }
+
+  // Admin/Chief/Wakil Chief mengedit satu baris Laporan Realisasi Tindakan langsung ke
+  // 'realisasi_tindakan_log/{bulan}/{key}'. Field identitas (Nama, RM, Tanggal) SENGAJA tidak
+  // bisa diubah di sini karena itu bagian dari key deterministik baris ini (rm_tanggal) — kalau
+  // perlu dikoreksi, koreksi lewat Detail Pasien di menu Pasien & Operasi sebelum kasus selesai.
+  function openEditRealisasiTindakanModal(key) {
+    if (!isAdminLevel()) { alert('⚠️ Hanya Admin/Chief/Wakil Chief yang dapat mengedit Laporan Realisasi Tindakan.'); return; }
+    const r = (detailRealisasiTindakanData || []).find(x => x._key === key);
+    if (!r) { alert('⚠️ Data tidak ditemukan (mungkin sudah berubah). Coba muat ulang halaman.'); return; }
+
+    const titleEl = document.getElementById('analyticsModalTitle');
+    const bodyEl = document.getElementById('analyticsModalBody');
+    titleEl.innerHTML = `<i class="fa-solid fa-file-pen"></i> Edit Realisasi Tindakan — ${r.nama || '-'} (RM: ${r.rm || '-'})`;
+    const f = (val) => (val === undefined || val === null || val === '-') ? '' : String(val).replace(/"/g, '&quot;');
+
+    bodyEl.innerHTML = `
+      <p style="font-size:10px; color:var(--text-light); background:rgba(245,158,11,0.1); border-radius:8px; padding:8px;">Tanggal tercatat: <b>${r.tanggal || '-'}</b> (tidak bisa diubah di sini — bagian dari identitas baris). ⚠️ Mengubah DPJP Anestesi memindahkan atribusi baris ini ke akun DPJP yang baru pada tabel ini, TAPI TIDAK mengubah angka rekap "Realisasi DPJP Bulanan" di atas (rekap itu sudah tersimpan terpisah saat kasus diselesaikan).</p>
+      <div class="grid-2" style="gap:8px; margin-top:8px;">
+        <div class="form-group"><label>Divisi</label><input type="text" id="rtEdit_divisi" class="login-input" value="${f(r.divisi)}"></div>
+        <div class="form-group"><label>Residen</label><input type="text" id="rtEdit_residen" class="login-input" value="${f(r.residen)}"></div>
+        <div class="form-group"><label>DPJP Bedah/Operator</label><input type="text" id="rtEdit_dpjpBedah" class="login-input" value="${f(r.dpjpBedah)}"></div>
+        <div class="form-group"><label>DPJP Anestesi</label><input type="text" id="rtEdit_dpjpAnestesi" class="login-input" value="${f(r.dpjpAnestesi)}"></div>
+        <div class="form-group"><label>Ruangan/Kamar</label><input type="text" id="rtEdit_ruangan" class="login-input" value="${f(r.ruangan)}"></div>
+        <div class="form-group"><label>No. OK</label><input type="text" id="rtEdit_ok" class="login-input" value="${f(r.ok)}"></div>
+        <div class="form-group"><label>Tujuan Rawat</label><input type="text" id="rtEdit_tujuanRawat" class="login-input" value="${f(r.tujuanRawat)}"></div>
+        <div class="form-group"><label>Kategori</label><select id="rtEdit_kategori" class="login-input"><option value="elektif" ${r.kategori!=='urgency'?'selected':''}>Elektif</option><option value="urgency" ${r.kategori==='urgency'?'selected':''}>Urgensi/Emergency</option></select></div>
+        <div class="form-group" style="grid-column:1/-1;"><label>Diagnosis</label><textarea id="rtEdit_diagnosis" class="login-input" rows="2">${f(r.diagnosis)}</textarea></div>
+        <div class="form-group" style="grid-column:1/-1;"><label>Tindakan</label><textarea id="rtEdit_tindakan" class="login-input" rows="2">${f(r.tindakan)}</textarea></div>
+        <div class="form-group"><label>Jam Mulai</label><input type="time" id="rtEdit_mulai" class="login-input" value="${f(r.mulai)}"></div>
+        <div class="form-group"><label>Jam Selesai</label><input type="time" id="rtEdit_selesai" class="login-input" value="${f(r.selesai)}"></div>
+        <div class="form-group"><label>Masuk PACU</label><input type="time" id="rtEdit_masukPacu" class="login-input" value="${f(r.masukPacu)}"></div>
+        <div class="form-group"><label>Keluar PACU</label><input type="time" id="rtEdit_keluarPacu" class="login-input" value="${f(r.keluarPacu)}"></div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+        <button class="btn btn-danger" onclick="closeAnalyticsModal()">Batal</button>
+        <button class="btn btn-success" onclick="saveEditRealisasiTindakanModal('${key}')"><i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan</button>
+      </div>
+    `;
+    document.getElementById('analyticsModal').style.display = 'flex';
+  }
+
+  function saveEditRealisasiTindakanModal(key) {
+    if (!isAdminLevel()) { alert('⚠️ Hanya Admin/Chief/Wakil Chief yang dapat mengedit Laporan Realisasi Tindakan.'); return; }
+    const m = document.getElementById('monthlyFilterPicker').value;
+    if (!m) return;
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const dpjpAnestesiNew = resolveDPJPName(val('rtEdit_dpjpAnestesi')) || 'Tanpa DPJP';
+    const updates = {
+      divisi: val('rtEdit_divisi') || '-',
+      residen: val('rtEdit_residen') || '-',
+      dpjpBedah: val('rtEdit_dpjpBedah') || '-',
+      dpjpAnestesi: dpjpAnestesiNew,
+      ruangan: val('rtEdit_ruangan') || '-',
+      ok: val('rtEdit_ok') || '-',
+      tujuanRawat: val('rtEdit_tujuanRawat') || '-',
+      kategori: val('rtEdit_kategori') || 'elektif',
+      diagnosis: val('rtEdit_diagnosis') || '-',
+      tindakan: val('rtEdit_tindakan') || '-',
+      mulai: val('rtEdit_mulai') || '-',
+      selesai: val('rtEdit_selesai') || '-',
+      masukPacu: val('rtEdit_masukPacu') || '-',
+      keluarPacu: val('rtEdit_keluarPacu') || '-'
+    };
+    db.ref(`realisasi_tindakan_log/${m}/${key}`).update(updates, (err) => {
+      if (err) { alert('⚠️ Gagal menyimpan perubahan: ' + (err.message || err)); return; }
+      closeAnalyticsModal();
+      logSystemChange('Mengedit Laporan Realisasi Tindakan', `RM/Key: ${key} → DPJP Anestesi: ${dpjpAnestesiNew}`);
+      alert('✅ Perubahan Laporan Realisasi Tindakan berhasil disimpan.');
     });
   }
 
@@ -4196,6 +4607,97 @@
     XLSX.writeFile(wb, `Laporan_Realisasi_Tindakan_${dStr}.xlsx`);
   }
 
+  // ================= PENCARIAN PASIEN GLOBAL (HEADER) =================
+  // Satu kotak cari di header, tampil di semua halaman, mengetik nama/RM langsung menyaring dari
+  // SELURUH sumber data pasien sekaligus: daftar Elektif (COT+Luar COT, termasuk semua sheet kalau
+  // ada lebih dari satu), dan List Emergency/Urgency — tanpa perlu pindah halaman dulu.
+  let globalSearchResultsCache = [];
+
+  function globalSearchStatusLabel(p, type) {
+    if (type === 'emergency') {
+      if (p.statusType === 'completed') return 'Emergency — Selesai';
+      if (p.statusType === 'ongoing') return `Emergency — ${p.statusEmergencyTahap === 'dipanggil' ? 'Dipanggil' : 'Berlangsung'}`;
+      return 'Emergency — Antrean';
+    }
+    if (p.selesai && p.selesai.trim() !== '') return 'Elektif — Selesai';
+    if (p.mulai && p.mulai.trim() !== '') return 'Elektif — Berlangsung';
+    if (p.statusCatatan && p.statusCatatan.trim() !== '') return `Elektif — ${p.statusCatatan}`;
+    return 'Elektif — Antrean';
+  }
+
+  function renderGlobalSearchResults() {
+    const panel = document.getElementById('globalSearchResultsPanel');
+    const kwRaw = document.getElementById('globalPatientSearch').value.trim();
+    if (!kwRaw) { panel.style.display = 'none'; globalSearchResultsCache = []; return; }
+    const kw = kwRaw.toUpperCase();
+
+    const results = [];
+    Object.keys(allSheetsData || {}).forEach(sheetName => {
+      (allSheetsData[sheetName] || []).forEach((p, idx) => {
+        if ((p.nama||'').toUpperCase().includes(kw) || (p.rm||'').toUpperCase().includes(kw)) {
+          results.push({ type: 'elektif', sheetName, idx, p });
+        }
+      });
+    });
+    (emergencyPatientsList || []).forEach(p => {
+      if ((p.nama||'').toUpperCase().includes(kw) || (p.rm||'').toUpperCase().includes(kw)) {
+        results.push({ type: 'emergency', p });
+      }
+    });
+
+    globalSearchResultsCache = results.slice(0, 25);
+
+    if (globalSearchResultsCache.length === 0) {
+      panel.innerHTML = `<div style="padding:14px; font-size:12px; color:#888; text-align:center;">Tidak ditemukan pasien dengan nama/RM "${kwRaw.replace(/</g,'&lt;')}".</div>`;
+    } else {
+      panel.innerHTML = globalSearchResultsCache.map((r, i) => {
+        const p = r.p;
+        const badge = r.type === 'emergency'
+          ? '<span class="badge-sektor" style="background:rgba(239,68,68,0.18); color:#fca5a5; border:1px solid rgba(239,68,68,0.4);">Emergency</span>'
+          : sektorBadgeHTML(p.asalSektor);
+        return `
+          <div class="global-search-result-item" style="padding:10px 14px; border-bottom:1px solid var(--border); cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:8px;" onmousedown="openGlobalSearchResult(${i})">
+            <div style="min-width:0;">
+              <div style="font-weight:800; color:#fff; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.nama || '-'}</div>
+              <div style="font-size:10.5px; color:var(--text-light);">RM: ${p.rm || '-'} ${p.divisi ? '| ' + p.divisi : ''} | ${globalSearchStatusLabel(p, r.type)}</div>
+            </div>
+            <div style="flex-shrink:0;">${badge}</div>
+          </div>
+        `;
+      }).join('');
+    }
+    panel.style.display = 'block';
+  }
+
+  function openGlobalSearchResult(i) {
+    const r = globalSearchResultsCache[i];
+    if (!r) return;
+    document.getElementById('globalSearchResultsPanel').style.display = 'none';
+    document.getElementById('globalPatientSearch').value = '';
+
+    if (r.type === 'emergency') {
+      switchPage('page-emergency');
+      openEmergencyPatientEditModal(r.p.id);
+    } else {
+      switchPage('page-pasien');
+      if (currentSheetName !== r.sheetName) switchSheet(r.sheetName);
+      // Cari ulang index di activeSheetData saat ini (referensi objek sama persis dengan hasil
+      // pencarian, jadi indexOf tetap akurat walau urutan array berubah setelah switchSheet/render).
+      const freshIdx = activeSheetData.indexOf(r.p);
+      openPatientDetailEditModal(freshIdx !== -1 ? freshIdx : r.idx);
+    }
+  }
+
+  // Tutup panel hasil pencarian saat klik di luar kotak pencarian (onmousedown pada item hasil
+  // di atas sudah dijalankan lebih dulu daripada event ini karena mousedown terjadi sebelum blur/click).
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('globalSearchWrap');
+    if (wrap && !wrap.contains(e.target)) {
+      const panel = document.getElementById('globalSearchResultsPanel');
+      if (panel) panel.style.display = 'none';
+    }
+  });
+
   // REVISI INTEGRASI PASIEN ELEKTIF & EMERGENCY PADA MONITOR DASHBOARD
   // Badge warna "Asal Sektor" (COT = biru, Luar COT = jingga/kuning, lainnya = abu-abu netral)
   // supaya di satu tabel gabungan, asal pasien tetap bisa dibedakan sekali lihat.
@@ -4286,20 +4788,25 @@
       const hasMulaiTime = p.mulai && p.mulai.trim() !== '';
 
       // Aturan warna status laporan (terintegrasi di seluruh tampilan — grid, kartu, tabel):
-      // 1) MERAH — status terisi dengan alasan batal/tidak jadi (konsul ditarik, tidak dapat
-      //    ruangan, ditarik periop, operator berhalangan, ditarik operator, pasien tidak datang,
-      //    menolak tindakan, ditunda operator, pulang paksa, tidak optimal, meninggal, Optimalisasi,
-      //    dsb) — SELALU merah walau jam Mulai sempat terisi (mis. pasien meninggal saat tindakan).
-      // 2) ORANGE — status "diurgencykan"/"di-emergencykan" (belum masuk kategori merah/selesai di
-      //    atas) — pasien ini otomatis terintegrasi ke List Pasien Emergency/Urgency.
-      // 3) HIJAU — jam Mulai dan/atau Selesai sudah terisi (atau status literal "Sudah dikerja") =
+      // 1) UNGU — status Optimalisasi ("Pasien tidak optimal (Optimalisasi)" / "...dari poli.") =
+      //    BUKAN batal permanen, pasien perlu ditindaklanjuti (perbaikan kondisi) lalu dijadwal
+      //    ulang. Sengaja diberi warna BERBEDA dari batal murni supaya langsung terlihat perlu
+      //    follow-up, bukan dianggap selesai dibatalkan.
+      // 2) MERAH — status batal murni lainnya (konsul ditarik, tidak dapat ruangan, ditarik
+      //    periop, operator berhalangan, ditarik operator, pasien tidak datang, menolak tindakan,
+      //    ditunda operator, pulang paksa, meninggal, dsb) — SELALU merah walau jam Mulai sempat
+      //    terisi (mis. pasien meninggal saat tindakan).
+      // 3) ORANGE — status "diurgencykan"/"di-emergencykan" (belum masuk kategori ungu/merah/selesai
+      //    di atas) — pasien ini otomatis terintegrasi ke List Pasien Emergency/Urgency.
+      // 4) HIJAU — jam Mulai dan/atau Selesai sudah terisi (atau status literal "Sudah dikerja") =
       //    status "dikerja".
-      // 4) Kosong/default — belum ada status maupun jam sama sekali (pasien masih dalam antrian).
+      // 5) Kosong/default — belum ada status maupun jam sama sekali (pasien masih dalam antrian).
       const isSelesai = hasSelesaiTime || stLower.includes('sudah dikerja');
-      const isUrgency = stLower.includes('urgency') || stLower.includes('emergency');
+      const isUrgency = isUrgencyStatusText(st);
       const isDikerja = isSelesai || hasMulaiTime;
-      const isBatalText = st !== '' && !isUrgency && !isSelesai;
-      const statusClass = isBatalText ? 'status-merah' : isUrgency ? 'status-urgency' : isDikerja ? 'status-selesai' : '';
+      const isOptimalisasiText = !isSelesai && isOptimalisasiStatus(st);
+      const isBatalText = st !== '' && !isUrgency && !isSelesai && !isOptimalisasiText;
+      const statusClass = isOptimalisasiText ? 'status-optimalisasi' : isBatalText ? 'status-merah' : isUrgency ? 'status-urgency' : isDikerja ? 'status-selesai' : '';
 
       let cardOpt = statusOptions.map(o=>`<option value="${o}" ${st===o?'selected':''}>${o}</option>`).join('');
 
@@ -4495,12 +5002,19 @@
     });
   }
 
+  // Daftar pasien Batal murni & Optimalisasi hasil kalkulasi TERAKHIR (dipakai oleh modal
+  // analisis klik-kartu 'batal'/'optimalisasi' di dashboard agar bisa menampilkan rincian
+  // alasan + daftar nama pasien yang bisa langsung dibuka untuk ditindaklanjuti/diedit).
+  let lastBatalPatientsList = [];
+  let lastOptimalisasiPatientsList = [];
+
   function recalculateDashboardAndReport() {
-    let totA = 0, sel = 0, urg = 0, btl = 0, urgOngoing = 0, urgDone = 0;
+    let totA = 0, sel = 0, urg = 0, btl = 0, opt = 0, urgOngoing = 0, urgDone = 0;
     let totalPacuMins = 0, pacuCount = 0;
     let tCot=0, sCot=0, tLuar=0, sLuar=0;
     let residentCaseCount = {}, cancellationCount = 0, electiveTotalCount = 0;
     let roomDistributionMap = {};
+    let batalPatientsThisRun = [], optimalisasiPatientsThisRun = [];
 
     reportKeys.forEach(k=>reportData[k]=0);
     
@@ -4535,16 +5049,22 @@
     reportData["Rencana diluar kamar bedah"] = `${tLuar} (${sLuar})`; 
     reportData["Total konsul operasi elektif"] = tCot + tLuar;
 
-    activeSheetData.forEach(p => {
+    activeSheetData.forEach((p, pIdx) => {
       const st=p.statusCatatan||''; const isD=(p.selesai&&p.selesai.trim()!=='')||st==='Sudah dikerja';
       if(st&&reportData.hasOwnProperty(st)) reportData[st]++; else if(isD) reportData["Sudah dikerja"]++;
-      
-      const isEmg = st.includes('urgency') || st.includes('emergency');
-      const isBatal = st !== '' && !isEmg && !isD;
+
+      const isEmg = isUrgencyStatusText(st);
+      // Batal murni dan Optimalisasi dihitung TERPISAH (lihat blok "KLASIFIKASI STATUS" di atas)
+      // — keduanya tetap masuk cancellationCount (operasi memang tidak jalan hari itu, relevan
+      // untuk Elective Cancellation Rate), tapi ditampilkan sebagai dua metrik berbeda di dashboard
+      // supaya jelas mana yang perlu ditindaklanjuti (Optimalisasi) vs benar-benar batal.
+      const isOpt = !isD && isOptimalisasiStatus(st);
+      const isBatal = !isD && !isOpt && isTrueBatalStatus(st);
 
       if (isEmg) { if (isD) urgDone++; else urgOngoing++; }
       if(isD) { sel++; electiveTotalCount++; }
-      else if(isBatal) { btl++; cancellationCount++; electiveTotalCount++; }
+      else if(isOpt) { opt++; cancellationCount++; electiveTotalCount++; optimalisasiPatientsThisRun.push({ p, idx: pIdx }); }
+      else if(isBatal) { btl++; cancellationCount++; electiveTotalCount++; batalPatientsThisRun.push({ p, idx: pIdx }); }
       else if(!isEmg) { electiveTotalCount++; }
 
       // Resident Burnout Index (beban kerja) HANYA menghitung kasus yang statusnya "Sudah dikerja"
@@ -4602,6 +5122,9 @@
     document.getElementById('mSelesai').innerText=sel;
     document.getElementById('mUrgency').innerText=urg;
     document.getElementById('mBatal').innerText=btl;
+    const mOptEl = document.getElementById('mOptimalisasi'); if (mOptEl) mOptEl.innerText = opt;
+    lastBatalPatientsList = batalPatientsThisRun;
+    lastOptimalisasiPatientsList = optimalisasiPatientsThisRun;
     const mUrgOngoingEl = document.getElementById('mUrgencyOngoing'); if (mUrgOngoingEl) mUrgOngoingEl.innerText = urgOngoing;
     const mUrgDoneEl = document.getElementById('mUrgencyDone'); if (mUrgDoneEl) mUrgDoneEl.innerText = urgDone;
 
@@ -4884,6 +5407,8 @@
     const urgOngoing = document.getElementById('mUrgencyOngoing').innerText || '0';
     const urgDone = document.getElementById('mUrgencyDone').innerText || '0';
     const btl = document.getElementById('mBatal').innerText || '0';
+    const optEl = document.getElementById('mOptimalisasi');
+    const opt = optEl ? (optEl.innerText || '0') : '0';
     const avgPacu = document.getElementById('statAvgPacu').innerText || '0 menit';
     const topRoom = document.getElementById('topRoomName').innerText || '-';
     const cntICU = document.getElementById('cntICU').innerText || '0';
@@ -4913,7 +5438,7 @@ Dibuat oleh: ${currentUsername} (${roleLabel(currentUserRole)})
 - Total pasien (COT + Luar COT): ${totA}
 - Selesai / Surgical Capacity Utilization: ${sel} pasien (${selPct})
 - Urgency/Emergency: ${parseInt(urgOngoing)+parseInt(urgDone)} pasien — Berlangsung: ${urgOngoing}, Selesai: ${urgDone}
-- Batal/Optimalisasi: ${btl} pasien
+- Batal (murni): ${btl} pasien | Optimalisasi (perlu follow-up, berpotensi dijadwal ulang): ${opt} pasien
 - Rata-rata Turnover PACU: ${avgPacu}
 - Ruangan asal pasien terbanyak: ${topRoom}
 
@@ -4931,7 +5456,8 @@ ${burnoutRisk.length ? `- ⚠️ BURNOUT RISK: ${burnoutRisk.join(', ')}` : '- T
 ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
 
 6) BAHAN TINDAK LANJUT
-- ${btl > 0 ? `Tindak lanjuti ${btl} kasus batal/optimalisasi untuk identifikasi akar masalah (jadwal, ruangan, kesiapan pasien).` : 'Tidak ada kasus batal yang perlu ditindaklanjuti.'}
+- ${btl > 0 ? `Investigasi akar masalah ${btl} kasus batal murni (jadwal, ruangan, kesiapan operator/pasien).` : 'Tidak ada kasus batal murni yang perlu diinvestigasi.'}
+- ${opt > 0 ? `Follow-up aktif ${opt} kasus Optimalisasi — koordinasikan dengan poli terkait agar pasien segera memenuhi syarat & dapat dijadwalkan ulang.` : 'Tidak ada kasus Optimalisasi yang menunggu tindak lanjut saat ini.'}
 - ${(burnoutRisk.length || highLoad.length) ? 'Lakukan redistribusi jaga/kasus untuk residen dengan beban tinggi/burnout risk pada 5) di atas.' : 'Beban kerja residen dalam batas wajar, pertahankan pola jaga saat ini.'}
 - Pastikan seluruh pasien ICU/HCU/NICU/PICU pada 2) mendapat serah-terima (hand-over) yang terdokumentasi ke ruangan intensif tujuan.
 - Review ${urgOngoing} kasus urgency/emergency yang masih berlangsung untuk memastikan kesiapan tim OK & DPJP anestesi jaga.`;
@@ -4946,6 +5472,323 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
     navigator.clipboard.writeText(lastKesimpulanKerjaText).then(() => {
       alert('Kesimpulan kerja berhasil disalin! Silakan tempel (paste) ke WhatsApp.');
     }).catch(() => alert('Gagal menyalin otomatis. Silakan salin manual dari kotak kesimpulan.'));
+  }
+
+  // ================= ANALISIS & BASIS KEBIJAKAN =================
+  // Membaca 'daily_patient_log' (riwayat harian, lihat saveDailyPatientSnapshot) + 'ikve_records'
+  // (per bulan) untuk rentang tanggal terpilih, menghasilkan KPI, chart tren, tabel, dan rekomendasi
+  // kebijakan otomatis. Data historis hanya tersedia SEJAK fitur log harian ini aktif — lihat
+  // catatan di saveDailyPatientSnapshot().
+  let chartKebijakanSektorInstance = null;
+  let lastKebijakanRekomendasiText = '';
+
+  // ================= KLASIFIKASI STATUS: BATAL vs OPTIMALISASI (dipisah, bukan digabung) =================
+  // Sebelumnya "Batal" dan "Optimalisasi" digabung jadi satu angka/kategori generik di seluruh
+  // sistem (dashboard, tabel, analisis kebijakan) — padahal secara klinis keduanya BERBEDA:
+  //  - "Optimalisasi" (mis. status "Pasien tidak optimal (Optimalisasi)" / "Pasien tidak optimal
+  //    dari poli.") berarti pasien BELUM batal permanen — operasi ditunda karena kondisi pasien
+  //    perlu diperbaiki dulu (mis. tekanan darah, gula darah, elektrolit), dan BERPOTENSI besar
+  //    dijadwalkan ulang setelah optimalisasi selesai. Ini kasus yang perlu DITINDAKLANJUTI/di-follow-up.
+  //  - "Batal" murni (konsul ditarik, operator berhalangan, pasien menolak, pasien tidak datang,
+  //    dsb) adalah status akhir yang tidak menunggu tindak lanjut medis serupa.
+  // Fungsi-fungsi berikut dipakai di SELURUH sistem (dashboard live, warna status tabel/kartu,
+  // dan halaman Analisis & Basis Kebijakan) supaya konsisten satu sama lain.
+  const OPTIMALISASI_STATUS_KEYWORDS = ['tidak optimal'];
+  function isOptimalisasiStatus(statusCatatan) {
+    const st = (statusCatatan || '').toLowerCase();
+    return OPTIMALISASI_STATUS_KEYWORDS.some(k => st.includes(k));
+  }
+  function isUrgencyStatusText(statusCatatan) {
+    const st = (statusCatatan || '').toLowerCase();
+    return st.includes('urgency') || st.includes('emergency');
+  }
+  // isBatalStatus = payung UMUM (batal murni + optimalisasi digabung) — dipertahankan untuk
+  // kompatibilitas kode lama yang masih memakainya sebagai kategori "belum selesai & bukan urgency".
+  function isBatalStatus(statusCatatan) {
+    const st = statusCatatan || '';
+    const stLower = st.toLowerCase();
+    const isUrgency = isUrgencyStatusText(st);
+    const isSelesai = stLower.includes('sudah dikerja');
+    return st.trim() !== '' && !isUrgency && !isSelesai;
+  }
+  // isTrueBatalStatus = HANYA batal murni, TIDAK termasuk Optimalisasi.
+  function isTrueBatalStatus(statusCatatan) {
+    return isBatalStatus(statusCatatan) && !isOptimalisasiStatus(statusCatatan);
+  }
+  function isSelesaiStatus(p) {
+    return (p.selesai && p.selesai.trim() !== '') || (p.statusCatatan || '').toLowerCase().includes('sudah dikerja');
+  }
+
+  function defaultKebijakanDateRange() {
+    const endEl = document.getElementById('kebijakanDateEnd');
+    const startEl = document.getElementById('kebijakanDateStart');
+    if (endEl && !endEl.value) endEl.value = todayDateStrWITA();
+    if (startEl && !startEl.value) {
+      const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Makassar' }));
+      d.setDate(d.getDate() - 29);
+      startEl.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+  }
+
+  function monthsBetween(startStr, endStr) {
+    const months = [];
+    const [sy, sm] = startStr.split('-').map(Number);
+    const [ey, em] = endStr.split('-').map(Number);
+    let y = sy, m = sm;
+    while (y < ey || (y === ey && m <= em)) {
+      months.push(`${y}-${String(m).padStart(2,'0')}`);
+      m++; if (m > 12) { m = 1; y++; }
+    }
+    return months;
+  }
+
+  function runKebijakanAnalysis() {
+    defaultKebijakanDateRange();
+    const startStr = document.getElementById('kebijakanDateStart').value;
+    const endStr = document.getElementById('kebijakanDateEnd').value;
+    if (!startStr || !endStr || startStr > endStr) { alert('⚠️ Rentang tanggal tidak valid. Pastikan "Dari Tanggal" tidak lebih besar dari "Sampai Tanggal".'); return; }
+
+    db.ref('daily_patient_log').once('value', snap => {
+      const raw = snap.val() || {};
+      const allDates = Object.keys(raw).sort();
+      const earliestAvailable = allDates.length ? allDates[0] : null;
+
+      const gapNoticeEl = document.getElementById('kebijakanDataGapNotice');
+      if (!earliestAvailable || earliestAvailable > startStr) {
+        gapNoticeEl.style.display = 'block';
+        gapNoticeEl.innerHTML = `⚠️ <b>Keterbatasan data:</b> riwayat harian baru mulai tercatat sejak <b>${earliestAvailable || 'belum ada data sama sekali'}</b> (fitur log historis ini baru aktif). Data sebelum tanggal itu TIDAK bisa direkonstruksi karena memang belum pernah disimpan — analisis di bawah hanya mencakup rentang yang benar-benar tersedia (${earliestAvailable || '-'} s/d hari ini), bukan seluruh rentang yang Anda pilih.`;
+      } else {
+        gapNoticeEl.style.display = 'none';
+      }
+
+      const datesInRange = allDates.filter(d => d >= startStr && d <= endStr);
+      const dayBuckets = datesInRange.map(d => ({ date: d, rows: (raw[d].pasien || []) }));
+      const allRows = dayBuckets.flatMap(b => b.rows.map(p => ({ ...p, _logDate: b.date })));
+
+      const totalKasus = allRows.length;
+      const selesaiCount = allRows.filter(isSelesaiStatus).length;
+      // Batal murni dan Optimalisasi dipisah (lihat isTrueBatalStatus/isOptimalisasiStatus) — jangan
+      // digabung lagi jadi satu angka, karena keduanya butuh tindak lanjut yang berbeda.
+      const batalRows = allRows.filter(p => isTrueBatalStatus(p.statusCatatan));
+      const batalCount = batalRows.length;
+      const optRows = allRows.filter(p => isOptimalisasiStatus(p.statusCatatan) && !isSelesaiStatus(p));
+      const optCount = optRows.length;
+      const daysCovered = dayBuckets.length || 1;
+
+      document.getElementById('kbTotalKasus').innerText = totalKasus;
+      document.getElementById('kbTingkatSelesai').innerText = totalKasus ? `${Math.round(selesaiCount/totalKasus*100)}%` : '0%';
+      document.getElementById('kbTingkatBatal').innerText = totalKasus ? `${Math.round(batalCount/totalKasus*100)}%` : '0%';
+      const kbOptEl = document.getElementById('kbTingkatOptimalisasi'); if (kbOptEl) kbOptEl.innerText = totalKasus ? `${Math.round(optCount/totalKasus*100)}%` : '0%';
+      document.getElementById('kbRataKasusHari').innerText = (totalKasus/daysCovered).toFixed(1);
+
+      // 1) Tren kasus harian per sektor (COT vs Luar COT) — chart
+      const sektorLabels = dayBuckets.map(b => b.date.slice(5));
+      const cotSeries = dayBuckets.map(b => b.rows.filter(p => (p.asalSektor||'').toUpperCase() === 'COT').length);
+      const luarSeries = dayBuckets.map(b => b.rows.filter(p => (p.asalSektor||'').toUpperCase().includes('LUAR')).length);
+      const ctx = document.getElementById('chartKebijakanSektorTren').getContext('2d');
+      if (chartKebijakanSektorInstance) chartKebijakanSektorInstance.destroy();
+      chartKebijakanSektorInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: sektorLabels, datasets: [
+          { label: 'COT', data: cotSeries, backgroundColor: '#3b82f6', stack: 's' },
+          { label: 'Luar COT', data: luarSeries, backgroundColor: '#f59e0b', stack: 's' }
+        ] },
+        options: { responsive:true, plugins:{legend:{labels:{color:'#94a3b8'}}}, scales:{ x:{stacked:true, ticks:{color:'#94a3b8'}, grid:{display:false}}, y:{stacked:true, beginAtZero:true, ticks:{color:'#94a3b8', precision:0}, grid:{color:'rgba(255,255,255,0.05)'}} } }
+      });
+      const cotTotal = cotSeries.reduce((a,b)=>a+b,0), luarTotal = luarSeries.reduce((a,b)=>a+b,0);
+      document.getElementById('kebijakanUtilisasiBody').innerHTML =
+        `Total kasus sektor <b style="color:#93c5fd;">COT: ${cotTotal}</b> (${totalKasus?Math.round(cotTotal/totalKasus*100):0}%) vs <b style="color:#fde68a;">Luar COT: ${luarTotal}</b> (${totalKasus?Math.round(luarTotal/totalKasus*100):0}%) selama ${daysCovered} hari tercatat. Rata-rata ${(cotTotal/daysCovered).toFixed(1)} kasus/hari di COT dan ${(luarTotal/daysCovered).toFixed(1)} kasus/hari di Luar COT.`;
+
+      // 3) Alasan pembatalan terbanyak (batal murni) + alasan optimalisasi terbanyak (terpisah)
+      const alasanCount = {};
+      batalRows.forEach(p => { const a = (p.statusCatatan||'').trim(); alasanCount[a] = (alasanCount[a]||0)+1; });
+      const alasanSorted = Object.entries(alasanCount).sort((a,b)=>b[1]-a[1]);
+      const tbAlasan = document.querySelector('#tblAlasanBatal tbody');
+      tbAlasan.innerHTML = alasanSorted.length ? alasanSorted.map(([a,c]) =>
+        `<tr><td style="text-align:left;">${a}</td><td>${c}</td><td>${batalCount?Math.round(c/batalCount*100):0}%</td></tr>`
+      ).join('') : '<tr><td colspan="3" style="color:#888;">Tidak ada kasus batal murni pada rentang ini.</td></tr>';
+
+      const alasanOptCount = {};
+      optRows.forEach(p => { const a = (p.statusCatatan||'').trim(); alasanOptCount[a] = (alasanOptCount[a]||0)+1; });
+      const alasanOptSorted = Object.entries(alasanOptCount).sort((a,b)=>b[1]-a[1]);
+      const tbAlasanOpt = document.querySelector('#tblAlasanOptimalisasi tbody');
+      if (tbAlasanOpt) {
+        tbAlasanOpt.innerHTML = alasanOptSorted.length ? alasanOptSorted.map(([a,c]) =>
+          `<tr><td style="text-align:left;">${a}</td><td>${c}</td><td>${optCount?Math.round(c/optCount*100):0}%</td></tr>`
+        ).join('') : '<tr><td colspan="3" style="color:#888;">Tidak ada kasus Optimalisasi pada rentang ini.</td></tr>';
+      }
+
+      // Tingkat pembatalan per divisi (murni) + tingkat optimalisasi per divisi (terpisah)
+      const divMap = {};
+      allRows.forEach(p => {
+        const d = (p.divisi && p.divisi !== '-') ? p.divisi.trim() : 'Tanpa Divisi';
+        if (!divMap[d]) divMap[d] = { total: 0, batal: 0, opt: 0 };
+        divMap[d].total++;
+        if (isTrueBatalStatus(p.statusCatatan)) divMap[d].batal++;
+        if (isOptimalisasiStatus(p.statusCatatan) && !isSelesaiStatus(p)) divMap[d].opt++;
+      });
+      const divSorted = Object.entries(divMap).sort((a,b) => (b[1].batal/b[1].total) - (a[1].batal/a[1].total));
+      const tbDiv = document.querySelector('#tblBatalDivisi tbody');
+      tbDiv.innerHTML = divSorted.length ? divSorted.map(([d,v]) =>
+        `<tr><td style="text-align:left;">${d}</td><td>${v.total}</td><td>${v.batal}</td><td>${Math.round(v.batal/v.total*100)}%</td></tr>`
+      ).join('') : '<tr><td colspan="4" style="color:#888;">Belum ada data.</td></tr>';
+
+      const divOptSorted = Object.entries(divMap).sort((a,b) => (b[1].opt/b[1].total) - (a[1].opt/a[1].total));
+      const tbDivOpt = document.querySelector('#tblOptimalisasiDivisi tbody');
+      if (tbDivOpt) {
+        tbDivOpt.innerHTML = divOptSorted.length ? divOptSorted.map(([d,v]) =>
+          `<tr><td style="text-align:left;">${d}</td><td>${v.total}</td><td>${v.opt}</td><td>${Math.round(v.opt/v.total*100)}%</td></tr>`
+        ).join('') : '<tr><td colspan="4" style="color:#888;">Belum ada data.</td></tr>';
+      }
+
+      // 2) Beban kerja residen dalam rentang + indikator kombinasi kasus tinggi & batal tinggi
+      const resMap = {};
+      allRows.forEach(p => {
+        const r = (p.residen && p.residen !== '-') ? p.residen.trim() : null;
+        if (!r) return;
+        if (!resMap[r]) resMap[r] = { total: 0, batal: 0 };
+        resMap[r].total++;
+        if (isTrueBatalStatus(p.statusCatatan)) resMap[r].batal++;
+      });
+      const avgCasePerResiden = Object.values(resMap).length ? Object.values(resMap).reduce((a,v)=>a+v.total,0)/Object.values(resMap).length : 0;
+      const resSorted = Object.entries(resMap).sort((a,b) => b[1].total - a[1].total);
+      const tbRes = document.querySelector('#tblBebanResiden tbody');
+      tbRes.innerHTML = resSorted.length ? resSorted.map(([r,v]) => {
+        const pctBatal = v.total ? Math.round(v.batal/v.total*100) : 0;
+        const isHighLoad = v.total > avgCasePerResiden * 1.3;
+        const isHighCancel = pctBatal >= 25 && v.batal >= 3;
+        const flag = (isHighLoad && isHighCancel) ? '<span style="color:var(--danger); font-weight:800;">⚠️ Kasus Tinggi + Batal Tinggi</span>' : (isHighLoad ? '<span style="color:var(--warning);">Kasus Tinggi</span>' : '-');
+        return `<tr><td style="text-align:left;">${r}</td><td>${v.total}</td><td>${v.batal}</td><td>${pctBatal}%</td><td>${flag}</td></tr>`;
+      }).join('') : '<tr><td colspan="5" style="color:#888;">Belum ada data.</td></tr>';
+
+      // 4) Kepatuhan & supervisi DPJP (dari ikve_records per bulan yang tercakup rentang tanggal)
+      const months = monthsBetween(startStr, endStr);
+      Promise.all(months.map(m => db.ref(`ikve_records/${m}`).once('value').then(s => s.val() || {}))).then(monthDataArr => {
+        const ikveMap = {}; // inisial -> {viol, resolved}
+        monthDataArr.forEach(monthData => {
+          Object.keys(monthData).forEach(inisial => {
+            const records = Object.values(monthData[inisial] || {});
+            records.forEach(rec => {
+              if (rec.domain === 'POS') return; // reward, bukan pelanggaran
+              if (!ikveMap[inisial]) ikveMap[inisial] = { viol: 0, resolved: 0 };
+              ikveMap[inisial].viol++;
+              if (rec.tahap === 'Tahap 3: Tervalidasi' || rec.tahap === 'Dibatalkan') ikveMap[inisial].resolved++;
+            });
+          });
+        });
+        const ikveSorted = Object.entries(ikveMap).sort((a,b) => b[1].viol - a[1].viol);
+        const tbSup = document.querySelector('#tblSupervisiDPJP tbody');
+        tbSup.innerHTML = ikveSorted.length ? ikveSorted.map(([inisial,v]) => {
+          const resObj = MASTER_RESIDENTS.find(x => x.inisial === inisial);
+          const nama = resObj ? `${resObj.nama} (${inisial})` : inisial;
+          const pctResolved = v.viol ? Math.round(v.resolved/v.viol*100) : 0;
+          return `<tr><td style="text-align:left;">${nama}</td><td>${v.viol}</td><td>${v.resolved}</td><td>${pctResolved}%</td></tr>`;
+        }).join('') : '<tr><td colspan="4" style="color:#888;">Tidak ada catatan pelanggaran IKVE pada rentang bulan ini.</td></tr>';
+
+        generateKebijakanRekomendasi({
+          startStr, endStr, daysCovered, totalKasus, selesaiCount, batalCount, optCount, cotTotal, luarTotal,
+          alasanSorted, alasanOptSorted, divSorted, divOptSorted, resSorted, avgCasePerResiden, ikveSorted, earliestAvailable
+        });
+      });
+    });
+  }
+
+  function generateKebijakanRekomendasi(d) {
+    const topAlasan = d.alasanSorted.slice(0,3).map(([a,c],i) => `${i+1}. ${a} (${c} kasus)`).join('\n') || '- Tidak ada kasus batal murni tercatat.';
+    const topDivBatal = d.divSorted.filter(([,v]) => v.total >= 3).slice(0,3).map(([dv,v]) => `${dv}: ${Math.round(v.batal/v.total*100)}% batal (${v.batal}/${v.total})`).join('\n') || '- Belum cukup data per divisi.';
+    const topAlasanOpt = (d.alasanOptSorted||[]).slice(0,3).map(([a,c],i) => `${i+1}. ${a} (${c} kasus)`).join('\n') || '- Tidak ada kasus Optimalisasi tercatat.';
+    const topDivOpt = (d.divOptSorted||[]).filter(([,v]) => v.total >= 3).slice(0,3).map(([dv,v]) => `${dv}: ${Math.round(v.opt/v.total*100)}% optimalisasi (${v.opt}/${v.total})`).join('\n') || '- Belum cukup data per divisi.';
+    const flaggedResiden = d.resSorted.filter(([,v]) => {
+      const pctBatal = v.total ? v.batal/v.total*100 : 0;
+      return v.total > d.avgCasePerResiden * 1.3 && pctBatal >= 25 && v.batal >= 3;
+    }).map(([r]) => r);
+    const topIkve = d.ikveSorted.slice(0,3).map(([inisial,v]) => {
+      const resObj = MASTER_RESIDENTS.find(x => x.inisial === inisial);
+      const nama = resObj ? resObj.nama : inisial;
+      return `${nama}: ${v.viol} pelanggaran (${v.viol-v.resolved} belum diklarifikasi)`;
+    }).join('\n') || '- Tidak ada catatan pelanggaran IKVE pada rentang ini.';
+
+    const text =
+`📋 REKOMENDASI KEBIJAKAN — CAMS 2026
+Rentang data: ${d.startStr} s/d ${d.endStr} (${d.daysCovered} hari tercatat)${d.earliestAvailable && d.earliestAvailable > d.startStr ? `\n⚠️ Data historis baru tersedia sejak ${d.earliestAvailable} — rentang di atas hanya mencakup hari yang benar-benar tercatat.` : ''}
+Dibuat oleh: ${currentUsername} (${roleLabel(currentUserRole)})
+
+1) EFISIENSI & UTILISASI OK
+- Total kasus: ${d.totalKasus} (COT: ${d.cotTotal}, Luar COT: ${d.luarTotal})
+- Tingkat selesai: ${d.totalKasus?Math.round(d.selesaiCount/d.totalKasus*100):0}% | Tingkat pembatalan (murni): ${d.totalKasus?Math.round(d.batalCount/d.totalKasus*100):0}% | Tingkat Optimalisasi: ${d.totalKasus?Math.round((d.optCount||0)/d.totalKasus*100):0}%
+- ${d.batalCount/Math.max(d.totalKasus,1) > 0.15 ? 'Tingkat pembatalan murni di atas 15% — evaluasi alur kesiapan pra-operasi disarankan.' : 'Tingkat pembatalan murni masih dalam batas wajar.'}
+- ${(d.optCount||0)/Math.max(d.totalKasus,1) > 0.15 ? 'Tingkat Optimalisasi di atas 15% — pertimbangkan mempercepat skrining kesiapan pasien pra-operasi (poli/optimalisasi) agar tidak berulang menunda jadwal OK.' : 'Tingkat Optimalisasi masih dalam batas wajar.'}
+
+2) BEBAN KERJA & KESELAMATAN RESIDEN
+${flaggedResiden.length ? `- ⚠️ Residen dengan kombinasi kasus tinggi + tingkat batal (murni) tinggi (pertimbangkan redistribusi jaga): ${flaggedResiden.join(', ')}` : '- Tidak ada residen dengan kombinasi beban tinggi + tingkat batal tinggi pada rentang ini.'}
+
+3) POLA PEMBATALAN (MURNI) & OPTIMALISASI — DIPISAH KARENA BERBEDA SECARA KLINIS
+3a) Batal Murni (tidak akan dijadwalkan ulang dengan alasan yang sama):
+Alasan pembatalan terbanyak:
+${topAlasan}
+Divisi dengan tingkat pembatalan tertinggi:
+${topDivBatal}
+
+3b) Optimalisasi (BELUM batal permanen — pasien perlu ditindaklanjuti & berpotensi dijadwalkan ulang):
+Alasan Optimalisasi terbanyak:
+${topAlasanOpt}
+Divisi dengan tingkat Optimalisasi tertinggi:
+${topDivOpt}
+
+4) KEPATUHAN & KUALITAS SUPERVISI DPJP
+Residen dengan pelanggaran IKVE terbanyak pada rentang ini:
+${topIkve}
+
+5) BAHAN KEPUTUSAN
+- ${d.alasanSorted.length ? `Alasan pembatalan murni #1 ("${d.alasanSorted[0][0]}") layak ditindaklanjuti sebagai prioritas perbaikan proses.` : 'Belum ada pola pembatalan murni dominan untuk ditindaklanjuti.'}
+- ${d.alasanOptSorted && d.alasanOptSorted.length ? `Alasan Optimalisasi #1 ("${d.alasanOptSorted[0][0]}") — pertimbangkan penguatan skrining/optimalisasi pra-operasi di poli terkait agar kasus tidak berulang tertunda.` : 'Belum ada pola Optimalisasi dominan untuk ditindaklanjuti.'}
+- ${flaggedResiden.length ? 'Pertimbangkan peninjauan jadwal jaga untuk residen yang ditandai pada poin 2).' : 'Distribusi beban kerja residen relatif merata pada rentang ini.'}
+- ${d.ikveSorted.some(([,v])=>v.viol>v.resolved) ? 'Masih ada catatan IKVE yang belum diklarifikasi DPJP (Tabayyun) — percepat proses klarifikasi agar sanksi memiliki kekuatan hukum yang tercatat.' : 'Seluruh catatan IKVE pada rentang ini sudah melalui proses klarifikasi.'}`;
+
+    lastKebijakanRekomendasiText = text;
+    document.getElementById('kebijakanRekomendasiBody').innerText = text;
+  }
+
+  function copyKebijakanRekomendasiToWA() {
+    if (!lastKebijakanRekomendasiText) { alert('⚠️ Jalankan analisis terlebih dahulu (tombol "Jalankan Analisis").'); return; }
+    navigator.clipboard.writeText(lastKebijakanRekomendasiText).then(() => {
+      alert('Rekomendasi kebijakan berhasil disalin! Silakan tempel (paste) ke WhatsApp.');
+    }).catch(() => alert('Gagal menyalin otomatis. Silakan salin manual dari kotak rekomendasi.'));
+  }
+
+  // Membangun HTML rincian untuk kartu dashboard "PASIEN BATAL" / "PASIEN OPTIMALISASI":
+  // rincian per-alasan (statusCatatan) + jumlah + daftar nama pasien yang bisa langsung
+  // diklik untuk membuka Detail Pasien (tindak lanjut/edit), bukan sekadar angka tunggal.
+  function buildBatalOrOptimalisasiAnalysisHTML(list, colorHex, kind) {
+    const isOpt = kind === 'optimalisasi';
+    if (!list || list.length === 0) {
+      return `<p style="color:var(--text-light);">Tidak ada pasien ${isOpt ? 'dengan status Optimalisasi' : 'batal (murni)'} pada data saat ini. ✅</p>`;
+    }
+    const alasanMap = {};
+    list.forEach(({ p }) => { const a = (p.statusCatatan || '(tanpa keterangan)').trim(); alasanMap[a] = (alasanMap[a] || 0) + 1; });
+    const alasanSorted = Object.entries(alasanMap).sort((a, b) => b[1] - a[1]);
+    const total = list.length;
+
+    const alasanRows = alasanSorted.map(([a, c]) => `
+      <tr><td style="text-align:left;">${a}</td><td>${c}</td><td>${Math.round(c / total * 100)}%</td></tr>
+    `).join('');
+
+    const patientRows = list.map(({ p, idx }) => `
+      <tr style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien &amp; tindak lanjuti">
+        <td style="text-align:left;"><b>${p.nama || '-'}</b><br><span style="font-size:9.5px; color:var(--text-light);">RM: ${p.rm || '-'}</span></td>
+        <td style="text-align:left;">${p.divisi || '-'}</td>
+        <td style="text-align:left;">${p.residen || '-'}</td>
+        <td style="text-align:left; color:${colorHex}; font-weight:700;">${p.statusCatatan || '-'}</td>
+      </tr>
+    `).join('');
+
+    return `
+      <p><b>Total:</b> ${total} pasien ${isOpt ? 'berstatus Optimalisasi (belum batal permanen — berpotensi dijadwalkan ulang setelah kondisi pasien siap)' : 'batal murni (tidak termasuk Optimalisasi)'}.</p>
+      ${isOpt ? `<p style="font-size:11px; color:#c084fc; background:rgba(168,85,247,0.12); border-radius:8px; padding:8px;">ℹ️ Pasien Optimalisasi BUKAN pembatalan final — perlu ditindaklanjuti (mis. konsultasi ulang ke poli/optimalisasi kondisi) lalu dijadwalkan ulang begitu siap. Klik nama pasien di bawah untuk membuka &amp; memperbarui statusnya.</p>` : ''}
+      <div style="overflow-x:auto; margin-top:10px;"><table class="bantex-table"><thead><tr><th>Alasan</th><th>Jumlah</th><th>%</th></tr></thead><tbody>${alasanRows}</tbody></table></div>
+      <div style="margin-top:12px; font-size:11px; font-weight:800; color:${colorHex};">Daftar Pasien (klik untuk tindak lanjut):</div>
+      <div style="overflow-x:auto; max-height:260px; overflow-y:auto; margin-top:6px;"><table class="bantex-table"><thead><tr><th>Pasien</th><th>Divisi</th><th>Residen</th><th>Alasan</th></tr></thead><tbody>${patientRows}</tbody></table></div>
+    `;
   }
 
   function openAnalyticsModal(metricType) {
@@ -5013,8 +5856,11 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
         <p style="font-size:11px; color:var(--text-light);">*Perhitungan mengambil data status "diurgencykan/diemergencykan" dari Daftar Pasien Utama dan seluruh entri di menu List Pasien Emergency WA.</p>
       `;
     } else if (metricType === 'batal') {
-      title = "❌ Analisis Pembatalan / Optimalisasi Pasien";
-      htmlContent = `<p><b>Nilai Saat Ini:</b> ${btl} pasien dengan status tertunda/batal/optimalisasi.</p>`;
+      title = "❌ Analisis Pasien Batal (Murni, Tidak Termasuk Optimalisasi)";
+      htmlContent = buildBatalOrOptimalisasiAnalysisHTML(lastBatalPatientsList, '#ef4444', 'batal');
+    } else if (metricType === 'optimalisasi') {
+      title = "🟣 Analisis Pasien Optimalisasi (Perlu Follow-up)";
+      htmlContent = buildBatalOrOptimalisasiAnalysisHTML(lastOptimalisasiPatientsList, '#a855f7', 'optimalisasi');
     } else if (metricType === 'pacu') {
       title = "⏱️ Analisis Turnover Time & PACU Length of Stay";
       htmlContent = `<p><b>Nilai Saat Ini:</b> ${document.getElementById('statAvgPacu').innerText}</p>`;
@@ -5032,6 +5878,18 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
   }
 
   function closeAnalyticsModal() { document.getElementById('analyticsModal').style.display = 'none'; }
+
+  // Kartu tertutup/terbuka (accordion) generik — dipakai di Halaman List Pasien Emergency WA
+  // supaya form Input & Parser dan Input Manual TIDAK memenuhi layar dan menutupi daftar pasien
+  // emergency (Antrean/Berlangsung/Selesai) di bawahnya. Header diklik untuk buka/tutup; body-nya
+  // adalah elemen tepat setelah header (.collapsible-body).
+  function toggleCollapseCard(headerEl) {
+    const body = headerEl.nextElementSibling;
+    if (!body) return;
+    const isOpening = getComputedStyle(body).display === 'none';
+    body.style.display = isOpening ? 'block' : 'none';
+    headerEl.classList.toggle('is-open', isOpening);
+  }
   function copyReportToWA() { let t="KESIMPULAN\n"; reportKeys.forEach(k=>t+=`${k.padEnd(35,' ')}: ${document.getElementById(`rep_${k}`).value}\n`); navigator.clipboard.writeText(t).then(()=>alert("Disalin!")); }
 
   function switchSheet(s) { currentSheetName=s; activeSheetData=allSheetsData[s]||[]; populateFilterDropdowns(); renderBantexTable(); recalculateDashboardAndReport(); renderActiveStatusLists(); }
