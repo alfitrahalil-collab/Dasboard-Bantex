@@ -753,16 +753,28 @@
     <div class="card">
       <div class="grid-3" style="margin-top:0;">
         <div>
-          <h4 style="color:var(--warning); font-size:13px; font-weight:800; margin-bottom:10px;"><i class="fa-solid fa-spinner fa-spin"></i> Sedang Berlangsung (Masuk OK)</h4>
-          <div id="ongoingEmergencyList"></div>
+          <h4 class="collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:var(--warning); font-size:13px; font-weight:800; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+            <span><i class="fa-solid fa-spinner fa-spin"></i> Sedang Berlangsung (Masuk OK) <span id="ongoingEmergencyCount" class="badge-status ongoing" style="margin-left:2px;">0</span></span>
+            <i class="fa-solid fa-chevron-down collapse-chevron"></i>
+          </h4>
+          <div class="collapsible-body" id="ongoingEmergencyList" style="display:block;"></div>
         </div>
         <div>
-          <h4 style="color:var(--danger); font-size:13px; font-weight:800; margin-bottom:10px;"><i class="fa-solid fa-clock-rotate-left"></i> Antrean Urgency/Emergency</h4>
-          <div id="queuedEmergencyList"></div>
+          <h4 class="collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:var(--danger); font-size:13px; font-weight:800; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+            <span><i class="fa-solid fa-clock-rotate-left"></i> Antrean Urgency/Emergency <span id="queuedEmergencyCount" class="badge-status queued" style="margin-left:2px;">0</span></span>
+            <i class="fa-solid fa-chevron-down collapse-chevron"></i>
+          </h4>
+          <div class="collapsible-body" id="queuedEmergencyList" style="display:block;"></div>
         </div>
         <div>
-          <h4 style="color:var(--success); font-size:13px; font-weight:800; margin-bottom:10px;"><i class="fa-solid fa-circle-check"></i> Selesai Operasi</h4>
-          <div id="completedEmergencyList"></div>
+          <!-- Default TERTUTUP: pasien yang sudah Selesai tidak lagi memenuhi/mengotori tampilan
+               utama (datanya sudah terintegrasi ke Papan Utama & Laporan Realisasi) — tetap bisa
+               dibuka kapan saja lewat klik header ini, jumlahnya tetap terlihat di badge. -->
+          <h4 class="collapsible-header" onclick="toggleCollapseCard(this)" style="color:var(--success); font-size:13px; font-weight:800; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+            <span><i class="fa-solid fa-circle-check"></i> Selesai Operasi <span id="completedEmergencyCount" class="badge-status completed" style="margin-left:2px;">0</span></span>
+            <i class="fa-solid fa-chevron-down collapse-chevron"></i>
+          </h4>
+          <div class="collapsible-body" id="completedEmergencyList" style="display:none;"></div>
         </div>
       </div>
     </div>
@@ -793,29 +805,30 @@
       <div class="active-status-grid">
         <!-- SEKTOR PASIEN DALAM ANTRIAN (BELUM MULAI) -->
         <div>
-          <h4 style="margin:0 0 8px 0; font-size:12px; font-weight:800; color:var(--danger); display:flex; justify-content:space-between; align-items:center;">
+          <h4 class="collapsible-header is-open" onclick="toggleCollapseCard(this)" style="margin:0 0 8px 0; font-size:12px; font-weight:800; color:var(--danger); display:flex; justify-content:space-between; align-items:center;">
             <span><i class="fa-solid fa-hourglass-half"></i> DALAM ANTRIAN</span>
-            <span id="activeQueuedCount" class="badge-status queued">0 Pasien</span>
+            <span style="display:flex; align-items:center; gap:6px;"><span id="activeQueuedCount" class="badge-status queued">0 Pasien</span><i class="fa-solid fa-chevron-down collapse-chevron"></i></span>
           </h4>
-          <div class="status-list-box" id="queuedActiveBox"></div>
+          <div class="status-list-box collapsible-body" id="queuedActiveBox" style="display:block;"></div>
         </div>
 
         <!-- SEKTOR PASIEN SEDANG MULAI/BERLANGSUNG -->
         <div>
-          <h4 style="margin:0 0 8px 0; font-size:12px; font-weight:800; color:var(--accent); display:flex; justify-content:space-between; align-items:center;">
+          <h4 class="collapsible-header is-open" onclick="toggleCollapseCard(this)" style="margin:0 0 8px 0; font-size:12px; font-weight:800; color:var(--accent); display:flex; justify-content:space-between; align-items:center;">
             <span><i class="fa-solid fa-play-circle"></i> SEDANG MULAI / BERLANGSUNG</span>
-            <span id="activeOngoingCount" class="badge-status ongoing">0 Pasien</span>
+            <span style="display:flex; align-items:center; gap:6px;"><span id="activeOngoingCount" class="badge-status ongoing">0 Pasien</span><i class="fa-solid fa-chevron-down collapse-chevron"></i></span>
           </h4>
-          <div class="status-list-box" id="ongoingActiveBox"></div>
+          <div class="status-list-box collapsible-body" id="ongoingActiveBox" style="display:block;"></div>
         </div>
 
-        <!-- SEKTOR PASIEN SELESAI -->
+        <!-- SEKTOR PASIEN SELESAI — default TERTUTUP supaya tidak memenuhi layar; jumlahnya
+             tetap terlihat di badge walau kolomnya sedang ditutup. -->
         <div>
-          <h4 style="margin:0 0 8px 0; font-size:12px; font-weight:800; color:var(--success); display:flex; justify-content:space-between; align-items:center;">
+          <h4 class="collapsible-header" onclick="toggleCollapseCard(this)" style="margin:0 0 8px 0; font-size:12px; font-weight:800; color:var(--success); display:flex; justify-content:space-between; align-items:center;">
             <span><i class="fa-solid fa-check-circle"></i> SELESAI OPERASI</span>
-            <span id="activeCompletedCount" class="badge-status completed">0 Pasien</span>
+            <span style="display:flex; align-items:center; gap:6px;"><span id="activeCompletedCount" class="badge-status completed">0 Pasien</span><i class="fa-solid fa-chevron-down collapse-chevron"></i></span>
           </h4>
-          <div class="status-list-box" id="completedActiveBox"></div>
+          <div class="status-list-box collapsible-body" id="completedActiveBox" style="display:none;"></div>
         </div>
       </div>
     </div>
@@ -3182,7 +3195,16 @@ Ruangan: [Ruangan Asal]`;
           else completedEl.innerHTML += cardHTML;
         });
       }
-      
+
+      // Badge jumlah di header tiap kolom — tetap terlihat walau kolomnya sedang tertutup
+      // (terutama kolom "Selesai Operasi" yang default tertutup).
+      const ongoingCountEl = document.getElementById('ongoingEmergencyCount');
+      const queuedCountEl = document.getElementById('queuedEmergencyCount');
+      const completedCountEl = document.getElementById('completedEmergencyCount');
+      if (ongoingCountEl) ongoingCountEl.innerText = data.filter(p => p.statusType === 'ongoing').length;
+      if (queuedCountEl) queuedCountEl.innerText = data.filter(p => p.statusType === 'queued').length;
+      if (completedCountEl) completedCountEl.innerText = data.filter(p => p.statusType === 'completed').length;
+
       // Pemicu pengerjaan ulang antarmuka dashboard/tabel
       renderBantexTable();
       renderActiveStatusLists();
