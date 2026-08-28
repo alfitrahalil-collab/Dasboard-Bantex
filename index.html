@@ -837,10 +837,10 @@
     <div class="card" style="border-top:4px solid #ec4899;">
       <div class="card-title" style="color:#f472b6;"><i class="fa-solid fa-bed-pulse"></i> Pasien Tujuan ICU / HCU / NICU / PICU</div>
       <div class="grid-3" id="icuHcuListGrid">
-        <div><h4 style="font-size:11px; color:#f87171; margin-bottom:8px;"><i class="fa-solid fa-heart-pulse"></i> ICU <span id="cntICU" class="badge-status queued">0</span></h4><div class="status-list-box" id="listICU"></div></div>
-        <div><h4 style="font-size:11px; color:#fbbf24; margin-bottom:8px;"><i class="fa-solid fa-stethoscope"></i> HCU <span id="cntHCU" class="badge-status ongoing">0</span></h4><div class="status-list-box" id="listHCU"></div></div>
-        <div><h4 style="font-size:11px; color:#60a5fa; margin-bottom:8px;"><i class="fa-solid fa-baby"></i> NICU <span id="cntNICU" class="badge-status ongoing">0</span></h4><div class="status-list-box" id="listNICU"></div></div>
-        <div><h4 style="font-size:11px; color:#34d399; margin-bottom:8px;"><i class="fa-solid fa-child"></i> PICU <span id="cntPICU" class="badge-status completed">0</span></h4><div class="status-list-box" id="listPICU"></div></div>
+        <div><h4 class="collapsible-header is-open" onclick="toggleCollapseCard(this)" style="font-size:11px; color:#f87171; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;"><span><i class="fa-solid fa-heart-pulse"></i> ICU</span><span style="display:flex; align-items:center; gap:6px;"><span id="cntICU" class="badge-status queued">0</span><i class="fa-solid fa-chevron-down collapse-chevron"></i></span></h4><div class="status-list-box collapsible-body" id="listICU" style="display:block;"></div></div>
+        <div><h4 class="collapsible-header is-open" onclick="toggleCollapseCard(this)" style="font-size:11px; color:#fbbf24; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;"><span><i class="fa-solid fa-stethoscope"></i> HCU</span><span style="display:flex; align-items:center; gap:6px;"><span id="cntHCU" class="badge-status ongoing">0</span><i class="fa-solid fa-chevron-down collapse-chevron"></i></span></h4><div class="status-list-box collapsible-body" id="listHCU" style="display:block;"></div></div>
+        <div><h4 class="collapsible-header is-open" onclick="toggleCollapseCard(this)" style="font-size:11px; color:#60a5fa; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;"><span><i class="fa-solid fa-baby"></i> NICU</span><span style="display:flex; align-items:center; gap:6px;"><span id="cntNICU" class="badge-status ongoing">0</span><i class="fa-solid fa-chevron-down collapse-chevron"></i></span></h4><div class="status-list-box collapsible-body" id="listNICU" style="display:block;"></div></div>
+        <div><h4 class="collapsible-header is-open" onclick="toggleCollapseCard(this)" style="font-size:11px; color:#34d399; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;"><span><i class="fa-solid fa-child"></i> PICU</span><span style="display:flex; align-items:center; gap:6px;"><span id="cntPICU" class="badge-status completed">0</span><i class="fa-solid fa-chevron-down collapse-chevron"></i></span></h4><div class="status-list-box collapsible-body" id="listPICU" style="display:block;"></div></div>
       </div>
     </div>
 
@@ -1024,37 +1024,41 @@
   <!-- ================= PAGE 5: REALISASI DPJP ================= -->
   <div id="page-realisasi" class="tab-page">
     <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:6px;">
-        <div class="card-title" style="margin:0;">📊 Realisasi DPJP Bulanan</div>
-        <div style="display:flex; gap:6px;">
+      <div class="collapsible-header is-open" onclick="toggleCollapseCard(this)" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:6px;">
+        <div class="card-title" style="margin:0;">📊 Realisasi DPJP Bulanan <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; margin-left:4px;"></i></div>
+        <div style="display:flex; gap:6px;" onclick="event.stopPropagation();">
           <input type="month" id="monthlyFilterPicker" onchange="renderMonthlyDPJPReport(); renderDetailRealisasiTindakan();" style="padding:6px 10px; border-radius:10px; border:1px solid var(--border); font-size:12px; background:rgba(15,23,42,0.6); color:white;">
           <button class="btn btn-success" style="padding:6px 10px;" onclick="exportMonthlyReportToExcel()"><i class="fa-solid fa-download"></i> Download Excel</button>
         </div>
       </div>
-      <div id="dpjpRealisasiOwnNotice" style="display:none; font-size:11px; background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.35); color:#93c5fd; padding:8px 10px; border-radius:10px; margin-bottom:10px;">ℹ️ Anda login sebagai akun Konsulen/DPJP — tabel di bawah HANYA menampilkan realisasi pasien Anda sendiri, bukan DPJP lain.</div>
-      <div style="overflow-x:auto;">
-        <table class="bantex-table" style="text-align:center;">
-          <thead><tr><th style="text-align:left;">Nama DPJP</th><th>Hari Ini (Elektif)</th><th>Hari Ini (Urg)</th><th>Bulan Ini (Elektif)</th><th>Bulan Ini (Urg)</th><th>Total</th></tr></thead>
-          <tbody id="dpjpSummaryBody"></tbody>
-        </table>
+      <div class="collapsible-body" style="display:block;">
+        <div id="dpjpRealisasiOwnNotice" style="display:none; font-size:11px; background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.35); color:#93c5fd; padding:8px 10px; border-radius:10px; margin-bottom:10px;">ℹ️ Anda login sebagai akun Konsulen/DPJP — tabel di bawah HANYA menampilkan realisasi pasien Anda sendiri, bukan DPJP lain.</div>
+        <div style="overflow-x:auto;">
+          <table class="bantex-table" style="text-align:center;">
+            <thead><tr><th style="text-align:left;">Nama DPJP</th><th>Hari Ini (Elektif)</th><th>Hari Ini (Urg)</th><th>Bulan Ini (Elektif)</th><th>Bulan Ini (Urg)</th><th>Total</th></tr></thead>
+            <tbody id="dpjpSummaryBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
     <!-- LAPORAN REALISASI TINDAKAN (DETAIL PER-PASIEN, OTOMATIS SAAT OPERASI SELESAI) -->
     <div class="card" style="border-top:4px solid #34d399;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:6px;">
-        <div class="card-title" style="margin:0; color:#6ee7b7;"><i class="fa-solid fa-file-circle-check"></i> Laporan Realisasi Tindakan (Detail Pasien Selesai)</div>
-        <div style="display:flex; gap:6px;">
+      <div class="collapsible-header is-open" onclick="toggleCollapseCard(this)" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:6px;">
+        <div class="card-title" style="margin:0; color:#6ee7b7;"><i class="fa-solid fa-file-circle-check"></i> Laporan Realisasi Tindakan (Detail Pasien Selesai) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; margin-left:4px;"></i></div>
+        <div style="display:flex; gap:6px;" onclick="event.stopPropagation();">
           <button class="btn btn-warning" style="padding:6px 10px;" onclick="exportDetailRealisasiTindakanHariIniToExcel()"><i class="fa-solid fa-bolt"></i> Export Excel Hari Ini</button>
           <button class="btn btn-success" style="padding:6px 10px;" onclick="exportDetailRealisasiTindakanToExcel()"><i class="fa-solid fa-download"></i> Download Excel Detail (Bulan Ini)</button>
         </div>
       </div>
-      <p style="font-size:10px; color:var(--text-light); margin:0 0 10px 0;">Setiap pasien yang statusnya berubah menjadi <b>Selesai</b> otomatis tercatat di sini secara real-time (mengikuti bulan yang dipilih pada filter di atas), lengkap dengan diagnosis, tindakan, DPJP, dan jam tindakan — siap diexport menjadi Laporan Realisasi Tindakan. Akun Konsulen/DPJP hanya melihat &amp; mengexport realisasi pasiennya sendiri. Admin/Chief/Wakil Chief dapat mengedit setiap baris (kolom Aksi).</p>
-      <div style="overflow-x:auto;">
-        <table class="bantex-table" style="text-align:center; font-size:11px;">
-          <thead><tr><th>Tgl</th><th style="text-align:left;">Nama / RM</th><th>Divisi</th><th style="text-align:left;">Diagnosis</th><th style="text-align:left;">Tindakan</th><th>DPJP Bedah</th><th>DPJP Anestesi</th><th>Residen</th><th>Kategori</th><th>Mulai</th><th>Selesai</th><th>Msk PACU</th><th>Kel PACU</th><th>Aksi</th></tr></thead>
-          <tbody id="detailRealisasiTindakanBody"></tbody>
-        </table>
+      <div class="collapsible-body" style="display:block;">
+        <p style="font-size:10px; color:var(--text-light); margin:0 0 10px 0;">Setiap pasien yang statusnya berubah menjadi <b>Selesai</b> otomatis tercatat di sini secara real-time (mengikuti bulan yang dipilih pada filter di atas), lengkap dengan diagnosis, tindakan, DPJP, dan jam tindakan — siap diexport menjadi Laporan Realisasi Tindakan. Akun Konsulen/DPJP hanya melihat &amp; mengexport realisasi pasiennya sendiri. Admin/Chief/Wakil Chief dapat mengedit setiap baris (kolom Aksi).</p>
+        <div style="overflow-x:auto;">
+          <table class="bantex-table" style="text-align:center; font-size:11px;">
+            <thead><tr><th>Tgl</th><th style="text-align:left;">Nama / RM</th><th>Divisi</th><th style="text-align:left;">Diagnosis</th><th style="text-align:left;">Tindakan</th><th>DPJP Bedah</th><th>DPJP Anestesi</th><th>Residen</th><th>Kategori</th><th>Mulai</th><th>Selesai</th><th>Msk PACU</th><th>Kel PACU</th><th>Aksi</th></tr></thead>
+            <tbody id="detailRealisasiTindakanBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -1150,56 +1154,68 @@
 
     <!-- 1) EFISIENSI & UTILISASI OK -->
     <div class="card" style="border-top:4px solid #3b82f6;">
-      <div class="card-title" style="color:#93c5fd;"><i class="fa-solid fa-hospital"></i> 1) Efisiensi & Utilisasi OK (per Sektor)</div>
-      <canvas id="chartKebijakanSektorTren" height="90"></canvas>
-      <div id="kebijakanUtilisasiBody" style="font-size:11px; line-height:1.6; color:#e2e8f0; margin-top:10px;"></div>
+      <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#93c5fd;"><i class="fa-solid fa-hospital"></i> 1) Efisiensi & Utilisasi OK (per Sektor) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
+      <div class="collapsible-body" style="display:block;">
+        <canvas id="chartKebijakanSektorTren" height="90"></canvas>
+        <div id="kebijakanUtilisasiBody" style="font-size:11px; line-height:1.6; color:#e2e8f0; margin-top:10px;"></div>
+      </div>
     </div>
 
     <!-- 3) POLA PEMBATALAN & OPTIMALISASI (dipisah — lihat catatan isTrueBatalStatus/isOptimalisasiStatus) -->
     <div class="grid-2" style="margin-bottom:16px;">
       <div class="card" style="border-top:4px solid #ef4444;">
-        <div class="card-title" style="color:#fca5a5;"><i class="fa-solid fa-ban"></i> 3) Alasan Pembatalan Terbanyak (Batal Murni)</div>
-        <p style="font-size:9.5px; color:var(--text-light); margin:0 0 6px 0;">Tidak termasuk kasus Optimalisasi (lihat tabel terpisah di sebelah kanan) — keduanya berbeda secara klinis.</p>
-        <div style="overflow-x:auto;"><table class="bantex-table" id="tblAlasanBatal"><thead><tr><th>Alasan</th><th>Jumlah</th><th>% dari Total</th></tr></thead><tbody></tbody></table></div>
+        <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#fca5a5;"><i class="fa-solid fa-ban"></i> 3) Alasan Pembatalan Terbanyak (Batal Murni) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
+        <div class="collapsible-body" style="display:block;">
+          <p style="font-size:9.5px; color:var(--text-light); margin:0 0 6px 0;">Tidak termasuk kasus Optimalisasi (lihat tabel terpisah di sebelah kanan) — keduanya berbeda secara klinis.</p>
+          <div style="overflow-x:auto;"><table class="bantex-table" id="tblAlasanBatal"><thead><tr><th>Alasan</th><th>Jumlah</th><th>% dari Total</th></tr></thead><tbody></tbody></table></div>
+        </div>
       </div>
       <div class="card" style="border-top:4px solid #a855f7;">
-        <div class="card-title" style="color:#c084fc;"><i class="fa-solid fa-notes-medical"></i> Alasan Optimalisasi Terbanyak</div>
-        <p style="font-size:9.5px; color:var(--text-light); margin:0 0 6px 0;">Pasien BELUM batal permanen — perlu follow-up kesiapan kondisi lalu dijadwalkan ulang.</p>
-        <div style="overflow-x:auto;"><table class="bantex-table" id="tblAlasanOptimalisasi"><thead><tr><th>Alasan</th><th>Jumlah</th><th>% dari Total</th></tr></thead><tbody></tbody></table></div>
+        <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#c084fc;"><i class="fa-solid fa-notes-medical"></i> Alasan Optimalisasi Terbanyak <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
+        <div class="collapsible-body" style="display:block;">
+          <p style="font-size:9.5px; color:var(--text-light); margin:0 0 6px 0;">Pasien BELUM batal permanen — perlu follow-up kesiapan kondisi lalu dijadwalkan ulang.</p>
+          <div style="overflow-x:auto;"><table class="bantex-table" id="tblAlasanOptimalisasi"><thead><tr><th>Alasan</th><th>Jumlah</th><th>% dari Total</th></tr></thead><tbody></tbody></table></div>
+        </div>
       </div>
     </div>
     <div class="grid-2" style="margin-bottom:16px;">
       <div class="card" style="border-top:4px solid #ef4444;">
-        <div class="card-title" style="color:#fca5a5;"><i class="fa-solid fa-diagram-project"></i> Tingkat Pembatalan per Divisi (Murni)</div>
-        <div style="overflow-x:auto;"><table class="bantex-table" id="tblBatalDivisi"><thead><tr><th>Divisi</th><th>Total Kasus</th><th>Batal</th><th>% Batal</th></tr></thead><tbody></tbody></table></div>
+        <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#fca5a5;"><i class="fa-solid fa-diagram-project"></i> Tingkat Pembatalan per Divisi (Murni) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
+        <div class="collapsible-body" style="display:block;"><div style="overflow-x:auto;"><table class="bantex-table" id="tblBatalDivisi"><thead><tr><th>Divisi</th><th>Total Kasus</th><th>Batal</th><th>% Batal</th></tr></thead><tbody></tbody></table></div></div>
       </div>
       <div class="card" style="border-top:4px solid #a855f7;">
-        <div class="card-title" style="color:#c084fc;"><i class="fa-solid fa-diagram-project"></i> Tingkat Optimalisasi per Divisi</div>
-        <div style="overflow-x:auto;"><table class="bantex-table" id="tblOptimalisasiDivisi"><thead><tr><th>Divisi</th><th>Total Kasus</th><th>Optimalisasi</th><th>% Optimalisasi</th></tr></thead><tbody></tbody></table></div>
+        <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#c084fc;"><i class="fa-solid fa-diagram-project"></i> Tingkat Optimalisasi per Divisi <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
+        <div class="collapsible-body" style="display:block;"><div style="overflow-x:auto;"><table class="bantex-table" id="tblOptimalisasiDivisi"><thead><tr><th>Divisi</th><th>Total Kasus</th><th>Optimalisasi</th><th>% Optimalisasi</th></tr></thead><tbody></tbody></table></div></div>
       </div>
     </div>
 
     <!-- 2) BEBAN KERJA & KESELAMATAN RESIDEN -->
     <div class="card" style="border-top:4px solid #f59e0b;">
-      <div class="card-title" style="color:#fde68a;"><i class="fa-solid fa-user-shield"></i> 2) Beban Kerja & Keselamatan Residen (Rentang Terpilih)</div>
-      <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Residen dengan kasus tinggi SEKALIGUS banyak terlibat kasus batal ditandai ⚠️ — kombinasi ini paling relevan untuk kebijakan redistribusi jaga.</p>
-      <div style="overflow-x:auto;"><table class="bantex-table" id="tblBebanResiden"><thead><tr><th>Residen</th><th>Total Kasus</th><th>Kasus Batal</th><th>% Batal</th><th>Indikator</th></tr></thead><tbody></tbody></table></div>
+      <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#fde68a;"><i class="fa-solid fa-user-shield"></i> 2) Beban Kerja & Keselamatan Residen (Rentang Terpilih) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
+      <div class="collapsible-body" style="display:block;">
+        <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Residen dengan kasus tinggi SEKALIGUS banyak terlibat kasus batal ditandai ⚠️ — kombinasi ini paling relevan untuk kebijakan redistribusi jaga.</p>
+        <div style="overflow-x:auto;"><table class="bantex-table" id="tblBebanResiden"><thead><tr><th>Residen</th><th>Total Kasus</th><th>Kasus Batal</th><th>% Batal</th><th>Indikator</th></tr></thead><tbody></tbody></table></div>
+      </div>
     </div>
 
     <!-- 4) KEPATUHAN & SUPERVISI DPJP -->
     <div class="card" style="border-top:4px solid #a78bfa;">
-      <div class="card-title" style="color:#c4b5fd;"><i class="fa-solid fa-user-doctor"></i> 4) Kepatuhan & Kualitas Supervisi DPJP (dari data IKVE)</div>
-      <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Dihitung dari bulan-bulan yang tercakup rentang tanggal di atas (data IKVE tersimpan per bulan). Dikelompokkan per Residen — data IKVE saat ini tidak menyimpan divisi pelapor, jadi rekap per-Divisi belum bisa dihasilkan dari sini.</p>
-      <div style="overflow-x:auto;"><table class="bantex-table" id="tblSupervisiDPJP"><thead><tr><th>Residen</th><th>Jumlah Pelanggaran (DIS/SAF/ETI)</th><th>Sudah Diklarifikasi (Tabayyun)</th><th>% Sudah Diklarifikasi</th></tr></thead><tbody></tbody></table></div>
+      <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#c4b5fd;"><i class="fa-solid fa-user-doctor"></i> 4) Kepatuhan & Kualitas Supervisi DPJP (dari data IKVE) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
+      <div class="collapsible-body" style="display:block;">
+        <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Dihitung dari bulan-bulan yang tercakup rentang tanggal di atas (data IKVE tersimpan per bulan). Dikelompokkan per Residen — data IKVE saat ini tidak menyimpan divisi pelapor, jadi rekap per-Divisi belum bisa dihasilkan dari sini.</p>
+        <div style="overflow-x:auto;"><table class="bantex-table" id="tblSupervisiDPJP"><thead><tr><th>Residen</th><th>Jumlah Pelanggaran (DIS/SAF/ETI)</th><th>Sudah Diklarifikasi (Tabayyun)</th><th>% Sudah Diklarifikasi</th></tr></thead><tbody></tbody></table></div>
+      </div>
     </div>
 
     <!-- REKOMENDASI KEBIJAKAN OTOMATIS -->
     <div class="card" style="border-top:4px solid #22d3ee; background:linear-gradient(135deg, rgba(30,41,59,0.85) 0%, rgba(15,60,70,0.35) 100%);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-        <div class="card-title" style="margin:0; color:#67e8f9;"><i class="fa-solid fa-lightbulb"></i> Rekomendasi Kebijakan Otomatis</div>
-        <button class="btn btn-success" style="padding:6px 10px; font-size:11px;" onclick="copyKebijakanRekomendasiToWA()"><i class="fa-solid fa-copy"></i> Salin ke WA</button>
+      <div class="collapsible-header is-open" onclick="toggleCollapseCard(this)" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+        <div class="card-title" style="margin:0; color:#67e8f9;"><i class="fa-solid fa-lightbulb"></i> Rekomendasi Kebijakan Otomatis <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; margin-left:4px;"></i></div>
+        <button class="btn btn-success" style="padding:6px 10px; font-size:11px;" onclick="event.stopPropagation(); copyKebijakanRekomendasiToWA()"><i class="fa-solid fa-copy"></i> Salin ke WA</button>
       </div>
-      <div id="kebijakanRekomendasiBody" style="font-size:12px; line-height:1.7; color:#e2e8f0; white-space:pre-line; background:rgba(15,23,42,0.5); border-radius:12px; padding:14px; min-height:60px;">Jalankan analisis di atas untuk menghasilkan rekomendasi kebijakan otomatis dari data pada rentang tanggal terpilih.</div>
+      <div class="collapsible-body" style="display:block;">
+        <div id="kebijakanRekomendasiBody" style="font-size:12px; line-height:1.7; color:#e2e8f0; white-space:pre-line; background:rgba(15,23,42,0.5); border-radius:12px; padding:14px; min-height:60px;">Jalankan analisis di atas untuk menghasilkan rekomendasi kebijakan otomatis dari data pada rentang tanggal terpilih.</div>
+      </div>
     </div>
   </div>
 
