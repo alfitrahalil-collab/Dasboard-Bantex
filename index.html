@@ -85,6 +85,14 @@
     }
     #notifBellPanel { border-left: 1px solid var(--border); border-right: none; box-shadow: -6px 0 30px rgba(59,130,246,0.15); }
     #notifBellPanel.active { right: 0 !important; }
+    /* Notifikasi masuk (bel) dibuat jelas terbaca di HP: panel lebih lebar (hampir layar penuh)
+       dan teks pesan diperbesar — sebelumnya 11px/9px terlalu kecil untuk dibaca sambil jaga. */
+    @media (max-width: 480px) {
+      #notifBellPanel { width: 92vw !important; right: -100vw; }
+      #notifBellPanel.active { right: 0 !important; }
+    }
+    .notif-item-text { font-size: 14px !important; line-height: 1.5; }
+    .notif-item-time { font-size: 11.5px !important; }
 
     .sidebar-header { padding: 24px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
     .sidebar-header h3 { margin: 0; font-size: 15px; color: #fff; font-weight: 800; display: flex; align-items: center; gap: 10px; letter-spacing: 0.5px; text-shadow: 0 0 10px rgba(59,130,246,0.5); }
@@ -420,6 +428,8 @@
   
   <ul class="sidebar-menu">
     <li><a id="nav-page-dashboard" class="active" onclick="switchPage('page-dashboard')"><i class="fa-solid fa-gauge-high"></i> Dashboard</a></li>
+    <li><a id="nav-page-dashboardsaya" style="display:none;" onclick="switchPage('page-dashboardsaya')"><i class="fa-solid fa-user-clock" style="color:#6ee7b7;"></i> Dashboard Saya</a></li>
+    <li><a id="nav-page-supervisidpjp" style="display:none;" onclick="switchPage('page-supervisidpjp')"><i class="fa-solid fa-user-doctor" style="color:#93c5fd;"></i> Supervisi Saya (DPJP)</a></li>
     <li><a id="nav-page-emergency" onclick="switchPage('page-emergency')"><i class="fa-solid fa-truck-medical" style="color:var(--danger);"></i> List Pasien Emergency WA</a></li>
     <li><a id="nav-page-pasien" onclick="switchPage('page-pasien')"><i class="fa-solid fa-hospital-user"></i> Patients & Operations</a></li>
     <li><a id="nav-page-disiplin" onclick="switchPage('page-disiplin')"><i class="fa-solid fa-gavel" style="color:var(--warning);"></i> Pelaporan Disiplin PPDS (IKVE)</a></li>
@@ -699,6 +709,90 @@
   </div>
 
   <!-- ================= PAGE 2: EMERGENCY PATIENT LIST (WA PARSER) ================= -->
+  <!-- ================= PAGE: DASHBOARD SAYA (KHUSUS RESIDEN) =================
+       Diadaptasi dari blueprint "Resident Account Upgrade" — TAPI dibangun ulang di atas Firebase
+       Realtime Database + JS client kita (bukan REST API/PostgreSQL seperti draft aslinya), memakai
+       SUMBER DATA & RUMUS YANG SAMA dengan halaman lain (daily_patient_log untuk kasus/jam kerja —
+       sama seperti Analisis & Basis Kebijakan; attendance_logs untuk presensi — sama seperti halaman
+       Absensi) supaya angkanya tidak pernah berbeda dari halaman lain yang sudah ada. -->
+  <div id="page-dashboardsaya" class="tab-page">
+    <div class="metrics-grid" style="margin-bottom:16px;">
+      <div class="metric-card"><h4>TOTAL JAM KERJA SAYA (BULAN INI)</h4><div class="value" id="resDashJamKerja">-</div></div>
+      <div class="metric-card success"><h4>KASUS SAYA SELESAI (BULAN INI)</h4><div class="value" id="resDashKasus">-</div></div>
+      <div class="metric-card" id="resDashBurnoutCard"><h4>STATUS BEBAN KERJA SAYA</h4><div class="value" id="resDashBurnoutStatus" style="font-size:16px;">-</div></div>
+    </div>
+    <p style="font-size:10px; color:var(--text-light); margin:-8px 0 16px 0;">Dihitung dari riwayat harian (<code>daily_patient_log</code>) bulan berjalan — sama seperti sumber data halaman Analisis & Basis Kebijakan. Ambang: &gt;80 jam/bulan = Peringatan, &gt;100 jam/bulan = Kritis (mengacu pada standar jam kerja residen).</p>
+
+    <!-- PUSAT KLARIFIKASI (TABAYYUN) INTERAKTIF — residen menulis & mengirim sanggahan sendiri,
+         BUKAN hanya menerima notifikasi pasif seperti sebelumnya. Batas waktu 1x24 jam dihitung dari
+         timestampMs catatan (hanya tersedia untuk catatan yang dibuat SETELAH fitur ini aktif — lihat
+         computeTabayyunDeadlineInfo). -->
+    <div class="card" style="border-top:4px solid #ef4444; background:rgba(239,68,68,0.06);">
+      <div class="card-title" style="color:#fca5a5;"><i class="fa-solid fa-gavel"></i> Pusat Klarifikasi Pelanggaran (Tabayyun — Maksimal 1x24 Jam)</div>
+      <p style="font-size:11px; color:var(--text-light); margin:0 0 12px 0;">Daftar catatan kedisiplinan/patient safety/etika yang membutuhkan konfirmasi tertulis Anda. Kirim penjelasan Anda di bawah sebelum batas waktu habis — status akan berubah ke "Sedang Diinvestigasi" dan Chief/KPS/DPJP akan meninjau penjelasan Anda sebelum memutuskan.</p>
+      <div id="resDashTabayyunList"><p style="color:#94a3b8; font-size:12px;">Memuat...</p></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><i class="fa-solid fa-location-dot"></i> Riwayat Presensi Saya (7 Hari Terakhir)</div>
+      <div style="overflow-x:auto;">
+        <table class="bantex-table" style="text-align:center; font-size:11px;">
+          <thead><tr><th>Tanggal</th><th>Waktu Absen</th><th>Status</th><th>Jarak dari RS</th></tr></thead>
+          <tbody id="resDashAttendanceBody"><tr><td colspan="4" style="color:#888;">Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PAGE: SUPERVISI SAYA (KHUSUS DPJP/KONSULEN) =================
+       Diadaptasi dari blueprint "DPJP/Konsulen Supervision Upgrade" — dibangun ulang di atas
+       Firebase/JS kita, BUKAN dipasang sebagai fitur wajib/blocking: verifikasi di sini murni
+       lapisan kualitas data tambahan (opsional), tidak pernah menahan Realisasi/Export berjalan
+       seperti biasa. Alarm kelelahan residen SENGAJA memakai rumus & sumber data yang SAMA dengan
+       Dashboard Saya milik Residen (daily_patient_log, ambang >80/>100 jam/bulan) supaya tidak
+       muncul angka ketiga yang berbeda untuk konsep yang sama. -->
+  <div id="page-supervisidpjp" class="tab-page">
+    <div class="card" style="border-top:4px solid #f59e0b; background:rgba(245,158,11,0.06); display:none;" id="dpjpBurnoutAlertCard">
+      <div class="card-title" style="color:#fde68a;"><i class="fa-solid fa-triangle-exclamation"></i> Peringatan Kelelahan Residen yang Anda Supervisi (Bulan Ini)</div>
+      <p style="font-size:11px; color:var(--text-light); margin:0 0 10px 0;">Residen yang pernah tercatat di bawah supervisi Anda bulan ini (berdasarkan kasus dengan DPJP Anestesi = akun Anda) dan sudah melewati ambang jam kerja aman. Pertimbangkan redistribusi beban kasus.</p>
+      <div id="dpjpBurnoutAlertList"></div>
+    </div>
+
+    <div class="card" style="border-top:4px solid #3b82f6;">
+      <div class="card-title" style="color:#93c5fd;"><i class="fa-solid fa-clipboard-check"></i> Verifikasi Realisasi Kasus & Durasi Anestesi</div>
+      <p style="font-size:11px; color:var(--text-light); margin:0 0 12px 0;">Konfirmasi jam mulai/selesai tindakan yang dilaporkan residen untuk pasien Anda sendiri yang sudah selesai. Bersifat opsional — tidak menghalangi Realisasi/Export data.</p>
+      <div style="overflow-x:auto;">
+        <table class="bantex-table" style="text-align:center; font-size:11px;">
+          <thead><tr><th style="text-align:left;">Residen</th><th style="text-align:left;">Pasien</th><th style="text-align:left;">Diagnosis/Tindakan</th><th>Jam (Mulai-Selesai)</th><th>Durasi</th><th>Aksi</th></tr></thead>
+          <tbody id="dpjpVerifikasiBody"><tr><td colspan="6" style="color:#888;">Memuat...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="border-top:4px solid #34d399;">
+      <div class="card-title" style="color:#6ee7b7;"><i class="fa-solid fa-seedling"></i> Formulir Insiden Edukatif / Near-Miss (Non-Punitif)</div>
+      <p style="font-size:11px; color:var(--text-light); margin:0 0 12px 0;">Catat kasus sulit atau kejadian nyaris cedera sebagai bahan bimbingan akademik — <b>TIDAK</b> memotong skor kedisiplinan residen dan sepenuhnya terpisah dari catatan IKVE.</p>
+      <div class="grid-2" style="gap:8px;">
+        <div class="form-group"><label>Residen Terlibat</label><select id="insEduResiden" class="login-input"></select></div>
+        <div class="form-group"><label>Klasifikasi Kejadian</label>
+          <select id="insEduKategori" class="login-input">
+            <option value="NEAR_MISS">Near-Miss (Nyaris Cedera)</option>
+            <option value="UNEXPECTED_EVENT">Kejadian Tak Terduga</option>
+            <option value="TECHNICAL_DIFFICULTY">Kesulitan Teknis</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Divisi</label><input type="text" id="insEduDivisi" class="login-input" list="ikveDivisiOptions" placeholder="mis. Bedah Digestif..."></div>
+        <div class="form-group" style="grid-column:1/-1;"><label>Deskripsi Kasus</label><textarea id="insEduDeskripsi" class="login-input" rows="2" placeholder="Kronologi kejadian..."></textarea></div>
+        <div class="form-group" style="grid-column:1/-1;"><label>Pembelajaran Klinis (poin edukasi inti)</label><textarea id="insEduPembelajaran" class="login-input" rows="2" placeholder="Apa yang bisa dipelajari residen dari kejadian ini..."></textarea></div>
+      </div>
+      <button class="btn btn-success" style="width:100%; margin-top:8px;" onclick="submitEducationalIncident()"><i class="fa-solid fa-floppy-disk"></i> Simpan Insiden Edukatif</button>
+      <div style="margin-top:16px; padding-top:12px; border-top:1px dashed rgba(255,255,255,0.15);">
+        <div style="font-size:11px; font-weight:800; color:#6ee7b7; margin-bottom:8px;">Riwayat Insiden Edukatif yang Anda Catat (Bulan Ini)</div>
+        <div id="insEduHistoryList"><p style="color:#94a3b8; font-size:12px;">Memuat...</p></div>
+      </div>
+    </div>
+  </div>
+
   <div id="page-emergency" class="tab-page">
     <div class="card">
       <div class="card-title collapsible-header" style="color:var(--danger);" onclick="toggleCollapseCard(this)">
@@ -929,6 +1023,11 @@
             <select id="ikveCodeSelect" onchange="previewIKVEScore()" class="login-input"></select>
           </div>
           <div class="form-group">
+            <label>Divisi Kejadian (opsional — supaya rekap bisa dikelompokkan per Divisi, bukan hanya per Residen):</label>
+            <input type="text" id="ikveDivisiKejadian" class="login-input" list="ikveDivisiOptions" placeholder="mis. Bedah Digestif, Bedah Saraf, Obgyn...">
+            <datalist id="ikveDivisiOptions"></datalist>
+          </div>
+          <div class="form-group">
             <label>Lokasi & Deskripsi Kejadian Spesifik:</label>
             <textarea id="ikveDeskripsi" rows="3" class="login-input" placeholder="Tanggal, waktu, lokasi, kronologi, dampak konkret..."></textarea>
           </div>
@@ -988,6 +1087,17 @@
           </thead>
           <tbody id="ikveSummaryTableBody"></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- RIWAYAT INSIDEN EDUKATIF / NEAR-MISS — dicatat DPJP di halaman "Supervisi Saya", SENGAJA
+         terpisah dari tabel skor IKVE di atas karena non-punitif (tidak memotong skor kedisiplinan).
+         Hanya KPS/Chief/Wakil Chief/Admin/Chief Divisi yang meninjau (menandai sudah dibaca). -->
+    <div class="card" id="insEduReviewCard" style="border-top:4px solid #34d399; display:none;">
+      <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#6ee7b7;"><i class="fa-solid fa-seedling"></i> Insiden Edukatif / Near-Miss (Non-Punitif, Bulan Ini) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
+      <div class="collapsible-body" style="display:block;">
+        <p style="font-size:10px; color:var(--text-light); margin:0 0 10px 0;">Dicatat oleh DPJP sebagai bahan bimbingan akademik — TIDAK terhubung ke skor kedisiplinan di atas.</p>
+        <div id="insEduReviewList"></div>
       </div>
     </div>
   </div>
@@ -1156,8 +1266,20 @@
     <div class="card" style="border-top:4px solid #3b82f6;">
       <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#93c5fd;"><i class="fa-solid fa-hospital"></i> 1) Efisiensi & Utilisasi OK (per Sektor) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
       <div class="collapsible-body" style="display:block;">
-        <canvas id="chartKebijakanSektorTren" height="90"></canvas>
+        <div class="grid-2" style="gap:14px; align-items:start;">
+          <div><canvas id="chartKebijakanSektorTren" height="90"></canvas></div>
+          <div><canvas id="chartKebijakanKomposisi" height="90"></canvas></div>
+        </div>
         <div id="kebijakanUtilisasiBody" style="font-size:11px; line-height:1.6; color:#e2e8f0; margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- Diagram modern tambahan: polar area untuk perbandingan divisi (top 6 total kasus) — pelengkap
+         visual di samping tabel-tabel yang sudah ada, supaya lebih cepat dibaca sekilas. -->
+    <div class="card" style="border-top:4px solid #06b6d4;">
+      <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#67e8f9;"><i class="fa-solid fa-chart-pie"></i> Perbandingan Beban Kasus per Divisi (Top 6) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
+      <div class="collapsible-body" style="display:block;">
+        <div style="max-width:420px; margin:0 auto;"><canvas id="chartKebijakanDivisiPolar" height="280"></canvas></div>
       </div>
     </div>
 
@@ -1194,6 +1316,7 @@
       <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#fde68a;"><i class="fa-solid fa-user-shield"></i> 2) Beban Kerja & Keselamatan Residen (Rentang Terpilih) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
       <div class="collapsible-body" style="display:block;">
         <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Residen dengan kasus tinggi SEKALIGUS banyak terlibat kasus batal ditandai ⚠️ — kombinasi ini paling relevan untuk kebijakan redistribusi jaga.</p>
+        <canvas id="chartKebijakanBebanResiden" height="120" style="margin-bottom:12px;"></canvas>
         <div style="overflow-x:auto;"><table class="bantex-table" id="tblBebanResiden"><thead><tr><th>Residen</th><th>Total Kasus</th><th>Kasus Batal</th><th>% Batal</th><th>Indikator</th></tr></thead><tbody></tbody></table></div>
       </div>
     </div>
@@ -1202,8 +1325,19 @@
     <div class="card" style="border-top:4px solid #a78bfa;">
       <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#c4b5fd;"><i class="fa-solid fa-user-doctor"></i> 4) Kepatuhan & Kualitas Supervisi DPJP (dari data IKVE) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
       <div class="collapsible-body" style="display:block;">
-        <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Dihitung dari bulan-bulan yang tercakup rentang tanggal di atas (data IKVE tersimpan per bulan). Dikelompokkan per Residen — data IKVE saat ini tidak menyimpan divisi pelapor, jadi rekap per-Divisi belum bisa dihasilkan dari sini.</p>
+        <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Dihitung dari bulan-bulan yang tercakup rentang tanggal di atas (data IKVE tersimpan per bulan), dikelompokkan per Residen.</p>
         <div style="overflow-x:auto;"><table class="bantex-table" id="tblSupervisiDPJP"><thead><tr><th>Residen</th><th>Jumlah Pelanggaran (DIS/SAF/ETI)</th><th>Sudah Diklarifikasi (Tabayyun)</th><th>% Sudah Diklarifikasi</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- REKAP IKVE PER DIVISI — mengisi keterbatasan lama (data IKVE dulu tidak menyimpan divisi
+         pelapor sehingga rekap per-divisi tidak bisa dihasilkan). Field "Divisi Kejadian" bersifat
+         OPSIONAL di form pelaporan, jadi catatan lama/kosong akan muncul sebagai "(Tanpa Divisi)". -->
+    <div class="card" style="border-top:4px solid #f472b6;">
+      <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#f9a8d4;"><i class="fa-solid fa-diagram-project"></i> Rekap IKVE per Divisi (Kedisiplinan / Safety / Etika / Reward) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
+      <div class="collapsible-body" style="display:block;">
+        <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Mengelompokkan seluruh catatan IKVE pada rentang bulan terpilih berdasarkan Divisi Kejadian (field opsional pada form pelaporan) — untuk melihat divisi mana yang paling banyak tercatat pelanggaran/reward, bukan hanya per Residen.</p>
+        <div style="overflow-x:auto;"><table class="bantex-table" id="tblIKVEPerDivisi"><thead><tr><th>Divisi</th><th>DIS</th><th>SAF</th><th>ETI</th><th>POS (Reward)</th><th>Total Skor Akumulasi</th></tr></thead><tbody></tbody></table></div>
       </div>
     </div>
 
@@ -1244,6 +1378,15 @@
       <p style="font-size:11px; color:#fde68a; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.35); border-radius:10px; padding:10px 12px; margin:0 0 14px 0; line-height:1.6;">
         ⚠️ <b>Alat bantu hitung, bukan pengganti keputusan klinis.</b> Seluruh rentang dosis & formula pada halaman ini disalin dari lembar referensi internal (Formula Anasthesi Pediatric). Selalu verifikasi ulang kesesuaian dosis, kondisi klinis pasien, dan interaksi obat sebelum pemberian — tanggung jawab klinis tetap berada pada DPJP Anestesi.
       </p>
+      <!-- INTEGRASI: pilih langsung dari pasien yang sudah ditandai pediatrik (field Tanggal Lahir +
+           BB di Detail Pasien) supaya BB/Umur tidak perlu diketik ulang manual. Daftar hanya berisi
+           pasien dengan data pediatrik terisi pada sheet yang sedang aktif. -->
+      <div class="form-group" style="margin-bottom:14px;">
+        <label><i class="fa-solid fa-baby"></i> Isi Otomatis dari Pasien Pediatrik (opsional)</label>
+        <select id="pedPatientPicker" class="login-input" onchange="applyPediatricPatientToCalculator()">
+          <option value="">-- Isi manual di bawah, atau pilih pasien pediatrik --</option>
+        </select>
+      </div>
       <div class="grid-2" style="gap:10px;">
         <div class="form-group"><label>Nama Pasien (opsional, hanya tampilan)</label><input type="text" id="pedNama" placeholder="Nama pasien"></div>
         <div class="form-group"><label>Berat Badan (kg)</label><input type="number" step="0.1" id="pedBB" placeholder="Contoh: 10"></div>
@@ -1617,7 +1760,11 @@
   function switchPage(pageId) {
     // Guard: akun DPJP (Konsulen) tidak diberi akses ke Kalkulator Pediatric, Absensi Monre,
     // dan Link Sistem Eksternal meski dipanggil manual.
-    if (currentUserRole === 'konsulen' && (pageId === 'page-pediatric' || pageId === 'page-absensi' || pageId === 'page-link')) return;
+    // Akun DPJP (Konsulen) TIDAK diberi akses ke Papan Emergency (Input & Parser WA + operasional
+    // list emergency) — sesuai kebijakan: parsing/pengelolaan emergency murni domain Chief Residen/
+    // Admin yang bertugas jaga. DPJP tetap melihat pasien emergency miliknya sendiri lewat Live
+    // Monitoring (Patients & Operations) dan Realisasi, yang sudah terfilter ke pasien mereka saja.
+    if (currentUserRole === 'konsulen' && (pageId === 'page-pediatric' || pageId === 'page-absensi' || pageId === 'page-link' || pageId === 'page-emergency')) return;
 
     document.querySelectorAll('.tab-page').forEach(page => page.classList.remove('active-page'));
     document.querySelectorAll('.sidebar-menu a').forEach(nav => nav.classList.remove('active'));
@@ -1632,6 +1779,7 @@
 
     if (pageId === 'page-disiplin') {
       initIKVEDropdowns();
+      renderInsidenEdukatifReviewCard();
     }
 
     if (pageId === 'page-scanner') startCameraScanner();
@@ -1641,6 +1789,9 @@
     else stopFaceCam();
 
     if (pageId === 'page-kebijakan') { defaultKebijakanDateRange(); if (!lastKebijakanRekomendasiText) runKebijakanAnalysis(); }
+    if (pageId === 'page-dashboardsaya' && currentUserRole === 'residen') renderResidentPersonalDashboard();
+    if (pageId === 'page-supervisidpjp' && currentUserRole === 'konsulen') renderDPJPSupervisionDashboard();
+    if (pageId === 'page-pediatric') populatePediatricPatientPicker();
   }
 
   // FIREBASE CONFIGURATION
@@ -1660,6 +1811,16 @@
   const WA_GROUP_TARGET = "120363xxxxxxxxxx@g.us"; 
   const ADMIN_WA_NUMBER = "081234567890"; 
   const MONRE_LAT = -5.1332; const MONRE_LNG = 119.4883; const MAX_RADIUS_METERS = 50;
+  // PART 4 (Geofencing Polygon): koordinat titik-tengah RS di atas SUDAH tervalidasi/dipakai sejak
+  // awal — TIDAK diganti dengan koordinat contoh generik manapun karena mengganti titik acuan tanpa
+  // survey lapangan yang benar akan memindahkan "lokasi RS" secara diam-diam dan membuat absensi
+  // semua residen ditolak/diloloskan secara salah. Array di bawah ini SENGAJA kosong secara default:
+  // isi dengan koordinat sudut-sudut poligon nyata bangunan RS (hasil survey GPS lapangan, urutan
+  // searah/berlawanan jarum jam) untuk mengaktifkan mode poligon presisi. Selama array ini kosong,
+  // sistem otomatis jatuh ke mode radius titik-tengah (MONRE_LAT/LNG + MAX_RADIUS_METERS) seperti
+  // sebelumnya — jadi menambahkan fitur ini tidak mengubah perilaku absensi yang sudah berjalan benar.
+  const HOSPITAL_GEOFENCE_POLYGON = []; // contoh format: [[-5.1330,119.4881],[-5.1330,119.4886],[-5.1335,119.4886],[-5.1335,119.4881]]
+  const GPS_DRIFT_ACCURACY_THRESHOLD_M = 25; // toleransi hanya berlaku jika akurasi GPS device > nilai ini (sinyal lemah/di dalam gedung)
 
   const dpjpMapping = {
     "SKA": "Prof. DR. dr. Syafri Kamsul Arif, Sp.An-TI, Subsp.T.I (K), Subsp.An.Kv.(K)",
@@ -1855,28 +2016,28 @@
 
     if (notifBellMode === 'system') {
       list.innerHTML = visible.length ? hint + visible.map(e => `
-        <div style="padding:9px 12px; border-bottom:1px solid var(--border); font-size:11px; cursor:pointer;" onclick="dismissNotifItem('${e._key}')" title="Klik untuk menghilangkan">
+        <div class="notif-item-text" style="padding:12px 14px; border-bottom:1px solid var(--border); cursor:pointer;" onclick="dismissNotifItem('${e._key}')" title="Klik untuk menghilangkan">
           <b style="color:var(--warning);"><i class="fa-solid fa-user-shield"></i> ${e.actor} (${e.roleLabel})</b><br>
           <span style="color:#e2e8f0;">${e.action}</span>${e.detail ? `<br><span style="color:var(--text-light);">${e.detail}</span>` : ''}
-          <div style="color:var(--text-light); font-size:9px; margin-top:3px;">${e.waktu} WITA</div>
+          <div class="notif-item-time" style="color:var(--text-light); margin-top:4px;">${e.waktu} WITA</div>
         </div>
-      `).join('') : '<div style="padding:14px; font-size:11px; color:var(--text-light); text-align:center;">Belum ada notifikasi perubahan sistem.</div>';
+      `).join('') : '<div style="padding:16px; font-size:13px; color:var(--text-light); text-align:center;">Belum ada notifikasi perubahan sistem.</div>';
     } else if (notifBellMode === 'dpjp') {
       list.innerHTML = visible.length ? hint + visible.map(e => `
-        <div style="padding:9px 12px; border-bottom:1px solid var(--border); border-left:4px solid var(--accent); font-size:11px; cursor:pointer;" onclick="dismissNotifItem('${e._key}')" title="Klik untuk menghilangkan">
+        <div class="notif-item-text" style="padding:12px 14px; border-bottom:1px solid var(--border); border-left:4px solid var(--accent); cursor:pointer;" onclick="dismissNotifItem('${e._key}')" title="Klik untuk menghilangkan">
           <b style="color:#93c5fd;"><i class="fa-solid fa-clock"></i> ${e.aksi || 'Update Pasien'}</b><br>
           <span style="color:#e2e8f0;">${e.nama || '-'} (RM: ${e.rm || '-'})</span>
-          <div style="color:var(--text-light); font-size:9px; margin-top:3px;">${e.waktu || ''} WITA</div>
+          <div class="notif-item-time" style="color:var(--text-light); margin-top:4px;">${e.waktu || ''} WITA</div>
         </div>
-      `).join('') : '<div style="padding:14px; font-size:11px; color:var(--text-light); text-align:center;">Belum ada notifikasi aktivitas pasien untuk Anda.</div>';
+      `).join('') : '<div style="padding:16px; font-size:13px; color:var(--text-light); text-align:center;">Belum ada notifikasi aktivitas pasien untuk Anda.</div>';
     } else {
       list.innerHTML = visible.length ? hint + visible.map(e => `
-        <div style="padding:9px 12px; border-bottom:1px solid var(--border); border-left:4px solid ${e.type==='reward'?'var(--success)':'var(--warning)'}; font-size:11px; cursor:pointer;" onclick="dismissNotifItem('${e._key}')" title="Klik untuk menghilangkan">
+        <div class="notif-item-text" style="padding:12px 14px; border-bottom:1px solid var(--border); border-left:4px solid ${e.type==='reward'?'var(--success)':'var(--warning)'}; cursor:pointer;" onclick="dismissNotifItem('${e._key}')" title="Klik untuk menghilangkan">
           <b style="color:${e.type==='reward'?'#a7f3d0':'#fde68a'};">${e.type==='reward' ? '🌟 Reward' : '⚠️ Pelanggaran'} — [${e.kode||''}] ${e.desc||''}</b><br>
           <span style="color:var(--text-light);">Skor: ${e.skor>0?'+':''}${e.skor||0} Poin</span>
-          <div style="color:var(--text-light); font-size:9px; margin-top:3px;">${e.waktu||''} WITA</div>
+          <div class="notif-item-time" style="color:var(--text-light); margin-top:4px;">${e.waktu||''} WITA</div>
         </div>
-      `).join('') : '<div style="padding:14px; font-size:11px; color:var(--text-light); text-align:center;">Belum ada notifikasi pelanggaran/reward untuk Anda.</div>';
+      `).join('') : '<div style="padding:16px; font-size:13px; color:var(--text-light); text-align:center;">Belum ada notifikasi pelanggaran/reward untuk Anda.</div>';
     }
   }
   function toggleNotifBell() {
@@ -2152,6 +2313,12 @@
       if (navAbsensi) navAbsensi.style.display = isKonsulen ? 'none' : '';
       if (navLink) navLink.style.display = isKonsulen ? 'none' : '';
 
+      // Papan Emergency (Input & Parser WA) — DIHILANGKAN dari akun Konsulen/DPJP. Parsing/
+      // pengelolaan emergency murni domain Chief Residen/Admin yang bertugas jaga; DPJP tetap bisa
+      // melihat pasien emergency miliknya sendiri lewat Live Monitoring & Realisasi (sudah terfilter).
+      const navEmergency = document.getElementById('nav-page-emergency');
+      if (navEmergency) navEmergency.style.display = isKonsulen ? 'none' : '';
+
       document.getElementById("menuAdminArea").style.display = isAdmin ? "block" : "none";
       if (isAdminLevel() && currentUserRole !== "admin") {
         const badgeHost = document.getElementById("nav-page-admin");
@@ -2180,6 +2347,34 @@
       // (menu ini khusus untuk kebutuhan klinis Residen di lapangan).
       const navPediatric = document.getElementById('nav-page-pediatric');
       if (navPediatric) navPediatric.style.display = (currentUserRole === 'konsulen') ? 'none' : '';
+
+      // "Dashboard Saya" — panel personal khusus akun Residen (jam kerja/kasus bulan ini, pusat
+      // klarifikasi Tabayyun interaktif, riwayat presensi sendiri). Tidak relevan untuk role lain.
+      const navDashboardSaya = document.getElementById('nav-page-dashboardsaya');
+      if (navDashboardSaya) navDashboardSaya.style.display = (currentUserRole === 'residen') ? '' : 'none';
+      if (currentUserRole === 'residen') renderResidentPersonalDashboard();
+
+      // "Supervisi Saya (DPJP)" — panel khusus akun Konsulen/DPJP: alarm kelelahan residen yang
+      // disupervisi, verifikasi realisasi kasus (opsional), dan pencatatan insiden edukatif.
+      const navSupervisiDPJP = document.getElementById('nav-page-supervisidpjp');
+      if (navSupervisiDPJP) navSupervisiDPJP.style.display = (currentUserRole === 'konsulen') ? '' : 'none';
+      if (currentUserRole === 'konsulen') renderDPJPSupervisionDashboard();
+
+      // Menu akun Residen DIPERSEMPIT sesuai kebutuhan operasional harian mereka: Dashboard umum
+      // (page-dashboard, berisi metrik lintas-divisi/lintas-DPJP yang bukan urusan residen) dan
+      // Link Sistem Eksternal DISEMBUNYIKAN — diganti "Dashboard Saya" sebagai halaman utama mereka.
+      // Absensi & Papan Emergency TETAP ditampilkan (dikonfirmasi eksplisit) karena itu kebutuhan
+      // operasional inti residen jaga, bukan menu manajerial seperti Dashboard umum.
+      const navDashboardUmum = document.getElementById('nav-page-dashboard');
+      const navLinkEksternal = document.getElementById('nav-page-link');
+      if (currentUserRole === 'residen') {
+        if (navDashboardUmum) navDashboardUmum.style.display = 'none';
+        if (navLinkEksternal) navLinkEksternal.style.display = 'none';
+      } else {
+        if (navDashboardUmum) navDashboardUmum.style.display = '';
+        // navLinkEksternal sudah diatur oleh logika isKonsulen di atas untuk akun Konsulen.
+        if (!isKonsulen) navLinkEksternal && (navLinkEksternal.style.display = '');
+      }
 
       db.ref('master_residents').on('value', snap => {
         if(snap.exists()) {
@@ -2220,6 +2415,10 @@
 
       const now = new Date(); document.getElementById('monthlyFilterPicker').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
       initReportForm(); initCharts(); listenRealtimeData(); listenEmergencyPatients(); updateRealtimeClock(); checkAndShowHolidayBanner(); renderWATemplateBox();
+
+      // Akun Residen mendarat langsung di "Dashboard Saya" (bukan Dashboard umum yang sudah
+      // disembunyikan dari menu mereka di atas) setiap kali sesi dimulai/di-refresh.
+      if (currentUserRole === 'residen') switchPage('page-dashboardsaya');
     } else { 
       document.getElementById("loginScreen").style.display = "flex"; 
       db.ref('master_residents').once('value', snap => {
@@ -2306,6 +2505,21 @@
     if (monreStatus) monreStatus.innerText = '';
   }
 
+  // PART 4: Ray-casting — cek apakah satu titik [lat,lng] berada di dalam poligon (array titik
+  // [lat,lng]). Dipakai HANYA jika HOSPITAL_GEOFENCE_POLYGON sudah diisi koordinat nyata hasil
+  // survey lapangan (lihat catatan di deklarasi konstanta di atas).
+  function isPointInPolygon(point, polygon) {
+    const x = point[0], y = point[1];
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i][0], yi = polygon[i][1];
+      const xj = polygon[j][0], yj = polygon[j][1];
+      const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
   function checkGPSBeforeFace() {
     const gateStatus = document.getElementById('gpsGateStatus');
     const btnGPS = document.getElementById('btnCheckGPS');
@@ -2320,13 +2534,30 @@
 
     navigator.geolocation.getCurrentPosition((pos) => {
       const d = calculateDistanceMeters(pos.coords.latitude, pos.coords.longitude, MONRE_LAT, MONRE_LNG);
+      const accuracy = pos.coords.accuracy || 0;
       if (btnGPS) btnGPS.disabled = false;
 
-      if (d <= MAX_RADIUS_METERS) {
+      // Mode poligon (presisi, jika sudah dikonfigurasi) atau mode radius titik-tengah (default,
+      // sama seperti sebelumnya — lihat catatan pada HOSPITAL_GEOFENCE_POLYGON).
+      const usingPolygon = HOSPITAL_GEOFENCE_POLYGON.length >= 3;
+      const isInsideFence = usingPolygon
+        ? isPointInPolygon([pos.coords.latitude, pos.coords.longitude], HOSPITAL_GEOFENCE_POLYGON)
+        : (d <= MAX_RADIUS_METERS);
+      // Mitigasi drift sinyal GPS di dalam gedung (multipath): kalau titik tampak di LUAR batas
+      // TAPI akurasi device buruk (>GPS_DRIFT_ACCURACY_THRESHOLD_M) dan posisi masih masuk akal
+      // (selisih jarak <= radius + akurasi), tetap loloskan ke Face ID — TAPI ditandai berbeda
+      // (bukan lolos bersih) dan dicatat ke Log Audit supaya Chief bisa meninjau kasus batas ini,
+      // bukan diam-diam disamakan dengan verifikasi GPS yang bersih.
+      const driftTolerated = !isInsideFence && !usingPolygon && accuracy > GPS_DRIFT_ACCURACY_THRESHOLD_M && d <= (MAX_RADIUS_METERS + accuracy);
+
+      if (isInsideFence || driftTolerated) {
         // FAKTOR 1 (GPS) LOLOS -> buka FAKTOR 2 (Face ID)
         gpsGateVerifiedDistance = d;
-        gateStatus.style.color = 'var(--success)';
-        gateStatus.innerText = `✅ Lokasi GPS Terverifikasi (${Math.round(d)}m dari RS). Membuka Kamera Face ID...`;
+        gateStatus.style.color = driftTolerated ? 'var(--warning)' : 'var(--success)';
+        gateStatus.innerText = driftTolerated
+          ? `⚠️ Sinyal GPS lemah/terbiaskan gedung (akurasi ±${Math.round(accuracy)}m, jarak terhitung ${Math.round(d)}m). Tetap dilanjutkan ke verifikasi wajah, tercatat untuk ditinjau Chief.`
+          : `✅ Lokasi GPS Terverifikasi (${Math.round(d)}m dari RS${usingPolygon?', mode poligon':''}). Membuka Kamera Face ID...`;
+        if (driftTolerated) logSystemChange('Absensi: toleransi drift sinyal GPS', `${currentUsername} — jarak ${Math.round(d)}m, akurasi ±${Math.round(accuracy)}m (radius izin ${MAX_RADIUS_METERS}m)`);
         document.getElementById('gpsGateBox').style.display = 'none';
         document.getElementById('faceCamSection').style.display = 'block';
         startFaceRecognitionCamera();
@@ -2334,8 +2565,8 @@
         // FAKTOR 1 GAGAL -> sistem terkunci, absensi otomatis ditolak, Face ID TIDAK dibuka
         gpsGateVerifiedDistance = null;
         gateStatus.style.color = 'var(--danger)';
-        gateStatus.innerText = `❌ DITOLAK OTOMATIS: Anda berada ${Math.round(d)}m dari lokasi RS (radius maksimal ${MAX_RADIUS_METERS}m). Sistem Terkunci — Face ID tidak diaktifkan.`;
-        autoRecordDisciplineViolation(currentUsername, "DIS-02", `Absen di luar lokasi/radius Monre (${Math.round(d)} meter dari lokasi, radius izin ${MAX_RADIUS_METERS}m)`);
+        gateStatus.innerText = `❌ DITOLAK OTOMATIS: Anda berada ${Math.round(d)}m dari lokasi RS (radius maksimal ${MAX_RADIUS_METERS}m, akurasi GPS ±${Math.round(accuracy)}m). Sistem Terkunci — Face ID tidak diaktifkan.`;
+        autoRecordDisciplineViolation(currentUsername, "DIS-02", `Absen di luar lokasi/radius Monre (${Math.round(d)} meter dari lokasi, radius izin ${MAX_RADIUS_METERS}m, akurasi GPS ±${Math.round(accuracy)}m)`);
       }
     }, () => {
       if (btnGPS) btnGPS.disabled = false;
@@ -3964,6 +4195,14 @@ Ruangan: [Ruangan Asal]`;
           </div>
         </div>
       </div>
+      <div style="grid-column:1/-1; margin-top:14px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.15);">
+        <div style="font-size:11px; font-weight:800; color:#6ee7b7; margin-bottom:8px;"><i class="fa-solid fa-baby"></i> Data Pediatrik (opsional — isi hanya untuk pasien anak; otomatis menghitung kategori usia/EBV/rekomendasi ETT dan tampil sebagai badge di daftar pasien)</div>
+        <div class="grid-2" style="gap:8px;">
+          <div class="form-group"><label>Tanggal Lahir</label><input type="date" id="pdEdit_tglLahirAnak" class="login-input" value="${f(p.tglLahirAnak)}" onchange="previewPediatricAutoSummary()"></div>
+          <div class="form-group"><label>Berat Badan (kg)</label><input type="number" step="0.1" id="pdEdit_bbAnak" class="login-input" value="${f(p.bbAnak)}" placeholder="mis. 12.5" oninput="previewPediatricAutoSummary()"></div>
+        </div>
+        <div id="pdEdit_pediatricPreview" style="font-size:11px; color:#a7f3d0; margin-top:6px;"></div>
+      </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
         <button class="btn btn-danger" onclick="closeAnalyticsModal()">Batal</button>
         <button class="btn btn-success" onclick="savePatientDetailEditModal(${idx})"><i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan</button>
@@ -3971,6 +4210,80 @@ Ruangan: [Ruangan Asal]`;
     `;
 
     document.getElementById('analyticsModal').style.display = 'flex';
+    previewPediatricAutoSummary();
+  }
+
+  // ================= INTEGRASI FORMULA PEDIATRIC KE DATA PASIEN (BUKAN HANYA KALKULATOR TERPISAH) =================
+  // Menghitung kategori usia/volume darah/EBV/rekomendasi ETT langsung dari Tanggal Lahir + BB pasien,
+  // memakai kategori & rumus yang SAMA dengan kalkulator "Formula Anestesi Pediatric" (calcPediatricFormula)
+  // supaya angkanya konsisten satu sama lain — bukan mesin hitung terpisah dengan rumus berbeda.
+  // Referensi umur neonatus (<=28 hari, prematur jika BB<2.5kg) mengikuti konvensi klinis umum;
+  // TIDAK menggantikan penilaian usia gestasi klinis DPJP untuk kasus prematur di batas ambang.
+  function computePediatricAutoSummary(tglLahirStr, bbKg) {
+    if (!tglLahirStr || !bbKg || isNaN(bbKg) || bbKg <= 0) return null;
+    const lahir = new Date(tglLahirStr + 'T00:00:00');
+    if (isNaN(lahir.getTime())) return null;
+    const now = new Date();
+    const umurHari = Math.floor((now - lahir) / 86400000);
+    if (umurHari < 0) return null; // tanggal lahir di masa depan — data tidak valid
+    const umurTahun = +(umurHari / 365.25).toFixed(2);
+    let kategoriUsia, volDarahCcKg;
+    if (umurHari <= 28) {
+      if (bbKg < 2.5) { kategoriUsia = 'Neonatus Prematur'; volDarahCcKg = 97.5; }
+      else { kategoriUsia = 'Neonatus Aterm'; volDarahCcKg = 85; }
+    } else if (umurTahun <= 1.0) {
+      kategoriUsia = 'Bayi s/d 1 tahun'; volDarahCcKg = 80;
+    } else {
+      kategoriUsia = 'Bayi/Anak > 1 tahun'; volDarahCcKg = 72.5;
+    }
+    const ebv = Math.round(bbKg * volDarahCcKg);
+    let ettSize = 'Lihat tabel referensi (<2th)', ettDepth = 'Lihat tabel referensi (<2th)';
+    if (umurTahun >= 2) { ettSize = (umurTahun/4+4).toFixed(2) + ' mm'; ettDepth = (umurTahun/2+12).toFixed(2) + ' cm'; }
+    return { umurHari, umurTahun, kategoriUsia, volDarahCcKg, ebv, ettSize, ettDepth };
+  }
+  function previewPediatricAutoSummary() {
+    const box = document.getElementById('pdEdit_pediatricPreview');
+    if (!box) return;
+    const tgl = document.getElementById('pdEdit_tglLahirAnak').value;
+    const bb = parseFloat(document.getElementById('pdEdit_bbAnak').value);
+    const sum = computePediatricAutoSummary(tgl, bb);
+    box.innerHTML = sum
+      ? `<i class="fa-solid fa-circle-check"></i> Usia ${sum.umurTahun} th (${sum.kategoriUsia}) · EBV ${sum.ebv} cc · Rekomendasi ETT: ${sum.ettSize} (kedalaman ${sum.ettDepth}) — <i>alat bantu, tetap verifikasi klinis DPJP.</i>`
+      : '';
+  }
+  // Badge ringkas ditampilkan di daftar pasien (kartu/tile/tabel) — dihitung ulang setiap render
+  // dari tglLahirAnak+bbAnak (bukan nilai tersimpan) supaya usia selalu akurat per hari ini.
+  // Mengisi dropdown "Isi Otomatis dari Pasien Pediatrik" di halaman Formula Anestesi Pediatric —
+  // hanya pasien pada sheet aktif yang sudah punya tglLahirAnak+bbAnak terisi (lihat Detail Pasien).
+  // Residen hanya melihat pasien mereka sendiri (residen === currentUsername), sama seperti
+  // pembatasan lain untuk akun residen di aplikasi ini.
+  function populatePediatricPatientPicker() {
+    const sel = document.getElementById('pedPatientPicker');
+    if (!sel) return;
+    const candidates = (activeSheetData || []).map((p, idx) => ({ p, idx })).filter(({p}) => {
+      if (!p.tglLahirAnak || !p.bbAnak) return false;
+      if (currentUserRole === 'residen' && (p.residen||'').toUpperCase().trim() !== currentUsername.toUpperCase().trim()) return false;
+      return true;
+    });
+    sel.innerHTML = '<option value="">-- Isi manual di bawah, atau pilih pasien pediatrik --</option>' +
+      candidates.map(({p, idx}) => `<option value="${idx}">${p.nama||'-'} (RM: ${p.rm||'-'}, BB ${p.bbAnak}kg)</option>`).join('');
+  }
+  function applyPediatricPatientToCalculator() {
+    const sel = document.getElementById('pedPatientPicker');
+    const idx = sel ? sel.value : '';
+    if (idx === '') return;
+    const p = activeSheetData[idx];
+    if (!p) return;
+    const sum = computePediatricAutoSummary(p.tglLahirAnak, parseFloat(p.bbAnak));
+    document.getElementById('pedNama').value = p.nama || '';
+    document.getElementById('pedBB').value = p.bbAnak || '';
+    if (sum) document.getElementById('pedUmur').value = sum.umurTahun;
+  }
+
+  function pediatricBadgeHTML(p) {
+    const sum = computePediatricAutoSummary(p.tglLahirAnak, parseFloat(p.bbAnak));
+    if (!sum) return '';
+    return ` <span title="Kategori: ${sum.kategoriUsia} | Usia: ${sum.umurTahun} th | EBV: ${sum.ebv} cc | ETT: ${sum.ettSize} (kedalaman ${sum.ettDepth})" style="display:inline-block; background:rgba(52,211,153,0.18); color:#6ee7b7; border:1px solid rgba(52,211,153,0.4); border-radius:6px; padding:1px 6px; font-size:9px; font-weight:800; margin-left:4px; vertical-align:middle; white-space:nowrap;"><i class="fa-solid fa-baby"></i> ${sum.kategoriUsia} · EBV ${sum.ebv}cc</span>`;
   }
 
   function savePatientDetailEditModal(idx) {
@@ -4009,6 +4322,8 @@ Ruangan: [Ruangan Asal]`;
     p.komplikasi = Array.from(document.querySelectorAll('.pdEdit_komplikasi_cb:checked')).map(cb => cb.value);
     p.komplikasiCatatan = val('pdEdit_komplikasiCatatan');
     p.outcomeAkhir = val('pdEdit_outcomeAkhir');
+    p.tglLahirAnak = val('pdEdit_tglLahirAnak');
+    p.bbAnak = val('pdEdit_bbAnak');
 
     if (p.statusCatatan === 'Sudah dikerja' || (p.selesai && p.selesai.trim() !== '')) recordDPJPExecutionToFirebase(p);
     if (p.mulai && p.mulai.trim() !== '') applyAutoStatusOnMulai(p);
@@ -4098,7 +4413,16 @@ Ruangan: [Ruangan Asal]`;
       teknikAnestesi: s(p.teknikAnestesi),
       komplikasi: Array.isArray(p.komplikasi) ? p.komplikasi.filter(Boolean) : (p.komplikasi ? [p.komplikasi] : []),
       komplikasiCatatan: s(p.komplikasiCatatan),
-      outcomeAkhir: s(p.outcomeAkhir)
+      outcomeAkhir: s(p.outcomeAkhir),
+      // Data pediatrik (opsional) — dasar penghitungan otomatis kategori usia/EBV/ETT (lihat
+      // computePediatricAutoSummary), memakai rumus yang sama dengan kalkulator Formula Anestesi
+      // Pediatric supaya kedua tempat itu tidak pernah menampilkan angka yang berbeda.
+      tglLahirAnak: s(p.tglLahirAnak), bbAnak: s(p.bbAnak),
+      // Verifikasi supervisi DPJP (opsional, non-blocking) — DPJP mengonfirmasi/mengoreksi jam
+      // mulai-selesai yang dicatat residen untuk pasiennya sendiri. Kosong/'' berarti belum
+      // diverifikasi; ini TIDAK menghalangi Realisasi/Export tetap berjalan seperti biasa —
+      // hanya lapisan kualitas data tambahan, lihat renderDPJPSupervisionDashboard().
+      statusSupervisiDPJP: s(p.statusSupervisiDPJP), catatanKoreksiDPJP: s(p.catatanKoreksiDPJP), waktuVerifikasiDPJP: s(p.waktuVerifikasiDPJP)
     };
   }
   function normalizeSheetsData(raw) {
@@ -4939,7 +5263,7 @@ Ruangan: [Ruangan Asal]`;
           <div class="patient-tile ${statusClass}" style="position:relative;" onclick="openQuickEditPatient(${idx})">
             <button onclick="event.stopPropagation(); openPatientDetailEditModal(${idx})" title="Detail Pasien (edit lengkap: Diagnosis, Tindakan, dsb)" style="position:absolute; top:4px; right:4px; background:rgba(0,0,0,0.35); border:none; color:#fff; width:20px; height:20px; border-radius:50%; font-size:9px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-user-pen"></i></button>
             <span class="tile-no">#${p.no}</span>
-            <div class="tile-name">${p.nama}</div>
+            <div class="tile-name">${p.nama}${pediatricBadgeHTML(p)}</div>
             <div class="tile-rm">RM: ${p.rm}</div>
             <div class="tile-row"><i class="fa-solid fa-user-doctor"></i> <b>${(p.dpjpAnestesi||'-').split('(').pop().replace(')','')}</b></div>
             <div class="tile-row"><i class="fa-solid fa-bed-pulse"></i> ${p.kamar || '-'}</div>
@@ -4951,7 +5275,7 @@ Ruangan: [Ruangan Asal]`;
         <div class="patient-card ${statusClass}">
           <div class="patient-header" style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">
             <div>
-              <h3 class="patient-name">#${p.no}. ${p.nama} <i class="fa-solid fa-pen-to-square" style="font-size:10px; color:var(--accent);"></i></h3>
+              <h3 class="patient-name">#${p.no}. ${p.nama} <i class="fa-solid fa-pen-to-square" style="font-size:10px; color:var(--accent);"></i>${pediatricBadgeHTML(p)}</h3>
               <div style="font-size:11px; color:var(--text-light); margin-top:2px;">${p.rencanaTindakan || '-'}</div>
             </div>
             <span class="patient-rm">RM: ${p.rm}</span>
@@ -5031,7 +5355,7 @@ Ruangan: [Ruangan Asal]`;
 
       tb.innerHTML+=`<tr class="${statusClass}">
       <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${p.no}</td>
-      <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)"><strong>${p.nama}</strong> <i class="fa-solid fa-pen-to-square" style="font-size:9px; color:var(--accent); margin-left:4px;"></i></td>
+      <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)"><strong>${p.nama}</strong> <i class="fa-solid fa-pen-to-square" style="font-size:9px; color:var(--accent); margin-left:4px;"></i>${pediatricBadgeHTML(p)}</td>
       <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${p.rm}</td>
       <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${p.divisi}</td>
       <td style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">${sektorBadgeHTML(p.asalSektor)}</td>
@@ -5602,6 +5926,9 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
   // kebijakan otomatis. Data historis hanya tersedia SEJAK fitur log harian ini aktif — lihat
   // catatan di saveDailyPatientSnapshot().
   let chartKebijakanSektorInstance = null;
+  let chartKebijakanKomposisiInstance = null;
+  let chartKebijakanBebanResidenInstance = null;
+  let chartKebijakanDivisiPolarInstance = null;
   let lastKebijakanRekomendasiText = '';
 
   // ================= KLASIFIKASI STATUS: BATAL vs OPTIMALISASI (dipisah, bukan digabung) =================
@@ -5721,6 +6048,22 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
       document.getElementById('kebijakanUtilisasiBody').innerHTML =
         `Total kasus sektor <b style="color:#93c5fd;">COT: ${cotTotal}</b> (${totalKasus?Math.round(cotTotal/totalKasus*100):0}%) vs <b style="color:#fde68a;">Luar COT: ${luarTotal}</b> (${totalKasus?Math.round(luarTotal/totalKasus*100):0}%) selama ${daysCovered} hari tercatat. Rata-rata ${(cotTotal/daysCovered).toFixed(1)} kasus/hari di COT dan ${(luarTotal/daysCovered).toFixed(1)} kasus/hari di Luar COT.`;
 
+      // Diagram modern #2: doughnut komposisi status kasus (Selesai / Batal Murni / Optimalisasi /
+      // Sisa Berlangsung-Antrean) — pelengkap visual di samping tren batang di atas.
+      const sisaBerlangsung = Math.max(0, totalKasus - selesaiCount - batalCount - optCount);
+      const komposisiCtx = document.getElementById('chartKebijakanKomposisi');
+      if (komposisiCtx) {
+        if (chartKebijakanKomposisiInstance) chartKebijakanKomposisiInstance.destroy();
+        chartKebijakanKomposisiInstance = new Chart(komposisiCtx.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: ['Selesai', 'Batal Murni', 'Optimalisasi', 'Berlangsung/Antrean'],
+            datasets: [{ data: [selesaiCount, batalCount, optCount, sisaBerlangsung], backgroundColor: ['#10b981', '#ef4444', '#a855f7', '#3b82f6'], borderWidth: 0 }]
+          },
+          options: { responsive:true, plugins:{legend:{position:'bottom', labels:{color:'#94a3b8', boxWidth:12, font:{size:10}}}} }
+        });
+      }
+
       // 3) Alasan pembatalan terbanyak (batal murni) + alasan optimalisasi terbanyak (terpisah)
       const alasanCount = {};
       batalRows.forEach(p => { const a = (p.statusCatatan||'').trim(); alasanCount[a] = (alasanCount[a]||0)+1; });
@@ -5763,6 +6106,19 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
         ).join('') : '<tr><td colspan="4" style="color:#888;">Belum ada data.</td></tr>';
       }
 
+      // Diagram modern #3: polar area — top 6 divisi berdasarkan total kasus pada rentang terpilih.
+      const divPolarCtx = document.getElementById('chartKebijakanDivisiPolar');
+      if (divPolarCtx) {
+        const divByTotal = Object.entries(divMap).sort((a,b) => b[1].total - a[1].total).slice(0,6);
+        const polarPalette = ['#3b82f6','#f59e0b','#a855f7','#10b981','#ef4444','#06b6d4'];
+        if (chartKebijakanDivisiPolarInstance) chartKebijakanDivisiPolarInstance.destroy();
+        chartKebijakanDivisiPolarInstance = new Chart(divPolarCtx.getContext('2d'), {
+          type: 'polarArea',
+          data: { labels: divByTotal.map(([d]) => d), datasets: [{ data: divByTotal.map(([,v]) => v.total), backgroundColor: polarPalette.slice(0, divByTotal.length).map(c => c + 'B3') }] },
+          options: { responsive:true, scales:{ r:{ ticks:{ color:'#94a3b8', backdropColor:'transparent' }, grid:{ color:'rgba(255,255,255,0.08)' } } }, plugins:{legend:{position:'bottom', labels:{color:'#94a3b8', boxWidth:12, font:{size:10}}}} }
+        });
+      }
+
       // 2) Beban kerja residen dalam rentang + indikator kombinasi kasus tinggi & batal tinggi
       const resMap = {};
       allRows.forEach(p => {
@@ -5783,15 +6139,42 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
         return `<tr><td style="text-align:left;">${r}</td><td>${v.total}</td><td>${v.batal}</td><td>${pctBatal}%</td><td>${flag}</td></tr>`;
       }).join('') : '<tr><td colspan="5" style="color:#888;">Belum ada data.</td></tr>';
 
+      // Diagram modern #4: horizontal bar top 10 residen berdasarkan beban kasus, warna mengikuti
+      // indikator yang SAMA dengan tabel di atas (bukan skala burnout harian — beda basis waktu).
+      const bebanCtx = document.getElementById('chartKebijakanBebanResiden');
+      if (bebanCtx) {
+        const top10 = resSorted.slice(0, 10);
+        const colors = top10.map(([,v]) => {
+          const pctBatal = v.total ? v.batal/v.total*100 : 0;
+          const isHighLoad = v.total > avgCasePerResiden * 1.3;
+          const isHighCancel = pctBatal >= 25 && v.batal >= 3;
+          return (isHighLoad && isHighCancel) ? '#ef4444' : (isHighLoad ? '#f59e0b' : '#3b82f6');
+        });
+        if (chartKebijakanBebanResidenInstance) chartKebijakanBebanResidenInstance.destroy();
+        chartKebijakanBebanResidenInstance = new Chart(bebanCtx.getContext('2d'), {
+          type: 'bar',
+          data: { labels: top10.map(([r]) => r), datasets: [{ label: 'Total Kasus', data: top10.map(([,v]) => v.total), backgroundColor: colors, borderRadius: 6 }] },
+          options: { indexAxis: 'y', responsive:true, plugins:{legend:{display:false}}, scales:{ x:{beginAtZero:true, ticks:{color:'#94a3b8', precision:0}, grid:{color:'rgba(255,255,255,0.05)'}}, y:{ticks:{color:'#cbd5e1', font:{size:10}}, grid:{display:false}} } }
+        });
+      }
+
       // 4) Kepatuhan & supervisi DPJP (dari ikve_records per bulan yang tercakup rentang tanggal)
       const months = monthsBetween(startStr, endStr);
       Promise.all(months.map(m => db.ref(`ikve_records/${m}`).once('value').then(s => s.val() || {}))).then(monthDataArr => {
         const ikveMap = {}; // inisial -> {viol, resolved}
+        // PART 1: Rekap IKVE per Divisi Kejadian (mengisi keterbatasan lama — lihat catatan di HTML
+        // kartu "Rekap IKVE per Divisi"). divisi -> {DIS, SAF, ETI, POS, skorAkumulasi}
+        const divisiIkveMap = {};
         monthDataArr.forEach(monthData => {
           Object.keys(monthData).forEach(inisial => {
             const records = Object.values(monthData[inisial] || {});
             records.forEach(rec => {
-              if (rec.domain === 'POS') return; // reward, bukan pelanggaran
+              const divKey = (rec.divisiKejadian || '').trim() || '(Tanpa Divisi)';
+              if (!divisiIkveMap[divKey]) divisiIkveMap[divKey] = { DIS: 0, SAF: 0, ETI: 0, POS: 0, skor: 0 };
+              if (divisiIkveMap[divKey][rec.domain] !== undefined) divisiIkveMap[divKey][rec.domain]++;
+              divisiIkveMap[divKey].skor += (Number(rec.skor) || 0);
+
+              if (rec.domain === 'POS') return; // reward, bukan pelanggaran — tidak dihitung di rekap per-Residen
               if (!ikveMap[inisial]) ikveMap[inisial] = { viol: 0, resolved: 0 };
               ikveMap[inisial].viol++;
               if (rec.tahap === 'Tahap 3: Tervalidasi' || rec.tahap === 'Dibatalkan') ikveMap[inisial].resolved++;
@@ -5807,6 +6190,14 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
           return `<tr><td style="text-align:left;">${nama}</td><td>${v.viol}</td><td>${v.resolved}</td><td>${pctResolved}%</td></tr>`;
         }).join('') : '<tr><td colspan="4" style="color:#888;">Tidak ada catatan pelanggaran IKVE pada rentang bulan ini.</td></tr>';
 
+        const divisiIkveSorted = Object.entries(divisiIkveMap).sort((a,b) => b[1].skor - a[1].skor);
+        const tbDivIkve = document.querySelector('#tblIKVEPerDivisi tbody');
+        if (tbDivIkve) {
+          tbDivIkve.innerHTML = divisiIkveSorted.length ? divisiIkveSorted.map(([divisi,v]) => {
+            return `<tr><td style="text-align:left;">${divisi}</td><td>${v.DIS}</td><td>${v.SAF}</td><td>${v.ETI}</td><td>${v.POS}</td><td style="font-weight:800; color:${v.skor<0?'#fca5a5':'#6ee7b7'};">${v.skor>0?'+':''}${v.skor}</td></tr>`;
+          }).join('') : '<tr><td colspan="6" style="color:#888;">Tidak ada catatan IKVE pada rentang bulan ini.</td></tr>';
+        }
+
         generateKebijakanRekomendasi({
           startStr, endStr, daysCovered, totalKasus, selesaiCount, batalCount, optCount, cotTotal, luarTotal,
           alasanSorted, alasanOptSorted, divSorted, divOptSorted, resSorted, avgCasePerResiden, ikveSorted, earliestAvailable
@@ -5815,7 +6206,19 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
     });
   }
 
+  // Rekomendasi kebijakan otomatis — KESIMPULAN (bagian 5 & framing) SENGAJA berbeda per role,
+  // supaya setiap akun membaca poin yang relevan untuk perannya, bukan satu draft generik untuk
+  // semua orang:
+  // - Chief/Wakil Chief/Admin: kesimpulan operasional penuh (semua divisi & residen).
+  // - Chief Divisi: kesimpulan diberi highlight khusus divisinya sendiri di bagian atas.
+  // - Konsulen/DPJP: kesimpulan diarahkan ke sudut pandang supervisi (bukan penjadwalan OK global).
+  // - Residen: bagian nama residen lain di poin 2) & 4) DISENSOR (hanya jumlah, bukan nama) —
+  //   data pelanggaran IKVE personal residen lain tidak semestinya terbuka ke sesama residen,
+  //   konsisten dengan desain anonimisasi IKVE yang sudah ada di tempat lain di aplikasi ini.
   function generateKebijakanRekomendasi(d) {
+    const viewerRole = currentUserRole;
+    const isResidenViewer = viewerRole === 'residen';
+
     const topAlasan = d.alasanSorted.slice(0,3).map(([a,c],i) => `${i+1}. ${a} (${c} kasus)`).join('\n') || '- Tidak ada kasus batal murni tercatat.';
     const topDivBatal = d.divSorted.filter(([,v]) => v.total >= 3).slice(0,3).map(([dv,v]) => `${dv}: ${Math.round(v.batal/v.total*100)}% batal (${v.batal}/${v.total})`).join('\n') || '- Belum cukup data per divisi.';
     const topAlasanOpt = (d.alasanOptSorted||[]).slice(0,3).map(([a,c],i) => `${i+1}. ${a} (${c} kasus)`).join('\n') || '- Tidak ada kasus Optimalisasi tercatat.';
@@ -5824,17 +6227,67 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
       const pctBatal = v.total ? v.batal/v.total*100 : 0;
       return v.total > d.avgCasePerResiden * 1.3 && pctBatal >= 25 && v.batal >= 3;
     }).map(([r]) => r);
-    const topIkve = d.ikveSorted.slice(0,3).map(([inisial,v]) => {
-      const resObj = MASTER_RESIDENTS.find(x => x.inisial === inisial);
-      const nama = resObj ? resObj.nama : inisial;
-      return `${nama}: ${v.viol} pelanggaran (${v.viol-v.resolved} belum diklarifikasi)`;
-    }).join('\n') || '- Tidak ada catatan pelanggaran IKVE pada rentang ini.';
+    // Poin 2 (Beban Kerja): residen HANYA melihat jumlah, bukan nama sejawat lain.
+    const beban2Text = isResidenViewer
+      ? (flaggedResiden.length ? `- ⚠️ ${flaggedResiden.length} residen tercatat dengan kombinasi kasus tinggi + tingkat batal tinggi pada rentang ini (nama disembunyikan — hubungi Chief/KPS jika Anda ingin tahu status Anda sendiri).` : '- Tidak ada residen dengan kombinasi beban tinggi + tingkat batal tinggi pada rentang ini.')
+      : (flaggedResiden.length ? `- ⚠️ Residen dengan kombinasi kasus tinggi + tingkat batal (murni) tinggi (pertimbangkan redistribusi jaga): ${flaggedResiden.join(', ')}` : '- Tidak ada residen dengan kombinasi beban tinggi + tingkat batal tinggi pada rentang ini.');
+    // Poin 4 (IKVE): residen HANYA melihat agregat, bukan nama sejawat lain (konsisten dengan
+    // anonimisasi IKVE yang sudah ada di tempat lain).
+    const topIkve = isResidenViewer
+      ? (d.ikveSorted.length ? `- ${d.ikveSorted.length} residen memiliki catatan pelanggaran IKVE pada rentang ini, ${d.ikveSorted.filter(([,v])=>v.viol>v.resolved).length} di antaranya belum sepenuhnya diklarifikasi (nama disembunyikan — cek "Dashboard Saya" untuk catatan milik Anda sendiri).` : '- Tidak ada catatan pelanggaran IKVE pada rentang ini.')
+      : (d.ikveSorted.slice(0,3).map(([inisial,v]) => {
+          const resObj = MASTER_RESIDENTS.find(x => x.inisial === inisial);
+          const nama = resObj ? resObj.nama : inisial;
+          return `${nama}: ${v.viol} pelanggaran (${v.viol-v.resolved} belum diklarifikasi)`;
+        }).join('\n') || '- Tidak ada catatan pelanggaran IKVE pada rentang ini.');
+
+    // Header framing per role
+    let roleHeaderNote = '';
+    if (viewerRole === 'chief_divisi' && currentChiefDivisiName) {
+      const myDiv = d.divSorted.find(([dv]) => dv.toUpperCase().trim() === currentChiefDivisiName.toUpperCase().trim());
+      const myDivOpt = (d.divOptSorted||[]).find(([dv]) => dv.toUpperCase().trim() === currentChiefDivisiName.toUpperCase().trim());
+      roleHeaderNote = `\n🔎 FOKUS DIVISI ANDA — ${currentChiefDivisiName}:\n` + (myDiv
+        ? `- Total kasus: ${myDiv[1].total} | Batal murni: ${myDiv[1].batal} (${Math.round(myDiv[1].batal/myDiv[1].total*100)}%) | Optimalisasi: ${myDivOpt ? myDivOpt[1].opt : 0} (${myDivOpt ? Math.round(myDivOpt[1].opt/myDivOpt[1].total*100) : 0}%)\n`
+        : '- Belum ada kasus tercatat untuk divisi Anda pada rentang ini.\n');
+    } else if (viewerRole === 'konsulen') {
+      roleHeaderNote = `\n🔎 SUDUT PANDANG SUPERVISI (Konsulen/DPJP): fokus pembacaan disarankan pada poin 2 (beban kerja residen bimbingan Anda) dan 4 (kepatuhan IKVE) — poin 1 & 3 disertakan sebagai konteks operasional umum RS.\n`;
+    } else if (isResidenViewer) {
+      roleHeaderNote = `\n🔎 Ringkasan ini bersifat informasional untuk Anda sebagai Residen — nama sejawat lain pada poin beban kerja & IKVE disembunyikan. Untuk data personal Anda sendiri, buka menu "Dashboard Saya".\n`;
+    }
+
+    // Kesimpulan (bagian 5) per role
+    let kesimpulanLines = [];
+    if (isResidenViewer) {
+      kesimpulanLines = [
+        d.alasanSorted.length ? `- Alasan pembatalan murni terbanyak di RS saat ini: "${d.alasanSorted[0][0]}" — bukan hal personal, ini pola sistemik yang sedang dievaluasi Chief.` : '- Belum ada pola pembatalan murni dominan pada rentang ini.',
+        '- Untuk status beban kerja & catatan IKVE milik Anda sendiri secara rinci, gunakan menu "Dashboard Saya", bukan halaman ini.'
+      ];
+    } else if (viewerRole === 'konsulen') {
+      kesimpulanLines = [
+        flaggedResiden.length ? `- Periksa apakah ada residen bimbingan Anda pada daftar poin 2) — pertimbangkan diskusi langsung sebelum eskalasi ke Chief.` : '- Tidak ada residen dengan indikasi beban/batal tinggi pada rentang ini yang perlu perhatian supervisi segera.',
+        d.ikveSorted.some(([,v])=>v.viol>v.resolved) ? '- Ada catatan IKVE residen bimbingan Anda yang belum diklarifikasi — Anda dapat membantu proses Tabayyun lewat halaman Pelaporan Disiplin PPDS.' : '- Tidak ada catatan IKVE residen bimbingan Anda yang tertunda klarifikasi.',
+        '- Gunakan halaman "Supervisi Saya (DPJP)" untuk verifikasi realisasi kasus & pencatatan insiden edukatif non-punitif.'
+      ];
+    } else if (viewerRole === 'chief_divisi') {
+      kesimpulanLines = [
+        `- Prioritaskan tindak lanjut untuk divisi Anda (${currentChiefDivisiName || '-'}) terlebih dahulu — lihat "FOKUS DIVISI ANDA" di atas — sebelum mempertimbangkan pola RS secara keseluruhan.`,
+        flaggedResiden.length ? '- Pertimbangkan peninjauan jadwal jaga untuk residen yang ditandai pada poin 2), khususnya yang berada di bawah divisi Anda.' : '- Distribusi beban kerja residen relatif merata pada rentang ini.'
+      ];
+    } else {
+      // Chief / Wakil Chief / Admin: kesimpulan operasional penuh (perilaku default/lama)
+      kesimpulanLines = [
+        d.alasanSorted.length ? `- Alasan pembatalan murni #1 ("${d.alasanSorted[0][0]}") layak ditindaklanjuti sebagai prioritas perbaikan proses.` : '- Belum ada pola pembatalan murni dominan untuk ditindaklanjuti.',
+        d.alasanOptSorted && d.alasanOptSorted.length ? `- Alasan Optimalisasi #1 ("${d.alasanOptSorted[0][0]}") — pertimbangkan penguatan skrining/optimalisasi pra-operasi di poli terkait agar kasus tidak berulang tertunda.` : '- Belum ada pola Optimalisasi dominan untuk ditindaklanjuti.',
+        flaggedResiden.length ? '- Pertimbangkan peninjauan jadwal jaga untuk residen yang ditandai pada poin 2).' : '- Distribusi beban kerja residen relatif merata pada rentang ini.',
+        d.ikveSorted.some(([,v])=>v.viol>v.resolved) ? '- Masih ada catatan IKVE yang belum diklarifikasi DPJP (Tabayyun) — percepat proses klarifikasi agar sanksi memiliki kekuatan hukum yang tercatat.' : '- Seluruh catatan IKVE pada rentang ini sudah melalui proses klarifikasi.'
+      ];
+    }
 
     const text =
 `📋 REKOMENDASI KEBIJAKAN — CAMS 2026
 Rentang data: ${d.startStr} s/d ${d.endStr} (${d.daysCovered} hari tercatat)${d.earliestAvailable && d.earliestAvailable > d.startStr ? `\n⚠️ Data historis baru tersedia sejak ${d.earliestAvailable} — rentang di atas hanya mencakup hari yang benar-benar tercatat.` : ''}
 Dibuat oleh: ${currentUsername} (${roleLabel(currentUserRole)})
-
+${roleHeaderNote}
 1) EFISIENSI & UTILISASI OK
 - Total kasus: ${d.totalKasus} (COT: ${d.cotTotal}, Luar COT: ${d.luarTotal})
 - Tingkat selesai: ${d.totalKasus?Math.round(d.selesaiCount/d.totalKasus*100):0}% | Tingkat pembatalan (murni): ${d.totalKasus?Math.round(d.batalCount/d.totalKasus*100):0}% | Tingkat Optimalisasi: ${d.totalKasus?Math.round((d.optCount||0)/d.totalKasus*100):0}%
@@ -5842,7 +6295,7 @@ Dibuat oleh: ${currentUsername} (${roleLabel(currentUserRole)})
 - ${(d.optCount||0)/Math.max(d.totalKasus,1) > 0.15 ? 'Tingkat Optimalisasi di atas 15% — pertimbangkan mempercepat skrining kesiapan pasien pra-operasi (poli/optimalisasi) agar tidak berulang menunda jadwal OK.' : 'Tingkat Optimalisasi masih dalam batas wajar.'}
 
 2) BEBAN KERJA & KESELAMATAN RESIDEN
-${flaggedResiden.length ? `- ⚠️ Residen dengan kombinasi kasus tinggi + tingkat batal (murni) tinggi (pertimbangkan redistribusi jaga): ${flaggedResiden.join(', ')}` : '- Tidak ada residen dengan kombinasi beban tinggi + tingkat batal tinggi pada rentang ini.'}
+${beban2Text}
 
 3) POLA PEMBATALAN (MURNI) & OPTIMALISASI — DIPISAH KARENA BERBEDA SECARA KLINIS
 3a) Batal Murni (tidak akan dijadwalkan ulang dengan alasan yang sama):
@@ -5858,14 +6311,11 @@ Divisi dengan tingkat Optimalisasi tertinggi:
 ${topDivOpt}
 
 4) KEPATUHAN & KUALITAS SUPERVISI DPJP
-Residen dengan pelanggaran IKVE terbanyak pada rentang ini:
+${isResidenViewer ? 'Ringkasan catatan pelanggaran IKVE pada rentang ini:' : 'Residen dengan pelanggaran IKVE terbanyak pada rentang ini:'}
 ${topIkve}
 
-5) BAHAN KEPUTUSAN
-- ${d.alasanSorted.length ? `Alasan pembatalan murni #1 ("${d.alasanSorted[0][0]}") layak ditindaklanjuti sebagai prioritas perbaikan proses.` : 'Belum ada pola pembatalan murni dominan untuk ditindaklanjuti.'}
-- ${d.alasanOptSorted && d.alasanOptSorted.length ? `Alasan Optimalisasi #1 ("${d.alasanOptSorted[0][0]}") — pertimbangkan penguatan skrining/optimalisasi pra-operasi di poli terkait agar kasus tidak berulang tertunda.` : 'Belum ada pola Optimalisasi dominan untuk ditindaklanjuti.'}
-- ${flaggedResiden.length ? 'Pertimbangkan peninjauan jadwal jaga untuk residen yang ditandai pada poin 2).' : 'Distribusi beban kerja residen relatif merata pada rentang ini.'}
-- ${d.ikveSorted.some(([,v])=>v.viol>v.resolved) ? 'Masih ada catatan IKVE yang belum diklarifikasi DPJP (Tabayyun) — percepat proses klarifikasi agar sanksi memiliki kekuatan hukum yang tercatat.' : 'Seluruh catatan IKVE pada rentang ini sudah melalui proses klarifikasi.'}`;
+5) BAHAN KEPUTUSAN (${roleLabel(viewerRole)})
+${kesimpulanLines.join('\n')}`;
 
     lastKebijakanRekomendasiText = text;
     document.getElementById('kebijakanRekomendasiBody').innerText = text;
@@ -6019,6 +6469,11 @@ ${topIkve}
     const divSet = new Set(), resSet = new Set(), dpjpSet = new Set();
     activeSheetData.forEach(p => { if(p.divisi && p.divisi !== '-') divSet.add(p.divisi); if(p.residen && p.residen !== '-') resSet.add(p.residen); if(p.dpjpAnestesi && p.dpjpAnestesi !== 'Tanpa DPJP') dpjpSet.add(p.dpjpAnestesi); });
     fillSelect('filterDivisi', divSet, 'Semua Divisi'); fillSelect('filterResiden', resSet, 'Semua Residen'); fillSelect('filterDPJP', dpjpSet, 'Semua DPJP');
+    // Datalist "Divisi Kejadian" pada form IKVE (PART 1) — dipakai supaya nama divisi yang diketik
+    // di form pelanggaran konsisten dengan nama divisi yang sudah ada di data pasien (bukan daftar
+    // subspesialisasi anestesi terpisah), sehingga rekap per-divisi bisa saling berkorelasi.
+    const ikveDivisiDatalist = document.getElementById('ikveDivisiOptions');
+    if (ikveDivisiDatalist) ikveDivisiDatalist.innerHTML = Array.from(divSet).map(d => `<option value="${d}">`).join('');
   }
   function fillSelect(id, ds, defaultLabel) {
     const sel = document.getElementById(id); const currVal = sel.value; sel.innerHTML = `<option value="">${defaultLabel}</option>`;
@@ -6102,13 +6557,359 @@ ${topIkve}
         <div class="card" style="border-top:4px solid #22d3ee; margin-bottom:0;">
           <div class="card-title" style="color:#67e8f9;"><i class="fa-solid fa-bell"></i> Notifikasi IKVE Untuk Anda (${items.length})</div>
           ${items.map(n => `
-            <div style="background:rgba(15,23,42,0.5); border-radius:10px; padding:10px; margin-bottom:8px; border-left:4px solid ${n.type==='reward'?'var(--success)':'var(--warning)'};">
-              <b style="color:${n.type==='reward'?'#a7f3d0':'#fde68a'};">${n.type==='reward' ? '🌟 Reward' : '⚠️ Pelanggaran'} — [${n.kode}] ${n.desc}</b>
-              <div style="font-size:10.5px; color:var(--text-light); margin-top:3px;">Skor: ${n.skor>0?'+':''}${n.skor} Poin | ${n.waktu}</div>
+            <div style="background:rgba(15,23,42,0.5); border-radius:10px; padding:12px; margin-bottom:8px; border-left:4px solid ${n.type==='reward'?'var(--success)':'var(--warning)'};">
+              <b style="color:${n.type==='reward'?'#a7f3d0':'#fde68a'}; font-size:14px; line-height:1.5;">${n.type==='reward' ? '🌟 Reward' : '⚠️ Pelanggaran'} — [${n.kode}] ${n.desc}</b>
+              <div class="notif-item-time" style="color:var(--text-light); margin-top:4px;">Skor: ${n.skor>0?'+':''}${n.skor} Poin | ${n.waktu}</div>
             </div>
           `).join('')}
         </div>
       `;
+    });
+  }
+
+  // ================= DASHBOARD SAYA (RESIDEN) — JAM KERJA/KASUS BULAN INI, TABAYYUN, PRESENSI =================
+  // Sisa waktu Tabayyun (1x24 jam) dari batasWaktuTabayyunMs. Catatan LAMA (sebelum field timestamp
+  // ini ditambahkan) tidak punya batasWaktuTabayyunMs — DIPERLAKUKAN SEBAGAI "tidak diketahui", residen
+  // tetap boleh mencoba mengirim klarifikasi untuk catatan itu (tidak diblok), tapi tanpa hitung mundur.
+  function computeTabayyunDeadlineInfo(rec) {
+    if (!rec.batasWaktuTabayyunMs) return { known: false, expired: false, label: 'Batas waktu tidak tercatat (catatan lama)' };
+    const sisaMs = rec.batasWaktuTabayyunMs - Date.now();
+    if (sisaMs <= 0) return { known: true, expired: true, label: 'Batas waktu 1x24 jam telah lewat' };
+    const sisaJam = Math.floor(sisaMs / 3600000);
+    const sisaMenit = Math.floor((sisaMs % 3600000) / 60000);
+    return { known: true, expired: false, label: `Sisa waktu: ${sisaJam} jam ${sisaMenit} menit` };
+  }
+
+  function renderResidentPersonalDashboard() {
+    if (currentUserRole !== 'residen' || !currentUsername) return;
+    const now = new Date();
+    const mStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const inisial = currentUsername.toUpperCase().trim();
+
+    // --- 1) Jam kerja & kasus bulan ini (dari daily_patient_log, sumber & rumus SAMA dengan
+    //     Analisis & Basis Kebijakan, supaya angkanya tidak pernah berbeda antar halaman) ---
+    db.ref('daily_patient_log').once('value', snap => {
+      const raw = snap.val() || {};
+      const datesThisMonth = Object.keys(raw).filter(d => d.startsWith(mStr));
+      let totalKasus = 0, totalJamMenit = 0;
+      datesThisMonth.forEach(d => {
+        (raw[d].pasien || []).forEach(p => {
+          if ((p.residen || '').toUpperCase().trim() !== inisial) return;
+          if (!isSelesaiStatus(p)) return;
+          totalKasus++;
+          if (p.mulai && p.selesai) {
+            const [h1,m1] = p.mulai.split(':').map(Number);
+            const [h2,m2] = p.selesai.split(':').map(Number);
+            if (!isNaN(h1) && !isNaN(m1) && !isNaN(h2) && !isNaN(m2)) {
+              let menit = (h2*60+m2) - (h1*60+m1);
+              if (menit < 0) menit += 24*60; // kasus lewat tengah malam
+              totalJamMenit += menit;
+            }
+          }
+        });
+      });
+      const totalJam = totalJamMenit / 60;
+      const kasusEl = document.getElementById('resDashKasus'); if (kasusEl) kasusEl.innerText = totalKasus;
+      const jamEl = document.getElementById('resDashJamKerja'); if (jamEl) jamEl.innerText = totalJam.toFixed(1) + ' Jam';
+      const statusEl = document.getElementById('resDashBurnoutStatus');
+      const cardEl = document.getElementById('resDashBurnoutCard');
+      let statusLabel = 'Normal', color = '#10b981';
+      if (totalJam > 100) { statusLabel = '🔴 Kritis (Risiko Kelelahan Ekstrem)'; color = '#ef4444'; }
+      else if (totalJam > 80) { statusLabel = '🟡 Peringatan (Beban Tinggi)'; color = '#f59e0b'; }
+      if (statusEl) { statusEl.innerText = statusLabel; statusEl.style.color = color; }
+      if (cardEl) cardEl.style.borderColor = color;
+    });
+
+    // --- 2) Pusat Klarifikasi (Tabayyun) interaktif — hanya pelanggaran (bukan Reward/POS) milik
+    //     akun sendiri yang statusnya masih menunggu, DAN belum pernah dikirim klarifikasinya. ---
+    db.ref(`ikve_records/${mStr}/${inisial}`).on('value', snap => {
+      const data = snap.val() || {};
+      const pending = Object.entries(data)
+        .filter(([, rec]) => rec.domain !== 'POS' && !rec.teksKlarifikasiResiden && (rec.tahap === 'Tahap 1: Identifikasi' || (rec.statusKlarifikasi || '').includes('Menunggu')));
+      const listEl = document.getElementById('resDashTabayyunList');
+      if (!listEl) return;
+      if (pending.length === 0) {
+        listEl.innerHTML = '<p style="color:#94a3b8; font-size:12px;"><i class="fa-solid fa-circle-check"></i> Tidak ada catatan pelanggaran yang menunggu klarifikasi Anda bulan ini.</p>';
+        return;
+      }
+      listEl.innerHTML = pending.map(([key, rec]) => {
+        const dl = computeTabayyunDeadlineInfo(rec);
+        return `
+          <div style="background:rgba(15,23,42,0.6); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:12px;">
+            <div style="font-size:11px; color:#94a3b8; margin-bottom:4px;">${rec.waktu} • Domain: <b>${rec.domain}</b> (${rec.skor > 0 ? '+' : ''}${rec.skor} poin)${rec.divisiKejadian ? ' • Divisi: ' + rec.divisiKejadian : ''}</div>
+            <div style="font-size:12px; margin-bottom:6px;">${(rec.deskripsi || '').replace(/</g,'&lt;')}</div>
+            <div style="font-size:11px; font-weight:700; color:${dl.expired ? 'var(--danger)' : 'var(--warning)'}; margin-bottom:8px;"><i class="fa-solid fa-clock"></i> ${dl.label}</div>
+            <div class="form-group" style="margin-bottom:6px;">
+              <label style="font-size:11px;">Penjelasan / Sanggahan Anda:</label>
+              <textarea id="resDash_klarifikasi_${key}" class="login-input" rows="3" placeholder="Jelaskan kronologi versi Anda, konteks medis/operasional yang relevan..." ${dl.expired ? 'disabled' : ''}></textarea>
+            </div>
+            <button class="btn btn-warning" style="padding:6px 12px; font-size:11px;" onclick="submitResidentTabayyun('${mStr}','${key}')" ${dl.expired ? 'disabled' : ''}><i class="fa-solid fa-paper-plane"></i> Kirim Klarifikasi</button>
+            ${dl.expired ? '<span style="font-size:11px; color:var(--danger); margin-left:8px;">Batas waktu habis — hubungi Chief/KPS secara manual.</span>' : ''}
+          </div>
+        `;
+      }).join('');
+    });
+
+    // --- 3) Riwayat presensi 7 hari terakhir (milik akun sendiri) ---
+    const dates7 = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now); d.setDate(d.getDate() - i);
+      dates7.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+    }
+    Promise.all(dates7.map(d => db.ref(`attendance_logs/${d}/${currentUsername}`).once('value').then(s => ({ date: d, val: s.val() })))).then(results => {
+      const tb = document.getElementById('resDashAttendanceBody');
+      if (!tb) return;
+      const rows = results.filter(r => r.val);
+      tb.innerHTML = rows.length ? rows.map(r => {
+        const v = r.val;
+        const statusColor = (v.status || '').toLowerCase().includes('terlambat') ? 'var(--danger)' : 'var(--success)';
+        return `<tr><td>${r.date}</td><td>${v.waktu || v.jam || '-'}</td><td style="color:${statusColor}; font-weight:700;">${v.status || '-'}</td><td>${v.jarak !== undefined ? Math.round(v.jarak) + 'm' : '-'}</td></tr>`;
+      }).join('') : '<tr><td colspan="4" style="color:#888;">Belum ada riwayat presensi dalam 7 hari terakhir.</td></tr>';
+    });
+  }
+
+  // Residen mengirim klarifikasi (Tabayyun) miliknya SENDIRI — pengecekan role+kepemilikan di sisi
+  // klien ini adalah lapisan UX, BUKAN pengganti keamanan sungguhan: siapapun yang membuka console
+  // browser tetap bisa memanggil fungsi ini dengan parameter bebas. Isolasi data per-akun yang
+  // sesungguhnya HANYA bisa dijamin lewat Firebase Realtime Database Security Rules di sisi server
+  // (mis. ".write": "auth.uid === ... "), yang perlu diaktifkan terpisah lewat Firebase Console oleh
+  // Admin — di luar cakupan yang bisa diubah dari file aplikasi ini. Lihat catatan lengkap di kartu
+  // README/percakapan terkait sebelum menganggap data residen "aman" dari residen lain.
+  function submitResidentTabayyun(mStr, recKey) {
+    if (currentUserRole !== 'residen') { alert('⚠️ Hanya akun Residen yang dapat mengirim klarifikasi di sini.'); return; }
+    const inisial = currentUsername.toUpperCase().trim();
+    const textEl = document.getElementById(`resDash_klarifikasi_${recKey}`);
+    const teks = textEl ? textEl.value.trim() : '';
+    if (!teks) { alert('⚠️ Penjelasan/sanggahan tidak boleh kosong.'); return; }
+
+    db.ref(`ikve_records/${mStr}/${inisial}/${recKey}`).once('value', snap => {
+      const rec = snap.val();
+      if (!rec) { alert('⚠️ Catatan tidak ditemukan (mungkin sudah diproses).'); renderResidentPersonalDashboard(); return; }
+      const dl = computeTabayyunDeadlineInfo(rec);
+      if (dl.expired) { alert('⚠️ Batas waktu klarifikasi (1x24 jam) sudah habis. Hubungi Chief/KPS secara manual.'); return; }
+      if (rec.teksKlarifikasiResiden) { alert('⚠️ Klarifikasi untuk catatan ini sudah pernah dikirim sebelumnya.'); return; }
+
+      const updatePayload = {
+        teksKlarifikasiResiden: teks,
+        waktuSubmitKlarifikasiResiden: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' }),
+        tahap: 'Tahap 2: Investigasi & Klarifikasi',
+        statusKlarifikasi: 'Sedang Diinvestigasi (Klarifikasi Residen Diterima)'
+      };
+      db.ref(`ikve_records/${mStr}/${inisial}/${recKey}`).update(updatePayload, (err) => {
+        if (err) { alert('⚠️ Gagal mengirim klarifikasi: ' + (err.message || err)); return; }
+        alert('✅ Klarifikasi Anda berhasil dikirim. Chief/KPS/DPJP akan meninjau sebelum memutuskan status akhir.');
+        const waMsg = `📝 *KLARIFIKASI (TABAYYUN) DITERIMA*\n\nResiden: *${inisial}*\nJenis: [${rec.kode}] ${rec.deskripsi || ''}\nPenjelasan Residen: ${teks}\n\nMohon ditinjau di halaman Pelaporan Disiplin PPDS (IKVE).`;
+        sendWhatsAppNotification(ADMIN_WA_NUMBER, waMsg);
+        logSystemChange('Residen mengirim klarifikasi Tabayyun', `${inisial} — [${rec.kode}] ${rec.deskripsi || ''}`);
+        renderResidentPersonalDashboard();
+      });
+    });
+  }
+
+  // ================= SUPERVISI SAYA (DPJP/KONSULEN) =================
+  function renderDPJPSupervisionDashboard() {
+    if (currentUserRole !== 'konsulen' || !currentUsername) return;
+    const now = new Date();
+    const mStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+    // --- 1) Verifikasi Realisasi Kasus — dari activeSheetData (sheet yang sedang aktif), hanya
+    //     pasien milik DPJP ini sendiri (isMyDPJPPatient), sudah Selesai, belum diverifikasi. ---
+    const pendingVerif = [];
+    activeSheetData.forEach((p, idx) => {
+      if (!isMyDPJPPatient(p.dpjpAnestesi)) return;
+      if (!isSelesaiStatus(p)) return;
+      if (p.statusSupervisiDPJP === 'VERIFIED' || p.statusSupervisiDPJP === 'REJECTED_DISCREPANCY') return;
+      pendingVerif.push(idx);
+    });
+    const tbVerif = document.getElementById('dpjpVerifikasiBody');
+    if (tbVerif) {
+      tbVerif.innerHTML = pendingVerif.length ? pendingVerif.map(idx => {
+        const p = activeSheetData[idx];
+        let durasiTxt = '-';
+        if (p.mulai && p.selesai) {
+          const [h1,m1] = p.mulai.split(':').map(Number), [h2,m2] = p.selesai.split(':').map(Number);
+          if (!isNaN(h1) && !isNaN(m1) && !isNaN(h2) && !isNaN(m2)) {
+            let menit = (h2*60+m2)-(h1*60+m1); if (menit<0) menit += 24*60;
+            durasiTxt = `${Math.floor(menit/60)} Jam ${menit%60} Menit`;
+          }
+        }
+        return `<tr>
+          <td style="text-align:left;">${p.residen||'-'}</td>
+          <td style="text-align:left;">${p.nama||'-'} (RM: ${p.rm||'-'})</td>
+          <td style="text-align:left;">${(p.diagnosis||'-')}${p.rencanaTindakan?' / '+p.rencanaTindakan:''}</td>
+          <td>${p.mulai||'-'} - ${p.selesai||'-'}</td>
+          <td>${durasiTxt}</td>
+          <td><button class="btn btn-success" style="padding:4px 8px; font-size:10px;" onclick="verifyDPJPCase(${idx})">✅ Cocok</button> <button class="btn btn-danger" style="padding:4px 8px; font-size:10px;" onclick="openDPJPCorrectionModal(${idx})">❌ Koreksi</button></td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="6" style="color:#888;">Tidak ada kasus selesai yang menunggu verifikasi Anda.</td></tr>';
+    }
+
+    // --- 2) Alarm kelelahan residen yang pernah Anda supervisi bulan ini — sumber & ambang batas
+    //     SAMA PERSIS dengan Dashboard Saya milik Residen (daily_patient_log, >80/>100 jam/bulan). ---
+    const residenSayaSet = new Set();
+    activeSheetData.forEach(p => { if (isMyDPJPPatient(p.dpjpAnestesi) && p.residen && p.residen !== '-') residenSayaSet.add(p.residen.toUpperCase().trim()); });
+    if (residenSayaSet.size > 0) {
+      db.ref('daily_patient_log').once('value', snap => {
+        const raw = snap.val() || {};
+        const datesThisMonth = Object.keys(raw).filter(d => d.startsWith(mStr));
+        const jamPerResiden = {};
+        datesThisMonth.forEach(d => {
+          (raw[d].pasien || []).forEach(p => {
+            const r = (p.residen||'').toUpperCase().trim();
+            if (!residenSayaSet.has(r) || !isSelesaiStatus(p) || !p.mulai || !p.selesai) return;
+            const [h1,m1] = p.mulai.split(':').map(Number), [h2,m2] = p.selesai.split(':').map(Number);
+            if (isNaN(h1)||isNaN(m1)||isNaN(h2)||isNaN(m2)) return;
+            let menit = (h2*60+m2)-(h1*60+m1); if (menit<0) menit += 24*60;
+            jamPerResiden[r] = (jamPerResiden[r]||0) + menit/60;
+          });
+        });
+        const warnList = Object.entries(jamPerResiden).filter(([,jam]) => jam > 80).sort((a,b)=>b[1]-a[1]);
+        const cardEl = document.getElementById('dpjpBurnoutAlertCard');
+        const listEl = document.getElementById('dpjpBurnoutAlertList');
+        if (warnList.length === 0) { if (cardEl) cardEl.style.display = 'none'; return; }
+        if (cardEl) cardEl.style.display = 'block';
+        if (listEl) listEl.innerHTML = warnList.map(([r,jam]) => {
+          const resObj = MASTER_RESIDENTS.find(x => x.inisial === r);
+          const nama = resObj ? `${resObj.nama} (${r})` : r;
+          const kritis = jam > 100;
+          return `<div style="padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.08);"><b style="color:${kritis?'#ef4444':'#f59e0b'};">${kritis?'🔴 KRITIS':'🟡 PERINGATAN'}</b> — ${nama}: <b>${jam.toFixed(1)} jam</b> bulan ini${kritis?' (risiko kelelahan ekstrem)':''}</div>`;
+        }).join('');
+      });
+    } else {
+      const cardEl = document.getElementById('dpjpBurnoutAlertCard'); if (cardEl) cardEl.style.display = 'none';
+    }
+
+    // --- 3) Dropdown residen untuk form Insiden Edukatif + riwayat insiden yang sudah dicatat ---
+    const selResiden = document.getElementById('insEduResiden');
+    if (selResiden && selResiden.options.length <= 1) {
+      selResiden.innerHTML = '<option value="">-- Pilih Residen --</option>' + MASTER_RESIDENTS.map(r => `<option value="${r.inisial}">${r.nama} (${r.inisial})</option>`).join('');
+    }
+    db.ref(`insiden_edukatif/${mStr}`).on('value', snap => {
+      const data = snap.val() || {};
+      const mine = Object.entries(data).filter(([,rec]) => rec.dpjpPelapor === currentUsername);
+      const listEl = document.getElementById('insEduHistoryList');
+      if (!listEl) return;
+      listEl.innerHTML = mine.length ? mine.map(([key,rec]) => `
+        <div style="background:rgba(15,23,42,0.5); border-radius:10px; padding:10px; margin-bottom:8px; border-left:4px solid #34d399;">
+          <div style="font-size:10.5px; color:#94a3b8;">${rec.waktu} • ${rec.kategoriLabel || rec.kategori} • Residen: ${rec.residenNama || rec.residen}${rec.divisi ? ' • '+rec.divisi : ''} ${rec.isReviewedByKPS ? '<span style="color:#6ee7b7;">✅ Sudah ditinjau KPS</span>' : '<span style="color:#fbbf24;">⏳ Menunggu tinjauan KPS</span>'}</div>
+          <div style="font-size:12px; margin-top:4px;"><b>Kasus:</b> ${(rec.deskripsi||'').replace(/</g,'&lt;')}</div>
+          <div style="font-size:12px; margin-top:2px;"><b>Pembelajaran:</b> ${(rec.pembelajaran||'').replace(/</g,'&lt;')}</div>
+        </div>
+      `).join('') : '<p style="color:#94a3b8; font-size:12px;">Belum ada insiden edukatif yang Anda catat bulan ini.</p>';
+    });
+  }
+
+  function verifyDPJPCase(idx) {
+    const p = activeSheetData[idx];
+    if (!p) return;
+    p.statusSupervisiDPJP = 'VERIFIED';
+    p.waktuVerifikasiDPJP = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' });
+    p.catatanKoreksiDPJP = '';
+    saveAllSheetsData(() => {
+      logSystemChange('DPJP memverifikasi realisasi kasus', `${p.nama} (RM: ${p.rm||'-'}) oleh ${currentUsername}`);
+      renderDPJPSupervisionDashboard();
+    });
+  }
+
+  function openDPJPCorrectionModal(idx) {
+    const p = activeSheetData[idx];
+    if (!p) return;
+    const titleEl = document.getElementById('analyticsModalTitle');
+    const bodyEl = document.getElementById('analyticsModalBody');
+    titleEl.innerHTML = `<i class="fa-solid fa-pen"></i> Koreksi Realisasi Kasus — ${p.nama||'-'}`;
+    bodyEl.innerHTML = `
+      <div class="grid-2" style="gap:8px;">
+        <div class="form-group"><label>Jam Mulai (koreksi, opsional)</label><input type="time" id="dpjpKor_mulai" class="login-input" value="${p.mulai||''}"></div>
+        <div class="form-group"><label>Jam Selesai (koreksi, opsional)</label><input type="time" id="dpjpKor_selesai" class="login-input" value="${p.selesai||''}"></div>
+        <div class="form-group" style="grid-column:1/-1;"><label>Catatan Koreksi (wajib diisi — jelaskan ketidaksesuaian)</label><textarea id="dpjpKor_catatan" class="login-input" rows="3" placeholder="mis. Jam mulai yang dilaporkan tidak sesuai catatan sirkuit anestesi..."></textarea></div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+        <button class="btn btn-danger" onclick="closeAnalyticsModal()">Batal</button>
+        <button class="btn btn-warning" onclick="saveDPJPCorrection(${idx})"><i class="fa-solid fa-floppy-disk"></i> Simpan Koreksi</button>
+      </div>
+    `;
+    document.getElementById('analyticsModal').style.display = 'flex';
+  }
+
+  function saveDPJPCorrection(idx) {
+    const p = activeSheetData[idx];
+    if (!p) return closeAnalyticsModal();
+    const catatan = (document.getElementById('dpjpKor_catatan').value || '').trim();
+    if (!catatan) { alert('⚠️ Catatan koreksi wajib diisi supaya ketidaksesuaian tercatat dengan jelas.'); return; }
+    const mulaiBaru = document.getElementById('dpjpKor_mulai').value;
+    const selesaiBaru = document.getElementById('dpjpKor_selesai').value;
+    if (mulaiBaru) p.mulai = mulaiBaru;
+    if (selesaiBaru) p.selesai = selesaiBaru;
+    p.statusSupervisiDPJP = 'REJECTED_DISCREPANCY';
+    p.catatanKoreksiDPJP = catatan;
+    p.waktuVerifikasiDPJP = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' });
+    saveAllSheetsData(() => {
+      closeAnalyticsModal();
+      logSystemChange('DPJP mengoreksi realisasi kasus', `${p.nama} (RM: ${p.rm||'-'}) — ${catatan}`);
+      renderDPJPSupervisionDashboard();
+    });
+  }
+
+  function submitEducationalIncident() {
+    if (currentUserRole !== 'konsulen') { alert('⚠️ Hanya akun Konsulen/DPJP yang dapat mencatat insiden edukatif.'); return; }
+    const residenInisial = document.getElementById('insEduResiden').value;
+    const kategori = document.getElementById('insEduKategori').value;
+    const divisi = (document.getElementById('insEduDivisi').value || '').trim();
+    const deskripsi = (document.getElementById('insEduDeskripsi').value || '').trim();
+    const pembelajaran = (document.getElementById('insEduPembelajaran').value || '').trim();
+    if (!residenInisial || !deskripsi || !pembelajaran) { alert('⚠️ Mohon pilih Residen dan lengkapi Deskripsi Kasus & Pembelajaran Klinis.'); return; }
+
+    const kategoriLabelMap = { NEAR_MISS: 'Near-Miss (Nyaris Cedera)', UNEXPECTED_EVENT: 'Kejadian Tak Terduga', TECHNICAL_DIFFICULTY: 'Kesulitan Teknis' };
+    const resObj = MASTER_RESIDENTS.find(r => r.inisial === residenInisial);
+    const now = new Date();
+    const mStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const recordId = 'INSEDU_' + Date.now();
+    const recordData = {
+      id: recordId, dpjpPelapor: currentUsername, residen: residenInisial, residenNama: resObj ? resObj.nama : residenInisial,
+      divisi: divisi, kategori: kategori, kategoriLabel: kategoriLabelMap[kategori] || kategori,
+      deskripsi: deskripsi, pembelajaran: pembelajaran,
+      waktu: now.toLocaleString('id-ID', { timeZone: 'Asia/Makassar' }), timestampMs: now.getTime(),
+      isReviewedByKPS: false
+    };
+    db.ref(`insiden_edukatif/${mStr}/${recordId}`).set(recordData, (err) => {
+      if (err) { alert('⚠️ Gagal menyimpan: ' + (err.message || err)); return; }
+      alert('✅ Insiden Edukatif berhasil disimpan sebagai bahan bimbingan akademik (non-punitif — TIDAK memotong skor kedisiplinan residen).');
+      document.getElementById('insEduDeskripsi').value = '';
+      document.getElementById('insEduPembelajaran').value = '';
+      logSystemChange('DPJP mencatat Insiden Edukatif (Near-Miss)', `${resObj ? resObj.nama : residenInisial} — ${kategoriLabelMap[kategori]}`);
+    });
+  }
+
+  // Tinjauan KPS/Chief atas Insiden Edukatif — dipanggil dari kartu ringkas di halaman Pelaporan
+  // Disiplin PPDS (lihat listenIKVESummary), supaya KPS/Chief tahu insiden mana yang sudah/belum
+  // ditinjau sebagai bahan evaluasi akademik, TANPA mencampurnya dengan skor kedisiplinan IKVE.
+  function markInsidenEdukatifReviewed(mStr, recKey) {
+    if (!isAdminLevel() && currentUserRole !== 'chief_divisi') { alert('⚠️ Hanya KPS/Chief/Admin yang dapat menandai tinjauan ini.'); return; }
+    db.ref(`insiden_edukatif/${mStr}/${recKey}`).update({ isReviewedByKPS: true, reviewedBy: roleLabel(currentUserRole) + (currentUsername ? ` (${currentUsername})` : ''), waktuDitinjau: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' }) });
+  }
+
+  function renderInsidenEdukatifReviewCard() {
+    const cardEl = document.getElementById('insEduReviewCard');
+    if (!cardEl) return;
+    if (!isAdminLevel() && currentUserRole !== 'chief_divisi') { cardEl.style.display = 'none'; return; }
+    cardEl.style.display = 'block';
+    const now = new Date();
+    const mStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    db.ref(`insiden_edukatif/${mStr}`).on('value', snap => {
+      const data = snap.val() || {};
+      const entries = Object.entries(data).sort((a,b) => (b[1].timestampMs||0)-(a[1].timestampMs||0));
+      const listEl = document.getElementById('insEduReviewList');
+      if (!listEl) return;
+      listEl.innerHTML = entries.length ? entries.map(([key,rec]) => `
+        <div style="background:rgba(15,23,42,0.5); border-radius:10px; padding:10px; margin-bottom:8px; border-left:4px solid #34d399;">
+          <div style="font-size:10.5px; color:#94a3b8;">${rec.waktu} • ${rec.kategoriLabel || rec.kategori} • Residen: ${rec.residenNama || rec.residen}${rec.divisi ? ' • '+rec.divisi : ''} • Dicatat oleh: ${rec.dpjpPelapor || '-'}</div>
+          <div style="font-size:12px; margin-top:4px;"><b>Kasus:</b> ${(rec.deskripsi||'').replace(/</g,'&lt;')}</div>
+          <div style="font-size:12px; margin-top:2px;"><b>Pembelajaran:</b> ${(rec.pembelajaran||'').replace(/</g,'&lt;')}</div>
+          <div style="margin-top:6px;">${rec.isReviewedByKPS
+            ? `<span style="color:#6ee7b7; font-size:11px;">✅ Sudah ditinjau oleh ${rec.reviewedBy || '-'} (${rec.waktuDitinjau || '-'})</span>`
+            : `<button class="btn btn-primary" style="padding:4px 10px; font-size:10.5px;" onclick="markInsidenEdukatifReviewed('${mStr}','${key}')"><i class="fa-solid fa-check"></i> Tandai Sudah Ditinjau</button>`}</div>
+        </div>
+      `).join('') : '<p style="color:#94a3b8; font-size:12px;">Belum ada insiden edukatif yang dicatat DPJP bulan ini.</p>';
     });
   }
 
@@ -6129,6 +6930,8 @@ ${topIkve}
 
     const inisial = document.getElementById('ikveResidenSelect').value;
     const kode = document.getElementById('ikveCodeSelect').value;
+    const divisiKejadianEl = document.getElementById('ikveDivisiKejadian');
+    const divisiKejadian = divisiKejadianEl ? divisiKejadianEl.value.trim() : '';
     const deskripsi = document.getElementById('ikveDeskripsi').value.trim();
     const saksi = document.getElementById('ikveSaksi').value.trim();
     const tahap = document.getElementById('ikveTahap').value;
@@ -6154,11 +6957,17 @@ ${topIkve}
     // ANONIMISASI: identitas pelapor TIDAK disimpan sebagai nama pengguna, hanya perannya
     // (mis. "Chief Divisi", "Konsulen/DPJP") — supaya residen yang dilaporkan tidak tahu siapa pelapornya.
     const recordData = {
-      id: recordId, inisial: inisial, kode: kode, domain: vItem.domain,
+      id: recordId, inisial: inisial, kode: kode, domain: vItem.domain, divisiKejadian: divisiKejadian,
       skor: vItem.skor, deskripsi: deskripsi, saksi: saksi, tahap: tahap,
       pencatat: roleLabel(currentUserRole) + (currentUserRole === 'chief_divisi' && currentChiefDivisiName ? ` (${currentChiefDivisiName})` : ''),
       waktu: now.toLocaleString('id-ID', { timeZone: 'Asia/Makassar' }),
-      statusKlarifikasi: isReward ? "-" : "Menunggu Klarifikasi (1x24 Jam)"
+      statusKlarifikasi: isReward ? "-" : "Menunggu Klarifikasi (1x24 Jam)",
+      // timestampMs/batasWaktuTabayyunMs: dasar hitung mundur "Pusat Klarifikasi (Tabayyun)" interaktif
+      // di Dashboard Saya milik Residen — lihat computeTabayyunDeadlineInfo(). Catatan IKVE LAMA (dibuat
+      // sebelum field ini ada) tidak akan punya timestampMs, jadi otomatis diperlakukan sebagai "batas
+      // waktu tidak diketahui" (bukan otomatis dianggap kedaluwarsa ataupun otomatis dianggap valid).
+      timestampMs: now.getTime(),
+      batasWaktuTabayyunMs: isReward ? null : (now.getTime() + 24 * 3600 * 1000)
     };
 
     db.ref(`ikve_records/${mStr}/${inisial}/${recordId}`).set(recordData, (err) => {
@@ -6181,6 +6990,7 @@ ${topIkve}
         alert(isReward ? "Reward berhasil disimpan & notifikasi dikirim ke residen!" : "Catatan IKVE Berhasil Disimpan (anonim) & Notifikasi Klarifikasi 1x24 Jam Dikirim ke Residen!");
         logSystemChange(isReward ? 'Memberikan Reward IKVE' : 'Mencatat pelanggaran IKVE (anonim)', `${inisial} — [${vItem.kode}] ${vItem.desc}`);
         document.getElementById('ikveDeskripsi').value = '';
+        if (divisiKejadianEl) divisiKejadianEl.value = '';
         listenIKVESummary();
       } else {
         alert("Gagal menyimpan data: " + err.message);
@@ -6272,6 +7082,12 @@ ${topIkve}
           <div style="background:rgba(15,23,42,0.6); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:12px;">
             <div style="font-size:11px; color:#94a3b8; margin-bottom:4px;">${rec.waktu} • Domain: <b>${rec.domain}</b> (${rec.skor > 0 ? '+' : ''}${rec.skor} poin) • Status saat ini: <b>${rec.tahap || '-'}</b></div>
             <div style="font-size:12px; margin-bottom:8px;">${(rec.deskripsi || '').replace(/</g,'&lt;')}</div>
+            ${rec.teksKlarifikasiResiden ? `
+            <div style="background:rgba(59,130,246,0.12); border:1px solid rgba(59,130,246,0.35); border-radius:8px; padding:8px 10px; margin-bottom:8px;">
+              <div style="font-size:10.5px; font-weight:800; color:#93c5fd; margin-bottom:3px;"><i class="fa-solid fa-comment-dots"></i> Klarifikasi dari Residen (dikirim ${rec.waktuSubmitKlarifikasiResiden || '-'}):</div>
+              <div style="font-size:12px; color:#e2e8f0;">${(rec.teksKlarifikasiResiden || '').replace(/</g,'&lt;')}</div>
+            </div>` : `
+            <div style="font-size:11px; color:#94a3b8; margin-bottom:8px;"><i class="fa-solid fa-hourglass-half"></i> Residen belum mengirim klarifikasi tertulis.</div>`}
             <div class="form-group" style="margin-bottom:6px;">
               <label style="font-size:11px;">Putusan Klarifikasi DPJP:</label>
               <select id="tby_verdict_${rec.key}" class="login-input" onchange="toggleTabayyunCatatanRequired('${rec.key}')">
