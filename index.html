@@ -715,7 +715,7 @@
         <div class="collapsible-body" style="display:none;">
           <div class="wa-template-box" id="waTemplateBox"></div>
           <button class="btn btn-secondary" style="width:100%; margin-bottom:10px; font-size:11px;" onclick="copyWATemplateToClipboard()"><i class="fa-solid fa-copy"></i> Salin Format Baku ke Clipboard</button>
-          <p style="font-size:10px; color:var(--text-light); margin:0 0 10px 0;">Bisa untuk lebih dari 1 pasien sekaligus — cukup ulangi format di atas per pasien, dimulai dengan nomor urut baru (mis. "2.", "3.", dst) di baris paling atas tiap blok. Baris <b>Nama</b> dan <b>RM</b> WAJIB diisi — kalau tidak ada, blok itu akan dilewati (tidak masuk ke antrean) dan Anda akan diberi tahu supaya bisa ditambahkan manual.</p>
+          <p style="font-size:10px; color:var(--text-light); margin:0 0 10px 0;">Bisa untuk lebih dari 1 pasien sekaligus — cukup ulangi format per pasien, dimulai dengan nomor urut baru (mis. "2.", "3.", dst) di baris paling atas tiap blok. <b>Nama</b> dan <b>RM</b> WAJIB ada di suatu tempat pada blok (lewat "Nama:"/"RM:" ATAU lewat baris gabungan "Nama/ Jenis Kelamin/ Usia/ RM ####") — kalau tidak ada, blok itu dilewati (tidak masuk ke antrean) dan Anda akan diberi tahu supaya bisa ditambahkan manual.</p>
         </div>
 
         <div class="form-group">
@@ -742,6 +742,7 @@
           <div class="form-group"><label>Ruangan Asal</label><input type="text" id="emgManualRuangan" placeholder="mis. IGD / Bangsal"></div>
           <div class="form-group"><label>DPJP Bedah/Operator</label><input type="text" id="emgManualDpjpBedah" placeholder="Nama DPJP Bedah"></div>
           <div class="form-group"><label>DPJP Anestesi</label><input type="text" id="emgManualDpjpAnestesi" placeholder="Inisial/Nama DPJP Anestesi"></div>
+          <div class="form-group" style="grid-column:1/-1;"><label>BB / TB / IMT (opsional)</label><input type="text" id="emgManualAntropometri" placeholder="mis. BB: 65 kg, TB: 156 cm, IMT: 25.5 Kg/m2 (Overweight)"></div>
           <div class="form-group" style="grid-column:1/-1;"><label>Diagnosis</label><textarea id="emgManualDiagnosis" rows="2" placeholder="Diagnosis pasien"></textarea></div>
           <div class="form-group" style="grid-column:1/-1;"><label>Rencana Tindakan</label><textarea id="emgManualTindakan" rows="2" placeholder="Rencana tindakan/operasi"></textarea></div>
         </div>
@@ -2883,7 +2884,8 @@
   // sumber utama salah parse). "Nama:" sekarang WAJIB dan jadi sumber kebenaran utama; heuristik
   // lama tetap dipertahankan HANYA sebagai fallback untuk pesan format lama yang belum diperbarui.
   const WA_EMERGENCY_TEMPLATE =
-`1. [Divisi/Sub-bagian — contoh: Bedah Digestif]
+`FORMAT BAKU (disarankan, paling akurat):
+1. [Divisi/Sub-bagian — contoh: Bedah Digestif]
 Nama: [Nama Pasien]
 RM: [Nomor RM]
 Ruangan: [Ruangan Asal — contoh: IGD]
@@ -2895,7 +2897,19 @@ Rencana: [Rencana tindakan/operasi]
 2. [Divisi pasien kedua, jika ada — ulangi format yang sama]
 Nama: ...
 RM: ...
-...`;
+...
+
+─────────────────────────────
+FORMAT ALTERNATIF (juga otomatis terbaca — gaya konsul bedah):
+[Nama]/ [Jenis Kelamin]/ [Usia] tahun/ RM [Nomor RM]
+BB: [berat] kg, TB: [tinggi] cm, IMT: [nilai] Kg/m2 (opsional)
+D/:
+[Diagnosis baris 1]
+[Diagnosis baris 2, dst — boleh lebih dari satu baris]
+R/:
+[Rencana tindakan]
+DPJP: [Nama DPJP Bedah/Operator]
+Ruangan: [Ruangan Asal]`;
 
   function renderWATemplateBox() {
     const el = document.getElementById('waTemplateBox');
@@ -2905,6 +2919,25 @@ RM: ...
     navigator.clipboard.writeText(WA_EMERGENCY_TEMPLATE).then(() => {
       alert('✅ Format baku berhasil disalin! Tempel (paste) ke WhatsApp grup untuk dipakai bersama, atau langsung isi di kotak paste di bawah.');
     }).catch(() => alert('⚠️ Gagal menyalin otomatis. Silakan salin manual dari kotak format di atas.'));
+  }
+
+  // Mengenali baris demografi format konsul bedah yang umum dipakai: satu baris berisi
+  // "Nama/ Jenis Kelamin/ Usia tahun/ RM ####" dipisah garis miring — BERBEDA dari Format Baku
+  // ("Nama:"/"RM:" satu label per baris) tapi sama validnya dan sering dipakai tim bedah saat
+  // konsul cito. Contoh nyata: "Soho/ Perempuan / 50 tahun/ RM 1709930".
+  function tryParseDemografiSlashLine(line) {
+    if (!line.includes('/') || !/\bRM\b/i.test(line)) return null;
+    const parts = line.split('/').map(s => s.trim()).filter(s => s.length > 0);
+    let nama = '', rm = '';
+    parts.forEach(part => {
+      const rmM = part.match(/^(?:No\.?\s*)?RM\s*[:\-]?\s*(\d+)/i);
+      if (rmM) { rm = rmM[1]; return; }
+      if (/^(laki-?laki|perempuan|^l$|^p$)$/i.test(part)) return; // jenis kelamin — dilewati (tidak disimpan)
+      if (/^\d+\s*(?:th|thn|tahun)\b/i.test(part)) return; // usia — dilewati (tidak disimpan, field ini belum ada di model data)
+      if (!nama) nama = part.replace(/[\*]/g, '').trim();
+    });
+    if (!nama || !rm) return null;
+    return { nama, rm };
   }
 
   function parseAndSaveWAEmergency(isAppendMode = true) {
@@ -2924,20 +2957,31 @@ RM: ...
         if (lines.length < 1) return;
 
         let firstLine = lines[0];
-        let divMatch = firstLine.match(/\d+\.\s*([^\n]+)/);
+        let divMatch = firstLine.match(/^\d+\.\s*([^\n]+)/);
         let divisi = divMatch ? divMatch[1].replace(/[\*]/g, '').trim() : "EMERGENCY";
-        let nama = "", rm = "", dpjpBedah = "-", dpjpAnestesi = "Tanpa DPJP", ruangan = "Emergency";
+        let nama = "", rm = "", dpjpBedah = "-", dpjpAnestesi = "Tanpa DPJP", ruangan = "Emergency", antropometri = "";
         let diagLines = [], planLines = [], currentMode = "";
 
-        lines.slice(1).forEach(line => {
+        // Baris pertama HANYA dilewati kalau memang berupa header nomor urut ("1. Divisi...").
+        // Kalau tidak ada header nomor (mis. format konsul bedah "Nama/ Jenis Kelamin/ Usia/ RM ####"
+        // langsung di baris pertama), baris pertama TETAP diproses seperti baris lainnya — sebelumnya
+        // baris ini selalu dibuang begitu saja (bug: data Nama/RM di baris pertama hilang).
+        const linesToProcess = divMatch ? lines.slice(1) : lines;
+
+        linesToProcess.forEach(line => {
           const rmM = line.match(/^(?:RM|No\.?\s*RM)\s*:?\s*(\d+)/i);
           const namaM = line.match(/^Nama\s*:\s*(.+)/i);
           if (namaM) {
-            // "Nama:" (Format Baku) SELALU jadi sumber kebenaran utama — menimpa hasil tebakan lama.
+            // "Nama:" (Format Baku) SELALU jadi sumber kebenaran utama — menimpa hasil tebakan lain.
             nama = namaM[1].replace(/[\*]/g, '').trim();
             currentMode = "";
           } else if (rmM) {
             rm = rmM[1];
+            currentMode = "";
+          } else if (line.match(/^BB\s*:/i)) {
+            // Format konsul bedah sering menyertakan BB/TB/IMT (relevan untuk dosis obat anestesi) —
+            // disimpan apa adanya sebagai catatan antropometri, bukan dibuang atau salah dianggap nama.
+            antropometri = line.trim();
             currentMode = "";
           } else if (line.match(/^DPJP\s*:/i) || line.match(/^DPJP Bedah\s*:/i)) {
             dpjpBedah = line.replace(/^DPJP(?:\s*Bedah)?\s*:\s*/i, '').replace(/[\*]/g, '').trim();
@@ -2960,10 +3004,18 @@ RM: ...
           } else {
             if (currentMode === "diag") diagLines.push(line);
             else if (currentMode === "plan") planLines.push(line);
-            // Fallback KOMPATIBILITAS untuk pesan format LAMA (belum pakai "Nama:") — tebak nama
-            // dari baris berisi koma/garis miring. Hanya dipakai kalau "Nama:" belum ditemukan.
-            else if (!nama && (line.includes(',') || line.includes('/'))) {
-              nama = line.split('/')[0].split(',')[0].replace(/[\*]/g, '').trim();
+            else {
+              // Format konsul bedah umum: "Nama/ Jenis Kelamin/ Usia tahun/ RM ####" dalam SATU baris
+              // (bukan label per baris seperti Format Baku) — dideteksi & diambil Nama+RM-nya di sini.
+              const demo = (!nama || !rm) ? tryParseDemografiSlashLine(line) : null;
+              if (demo) {
+                if (!nama && demo.nama) nama = demo.nama;
+                if (!rm && demo.rm) rm = demo.rm;
+              } else if (!nama && (line.includes(',') || line.includes('/'))) {
+                // Fallback KOMPATIBILITAS untuk pesan format LAMA (belum pakai "Nama:" ataupun
+                // format "Nama/Gender/Usia/RM") — tebak nama dari baris berisi koma/garis miring.
+                nama = line.split('/')[0].split(',')[0].replace(/[\*]/g, '').trim();
+              }
             }
           }
         });
@@ -2986,7 +3038,7 @@ RM: ...
           diagnosis: diagLines.join('\n') || '-',
           tindakan: planLines.join('\n') || '-',
           dpjpBedah: dpjpBedah, dpjpAnestesi: dpjpAnestesi,
-          ruangan: ruangan, statusType: 'queued', statusEmergencyTahap: 'antrean',
+          ruangan: ruangan, antropometri: antropometri, statusType: 'queued', statusEmergencyTahap: 'antrean',
           waktuDipanggil: '', mulai: '', selesai: '', masukPacu: '', keluarPacu: '',
           residen: '', ok: '', tujuanRawat: '', sumberData: 'WA Parser (Auto)'
         };
@@ -3029,6 +3081,7 @@ RM: ...
     const ruangan = (document.getElementById('emgManualRuangan').value || '').trim();
     const dpjpBedah = (document.getElementById('emgManualDpjpBedah').value || '').trim();
     const dpjpAnestesiRaw = (document.getElementById('emgManualDpjpAnestesi').value || '').trim();
+    const antropometri = (document.getElementById('emgManualAntropometri').value || '').trim();
     const diagnosis = (document.getElementById('emgManualDiagnosis').value || '').trim();
     const tindakan = (document.getElementById('emgManualTindakan').value || '').trim();
 
@@ -3039,7 +3092,7 @@ RM: ...
       nama: nama, rm: rm || '-', divisi: divisi || 'EMERGENCY',
       diagnosis: diagnosis || '-', tindakan: tindakan || '-',
       dpjpBedah: dpjpBedah || '-', dpjpAnestesi: dpjpAnestesiRaw ? resolveDPJPName(dpjpAnestesiRaw) : 'Tanpa DPJP',
-      ruangan: ruangan || 'Emergency', statusType: 'queued', statusEmergencyTahap: 'antrean',
+      ruangan: ruangan || 'Emergency', antropometri: antropometri, statusType: 'queued', statusEmergencyTahap: 'antrean',
       waktuDipanggil: '', mulai: '', selesai: '', masukPacu: '', keluarPacu: '',
       residen: '', ok: '', tujuanRawat: '', sumberData: 'Input Manual'
     };
@@ -3059,7 +3112,7 @@ RM: ...
         if (error) { console.error('Gagal simpan pasien emergency (manual):', error); alert('⚠️ Gagal menyimpan pasien ke server: ' + (error.message||error) + '. Coba lagi, atau periksa koneksi internet.'); return; }
         if (!committed) return;
         alert(`✅ Pasien ${nama} berhasil ditambahkan ke Antrean Urgency/Emergency.`);
-        ['emgManualNama','emgManualRM','emgManualDivisi','emgManualRuangan','emgManualDpjpBedah','emgManualDpjpAnestesi','emgManualDiagnosis','emgManualTindakan'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        ['emgManualNama','emgManualRM','emgManualDivisi','emgManualRuangan','emgManualDpjpBedah','emgManualDpjpAnestesi','emgManualAntropometri','emgManualDiagnosis','emgManualTindakan'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
       });
     }, (errRead) => {
       console.error('Gagal membaca data emergency dari server:', errRead);
@@ -3113,6 +3166,7 @@ RM: ...
                 <div style="font-size:10px; font-weight:700; margin:6px 0 2px 0; color:var(--text-light);">Edit DPJP Anestesi (Inisial/Nama):</div>
                 <input type="text" value="${p.dpjpAnestesi||''}" onchange="updateEmergencyField('${p.id}', 'dpjpAnestesi', this.value)" style="width:100%; padding:6px; font-size:11px; border:1px solid var(--border); border-radius:6px; background:rgba(15,23,42,0.6); color:white;">
               </div>
+              ${p.antropometri ? `<p style="font-size:10px; color:#a7f3d0;"><b>${p.antropometri}</b></p>` : ''}
               <div class="emergency-details-box"><b>Diagnosis:</b>\n${p.diagnosis}</div>
               <div class="emergency-details-box"><b>Rencana:</b>\n${p.tindakan}</div>
               <p style="font-size:10px; color:#93c5fd;"><b>Waktu:</b> Mulai: ${p.mulai||'-'} | Selesai: ${p.selesai||'-'}</p>
@@ -3255,6 +3309,7 @@ RM: ...
         <div class="form-group"><label>DPJP Bedah/Operator</label><input type="text" id="emgEdit_dpjpBedah" class="login-input" value="${f(p.dpjpBedah)}"></div>
         <div class="form-group"><label>Ruangan Asal</label><input type="text" id="emgEdit_ruangan" class="login-input" value="${f(p.ruangan)}"></div>
         <div class="form-group"><label>Kamar Operasi (OK)</label><input type="text" id="emgEdit_ok" class="login-input" value="${f(p.ok)}"></div>
+        <div class="form-group" style="grid-column:1/-1;"><label>BB / TB / IMT (opsional, penting untuk dosis obat anestesi)</label><input type="text" id="emgEdit_antropometri" class="login-input" value="${f(p.antropometri)}" placeholder="mis. BB: 65 kg, TB: 156 cm, IMT: 25.5 Kg/m2 (Overweight)"></div>
         <div class="form-group" style="grid-column:1/-1;"><label>Diagnosis</label><textarea id="emgEdit_diagnosis" class="login-input" rows="2">${f(p.diagnosis)}</textarea></div>
         <div class="form-group" style="grid-column:1/-1;"><label>Rencana Tindakan</label><textarea id="emgEdit_tindakan" class="login-input" rows="2">${f(p.tindakan)}</textarea></div>
         <div class="form-group"><label>Jam Mulai</label><input type="text" id="emgEdit_mulai" class="login-input" value="${f(p.mulai)}" placeholder="HH:MM"></div>
@@ -3288,6 +3343,7 @@ RM: ...
       dpjpBedah: val('emgEdit_dpjpBedah'),
       ruangan: val('emgEdit_ruangan'),
       ok: val('emgEdit_ok'),
+      antropometri: val('emgEdit_antropometri'),
       diagnosis: val('emgEdit_diagnosis'),
       tindakan: val('emgEdit_tindakan'),
       mulai: val('emgEdit_mulai'),
@@ -4369,6 +4425,21 @@ RM: ...
     }
   }
 
+  // DEFINISI "REALISASI": jumlah pasien yang statusnya sudah SELESAI ditindaki pada hari/bulan
+  // terkait, per DPJP Anestesi. Kolom "Hari Ini" dan "Bulan Ini" harus SELALU konsisten satu sama
+  // lain (Hari Ini adalah bagian dari Bulan Ini pada rentang yang sama) supaya DPJP bisa langsung
+  // tahu jumlah pasiennya hari ini DAN akumulasi bulan berjalan tanpa angka yang saling bertentangan.
+  //
+  // PERBAIKAN: sebelumnya kolom "Hari Ini" dihitung DUA KALI — sekali dari 'realisasi_dpjp_monthly'
+  // (sudah benar & ter-tanggal), dan sekali lagi dari pemindaian ulang activeSheetData (tabel Pasien
+  // & Operasi yang sedang aktif di layar) untuk pasien berstatus selesai. Karena SETIAP kali status
+  // pasien berubah jadi selesai sudah otomatis tercatat ke 'realisasi_dpjp_monthly' (lihat
+  // recordDPJPExecutionToFirebaseInner, dipanggil dari semua jalur "Selesai": edit cepat, Detail
+  // Pasien, edit inline tabel, dan Emergency), pemindaian ulang itu MENGHITUNG PASIEN YANG SAMA DUA
+  // KALI untuk "Hari Ini" — sehingga angka Hari Ini bisa lebih besar dari yang seharusnya dan tidak
+  // sinkron dengan akumulasi Bulan Ini/Total. Sekarang KEDUANYA (Hari Ini & Bulan Ini) dihitung dari
+  // SATU sumber yang sama ('realisasi_dpjp_monthly', sudah ter-tanggal & tidak dobel per RM/hari),
+  // supaya "Hari Ini" selalu bagian yang konsisten dari "Bulan Ini".
   function renderMonthlyDPJPReport() {
     const m = document.getElementById('monthlyFilterPicker').value; if(!m) return;
     const tStr = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}`;
@@ -4384,7 +4455,6 @@ RM: ...
         if (!isMyDPJPPatient(n)) return;
         let he=0, hu=0, be=0, bu=0;
         if(md[n]) { Object.keys(md[n]).forEach(d => { Object.values(md[n][d]).forEach(p => { if(p.kategori==='urgency'){ bu++; if(d===tStr) hu++; } else { be++; if(d===tStr) he++; } }); }); }
-        activeSheetData.forEach(p => { if(p.dpjpAnestesi===n && ((p.selesai&&p.selesai.trim()!=='')||p.statusCatatan==='Sudah dikerja')) { const st=(p.statusCatatan||'').toLowerCase(); if(st.includes('urgency')||st.includes('emergency')) hu++; else he++; } });
         if((be+bu)>0 || he>0 || hu>0) tb.innerHTML+=`<tr><td style="text-align:left;"><strong>${n}</strong></td><td><span style="color:#93c5fd;">${he}</span></td><td><span style="color:#fde68a;">${hu}</span></td><td><span style="color:#a7f3d0;">${be}</span></td><td><span style="color:#fca5a5;">${bu}</span></td><td><strong>${be+bu}</strong></td></tr>`;
       });
       if(tb.innerHTML==='') tb.innerHTML = `<tr><td colspan="6" style="color:#888;">${currentUserRole==='konsulen' ? 'Belum ada realisasi pasien Anda pada bulan ini.' : 'Nihil'}</td></tr>`;
@@ -4393,6 +4463,20 @@ RM: ...
       if (dpjpNotice) dpjpNotice.style.display = (currentUserRole === 'konsulen') ? 'block' : 'none';
     });
   }
+  // Refresh berkala (tiap 2 menit) SELAMA halaman Realisasi terbuka DAN filter bulan masih
+  // menunjuk ke bulan berjalan — supaya kolom "Hari Ini" otomatis "pindah ke nol" begitu tengah
+  // malam lewat (tanpa perlu reload manual), tanpa mengganggu Chief/Admin yang sedang melihat
+  // rekap bulan LAIN (mis. bulan lalu) lewat filter tanggal.
+  setInterval(() => {
+    const picker = document.getElementById('monthlyFilterPicker');
+    if (!picker || !picker.value) return;
+    const currentMonthStr = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
+    if (picker.value !== currentMonthStr) return;
+    const pageEl = document.getElementById('page-realisasi');
+    if (!pageEl || !pageEl.classList.contains('active-page')) return;
+    renderMonthlyDPJPReport();
+    renderDetailRealisasiTindakan();
+  }, 120000);
 
   // ================= LAPORAN REALISASI TINDAKAN (DETAIL PER-PASIEN) =================
   let detailRealisasiTindakanData = []; // cache data bulan aktif, dipakai juga untuk export Excel
