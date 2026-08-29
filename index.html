@@ -477,6 +477,24 @@
     <input type="password" id="passwordInput" class="login-input" placeholder="Password / PIN" />
     <button class="btn-login" onclick="attemptLogin()">MASUK SISTEM</button>
     <div id="loginError">Username atau Password Salah / Belum Approved!</div>
+
+    <!-- LOGIN DENGAN WAJAH (FACE ID) — KHUSUS AKUN RESIDEN yang sudah mendaftarkan wajahnya sendiri
+         lewat "Dashboard Saya" > "Keamanan Akun (Face ID)". Wajah yang di-scan di sini HANYA
+         dicocokkan terhadap deskriptor wajah milik username yang diketik di kolom atas — TIDAK
+         dicocokkan ke seluruh database wajah — supaya wajah satu orang tidak bisa membuka akun
+         residen lain. Kalau akun tsb belum pernah mendaftarkan wajah, login wajah otomatis ditolak
+         dan diarahkan untuk pakai password dulu. -->
+    <button type="button" class="btn-login" style="background:#0891b2; margin-top:8px;" onclick="toggleFaceLoginPanel()"><i class="fa-solid fa-face-viewfinder"></i> Masuk dengan Wajah (Face ID)</button>
+    <div id="faceLoginPanel" style="display:none; margin-top:12px; text-align:left; background:rgba(15,23,42,0.6); border:1px solid var(--border); border-radius:12px; padding:12px;">
+      <p style="font-size:10.5px; color:var(--text-light); margin:0 0 8px 0;">Ketik <b>Username/NIM</b> Anda di kolom atas dulu, lalu buka kamera di bawah ini. Hanya berfungsi untuk akun yang sudah mendaftarkan wajahnya sendiri.</p>
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <button type="button" class="btn btn-primary" style="flex:1; font-size:11px; padding:8px;" onclick="startFaceLoginCamera()"><i class="fa-solid fa-video"></i> Buka Kamera</button>
+        <button type="button" class="btn btn-success" id="btnVerifyFaceLogin" style="display:none; flex:1; font-size:11px; padding:8px;" onclick="verifyFaceLoginAndEnter()"><i class="fa-solid fa-check"></i> Verifikasi & Masuk</button>
+      </div>
+      <video id="faceLoginVideo" autoplay muted playsinline style="display:none; width:100%; border-radius:10px; background:#000;"></video>
+      <div id="faceLoginStatus" style="font-size:11px; margin-top:8px; color:var(--text-light);"></div>
+    </div>
+
     <div style="display:flex; justify-content:space-between; margin-top:18px;">
       <span class="auth-toggle" onclick="switchAuthBox('register')">Daftar Akun Baru</span>
       <span class="auth-toggle" style="color:var(--warning);" onclick="switchAuthBox('forgot')">Lupa Password?</span>
@@ -724,6 +742,74 @@
         </div>
       </div>
     </div>
+
+    <!-- ================= ANALISIS BEBAN KERJA DINAMIS & PREDIKSI KESIAPAN VISITE (KHUSUS ADMIN/
+         CHIEF/WAKIL CHIEF) — diadaptasi dari spesifikasi "Modul Analisis Beban Kerja Dinamis" yang
+         ditulis untuk stack PHP+MySQL terpisah. SUBSTANSI (rumus Kapasitas Bersih COT, aturan Visite
+         Lockout jam 5 sore, rekomendasi Anchor Visite & Emergency, string WA) diterapkan APA ADANYA
+         di sini, tapi ditulis ulang sebagai Firebase + vanilla JS karena itulah stack CAMS 2026 yang
+         SESUNGGUHNYA dipakai di file ini — bukan PHP/MySQL. Jumlah kasus & OK aktif per divisi TIDAK
+         perlu input baru: dipakai langsung dari jadwal yang sudah diimport ke "Daftar & Input Pasien
+         Utama" (activeSheetData), supaya tidak ada sumber data ganda. Lihat initVisiteCapacityAnalysis()/
+         renderVisiteCapacityAnalysis() di bagian JS untuk detail rumus & catatan keterbatasan. -->
+    <div class="card" id="visiteCapacityCard" style="display:none; border-top:4px solid #fb7185; background:linear-gradient(135deg, rgba(30,41,59,0.85) 0%, rgba(60,15,35,0.35) 100%);">
+      <div class="card-title" style="color:#fda4af;"><i class="fa-solid fa-triangle-exclamation"></i> Analisis Beban Kerja Dinamis & Prediksi Kesiapan Visite (Beta)</div>
+      <p style="font-size:11px; color:var(--text-light); margin:0 0 12px 0;">Mencocokkan kapasitas residen COT per divisi (dikurangi yang sedang di Jejaring Eksternal atau ditarik mendadak Tugas Luar COT) terhadap jumlah ruangan OK aktif besok, untuk mendeteksi lebih awal divisi yang berisiko gagal memenuhi <b>deadline laporan Visite ke DPJP pukul 17:00 WITA</b>.</p>
+
+      <!-- STATUS PERIODE STASE AKTIF — stase residen berganti per periode (mis. Agustus s/d 31 Agustus,
+           lanjut September), BUKAN satu roster tunggal yang berlaku selamanya. Banner ini menunjukkan
+           periode mana yang sedang dipakai sistem HARI INI (dipilih otomatis dari tanggal WITA berjalan
+           terhadap seluruh periode yang sudah diupload — lihat pickActiveStasePeriode()). -->
+      <div id="staseActivePeriodBanner" style="font-size:11px; font-weight:700; padding:8px 12px; border-radius:10px; margin-bottom:12px;"></div>
+
+      <div class="grid-2" style="gap:14px; margin-bottom:14px;" id="visiteAdminControls">
+        <div>
+          <div style="font-weight:800; font-size:11px; color:#fda4af; margin-bottom:6px;"><i class="fa-solid fa-file-excel"></i> Upload Roster Stase Residen (Per Periode)</div>
+          <p style="font-size:9.5px; color:var(--text-light); margin:0 0 6px 0;">Kolom Excel wajib: Nama Residen, Inisial, Tingkat PPDS (Senior/Middle/Junior), Divisi Stase, Lokasi Tugas (Wahidin_COT / Wahidin_Luar_COT / Jejaring_External). Isi tanggal berlaku periode ini dahulu, lalu upload — sistem otomatis memakai roster periode yang mencakup tanggal HARI INI, tidak perlu diganti manual tiap hari.</p>
+          <div class="grid-2" style="gap:8px; margin-bottom:8px;">
+            <div class="form-group" style="margin:0;"><label style="font-size:9.5px;">Periode Mulai</label><input type="date" id="staseePeriodeMulai" class="login-input" style="margin:0;"></div>
+            <div class="form-group" style="margin:0;"><label style="font-size:9.5px;">Periode Selesai</label><input type="date" id="staseePeriodeSelesai" class="login-input" style="margin:0;"></div>
+          </div>
+          <div class="upload-area" style="border:2px dashed rgba(251,113,133,0.5); padding:12px; text-align:center; background:rgba(30,10,20,0.5); border-radius:12px; cursor:pointer;" onclick="document.getElementById('staseExcelInput').click()">
+            <p style="margin:0; font-weight:700; color:#fda4af; font-size:11px;"><i class="fa-solid fa-upload"></i> Klik untuk Unggah Excel Stase (.xlsx) — Periode di Atas Wajib Diisi</p>
+            <input type="file" id="staseExcelInput" accept=".xlsx, .xls" style="display:none;" onchange="handleStaseExcelImport(event)">
+          </div>
+          <div id="staseUploadStatus" style="font-size:10.5px; margin-top:6px; color:var(--text-light);"></div>
+          <div id="staseAllPeriodsList" style="font-size:10px; margin-top:8px; color:var(--text-light);"></div>
+        </div>
+        <div>
+          <div style="font-weight:800; font-size:11px; color:#fda4af; margin-bottom:6px;"><i class="fa-solid fa-person-running"></i> Catat Penarikan Mendadak Luar COT (Hari Ini)</div>
+          <div class="form-group" style="margin-bottom:6px;"><select id="tarikMendadakResiden" class="login-input" style="margin:0;"></select></div>
+          <div class="form-group" style="margin-bottom:6px;">
+            <select id="tarikMendadakLokasi" class="login-input" style="margin:0;">
+              <option value="IGD">IGD</option>
+              <option value="VK_Kamar_Bersalin">VK / Kamar Bersalin</option>
+              <option value="Radiologi_Intervensi">Radiologi Intervensi</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="tarikMendadakKeterangan" class="login-input" style="margin:0; flex:1;" placeholder="Keterangan singkat (opsional)">
+            <button class="btn btn-danger" style="padding:8px 12px; font-size:11px;" onclick="catatTarikanMendadakLuarCOT()"><i class="fa-solid fa-plus"></i> Catat</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto; margin-bottom:12px;">
+        <table class="bantex-table" style="text-align:center; font-size:11px;">
+          <thead><tr><th style="text-align:left;">Divisi</th><th>Residen di Wahidin COT (Stase)</th><th>Ditarik Mendadak Hari Ini</th><th>Kapasitas Bersih COT</th><th>OK Aktif Besok</th><th>Status</th></tr></thead>
+          <tbody id="visiteCapacityTableBody"><tr><td colspan="6" style="color:#888;">Menunggu data stase residen diupload...</td></tr></tbody>
+        </table>
+      </div>
+
+      <div id="visiteLockoutAlertBox"></div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin:14px 0 8px 0;">
+        <div style="font-weight:800; font-size:11px; color:#fda4af;"><i class="fa-solid fa-comment-dots"></i> Ringkasan untuk Grup WA Koordinasi Residen</div>
+        <button class="btn btn-success" style="padding:6px 10px; font-size:11px;" onclick="copyVisiteCapacityToWA()"><i class="fa-solid fa-copy"></i> Salin ke WA</button>
+      </div>
+      <div id="visiteCapacityWAPreview" style="font-size:12px; line-height:1.7; color:#e2e8f0; white-space:pre-line; background:rgba(15,23,42,0.5); border-radius:12px; padding:14px; min-height:60px;">Upload data stase residen dahulu untuk menghasilkan ringkasan.</div>
+    </div>
   </div>
 
   <!-- ================= PAGE 2: EMERGENCY PATIENT LIST (WA PARSER) ================= -->
@@ -780,6 +866,22 @@
           <tbody id="resDashAttendanceBody"><tr><td colspan="4" style="color:#888;">Memuat...</td></tr></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- KEAMANAN AKUN: FACE ID — hanya pemilik akun sendiri yang bisa mendaftarkan wajahnya di sini
+         (halaman ini hanya bisa dibuka setelah login sebagai residen ybs), dan deskriptor wajah yang
+         tersimpan HANYA dipakai untuk membuka akun INI (lihat verifyFaceLoginAndEnter() di layar
+         login) — bukan dicocokkan ke akun lain. Mendaftarkan ulang akan menimpa wajah lama. -->
+    <div class="card" style="border-top:4px solid #0891b2;">
+      <div class="card-title" style="color:#67e8f9;"><i class="fa-solid fa-fingerprint"></i> Keamanan Akun Saya (Face ID)</div>
+      <p style="font-size:11px; color:var(--text-light); margin:0 0 10px 0;">Daftarkan wajah Anda supaya bisa <b>Masuk dengan Wajah</b> di layar login (tanpa mengetik password), khusus untuk membuka akun Anda sendiri. Wajah Anda TIDAK bisa dipakai untuk membuka akun residen lain.</p>
+      <div id="resDashFaceEnrollStatusBadge" style="font-size:11px; font-weight:700; margin-bottom:10px;">Memeriksa status pendaftaran wajah...</div>
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <button type="button" class="btn btn-primary" style="flex:1; font-size:11px; padding:8px;" onclick="startFaceEnrollCamera()"><i class="fa-solid fa-video"></i> Buka Kamera</button>
+        <button type="button" class="btn btn-success" id="btnCaptureFaceEnroll" style="display:none; flex:1; font-size:11px; padding:8px;" onclick="captureAndSaveFaceEnroll()"><i class="fa-solid fa-floppy-disk"></i> Simpan Wajah Saya</button>
+      </div>
+      <video id="faceEnrollVideo" autoplay muted playsinline style="display:none; width:100%; max-width:360px; border-radius:10px; background:#000;"></video>
+      <div id="faceEnrollStatus" style="font-size:11px; margin-top:8px; color:var(--text-light);"></div>
     </div>
   </div>
 
@@ -2466,6 +2568,7 @@
 
       if(isAdmin) listenAdminApprovalAndAttendance();
       if(isAdmin) listenAccessGrantAdminQueue();
+      if(isAdmin) initVisiteCapacityAnalysis();
       if(currentUserRole === 'konsulen') listenAccessGrantApprovalForKonsulen();
 
       // Akses form Pencatatan Pelanggaran & Reward (IKVE):
@@ -2559,11 +2662,184 @@
     safeSession.clear(); location.reload();
   }
 
+  // ================= FACE ID: BUKA AKUN (LOGIN) & PENDAFTARAN WAJAH =================
+  // BEDA dengan Face ID Absensi Monre (hanya cek "ada wajah/liveness"): fitur ini memverifikasi
+  // IDENTITAS wajah lewat deskriptor 128-angka (faceapi.nets.faceRecognitionNet), supaya benar-benar
+  // hanya pemilik akun (yang sudah mendaftarkan wajahnya sendiri lewat Dashboard Saya) yang bisa
+  // "membuka" akunnya via wajah — bukan wajah siapapun yang kebetulan terdeteksi kamera.
+  async function loadFaceModelsFull() {
+    if (FACE_MODELS_LOADED_FULL) return true;
+    if (typeof faceapi === 'undefined') return false;
+    try {
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
+        faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
+        faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models')
+      ]);
+      FACE_MODELS_LOADED_FULL = true;
+      return true;
+    } catch (ex) {
+      console.error('Gagal memuat model wajah lengkap:', ex);
+      return false;
+    }
+  }
+
+  // --- PENDAFTARAN WAJAH (di Dashboard Saya, HANYA untuk akun yang sedang login) ---
+  async function startFaceEnrollCamera() {
+    const el = document.getElementById('faceEnrollStatus');
+    const video = document.getElementById('faceEnrollVideo');
+    if (!el || !video) return;
+    el.style.color = 'var(--accent)'; el.innerText = '🎥 Memuat model wajah (sekali saja, mungkin butuh beberapa detik)...';
+    const ok = await loadFaceModelsFull();
+    if (!ok) { el.style.color = 'var(--danger)'; el.innerText = '⚠️ Model wajah gagal dimuat atau browser tidak didukung.'; return; }
+    try {
+      faceEnrollStream = await navigator.mediaDevices.getUserMedia({ video: {} });
+      video.srcObject = faceEnrollStream;
+      video.style.display = 'block';
+      document.getElementById('btnCaptureFaceEnroll').style.display = 'inline-flex';
+      el.style.color = 'var(--text-light)';
+      el.innerText = '🔍 Posisikan wajah di tengah kamera dengan pencahayaan cukup, lalu klik "Simpan Wajah Saya".';
+    } catch (ex) {
+      el.style.color = 'var(--danger)'; el.innerText = '⚠️ Akses kamera ditolak / tidak didukung perangkat ini.';
+    }
+  }
+
+  async function captureAndSaveFaceEnroll() {
+    const el = document.getElementById('faceEnrollStatus');
+    const video = document.getElementById('faceEnrollVideo');
+    if (!el || !video) return;
+    if (!video.videoWidth) { el.style.color = 'var(--danger)'; el.innerText = '⚠️ Kamera belum siap, tunggu sebentar lalu coba lagi.'; return; }
+    el.style.color = 'var(--accent)'; el.innerText = '🔍 Menganalisis wajah...';
+    let detection;
+    try {
+      detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+    } catch (ex) { detection = null; }
+    if (!detection) { el.style.color = 'var(--danger)'; el.innerText = '⚠️ Wajah tidak terdeteksi jelas. Pastikan hanya satu wajah, pencahayaan cukup, lalu coba lagi.'; return; }
+    const descriptorArr = Array.from(detection.descriptor);
+    db.ref(`users_accounts/${currentUsername}/faceDescriptor`).set(descriptorArr, (err) => {
+      if (err) { el.style.color = 'var(--danger)'; el.innerText = '⚠️ Gagal menyimpan wajah: ' + (err.message || err); return; }
+      db.ref(`users_accounts/${currentUsername}/faceEnrolledAt`).set(new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' }));
+      el.style.color = 'var(--success)'; el.innerText = '✅ Wajah berhasil didaftarkan! Sekarang Anda bisa "Masuk dengan Wajah" di layar login tanpa mengetik password.';
+      logSystemChange('Residen mendaftarkan/memperbarui Face ID akun', currentUsername);
+      renderFaceEnrollStatusBadge();
+      stopFaceEnrollCam();
+    });
+  }
+
+  function stopFaceEnrollCam() {
+    if (faceEnrollStream) { faceEnrollStream.getTracks().forEach(t => t.stop()); faceEnrollStream = null; }
+    const video = document.getElementById('faceEnrollVideo');
+    if (video) { video.style.display = 'none'; video.srcObject = null; }
+    const btn = document.getElementById('btnCaptureFaceEnroll');
+    if (btn) btn.style.display = 'none';
+  }
+
+  // Tampilkan status pendaftaran wajah akun sendiri di Dashboard Saya (dipanggil dari
+  // renderResidentPersonalDashboard supaya selalu sinkron dengan data terbaru).
+  function renderFaceEnrollStatusBadge() {
+    const badge = document.getElementById('resDashFaceEnrollStatusBadge');
+    if (!badge || !currentUsername) return;
+    db.ref(`users_accounts/${currentUsername}/faceDescriptor`).once('value', snap => {
+      const has = snap.exists() && Array.isArray(snap.val()) && snap.val().length === 128;
+      badge.style.color = has ? 'var(--success)' : 'var(--warning)';
+      badge.innerHTML = has
+        ? '<i class="fa-solid fa-circle-check"></i> Wajah Anda sudah terdaftar — Face ID aktif untuk akun ini. Daftarkan ulang jika wajah berubah signifikan (kacamata baru, dsb).'
+        : '<i class="fa-solid fa-circle-exclamation"></i> Wajah Anda BELUM terdaftar — "Masuk dengan Wajah" belum bisa dipakai untuk akun ini.';
+    });
+  }
+
+  // --- LOGIN DENGAN WAJAH (di layar login, SEBELUM ada sesi) ---
+  function toggleFaceLoginPanel() {
+    const panel = document.getElementById('faceLoginPanel');
+    if (!panel) return;
+    const opening = panel.style.display === 'none' || !panel.style.display;
+    panel.style.display = opening ? 'block' : 'none';
+    if (!opening) stopFaceLoginCam();
+  }
+
+  async function startFaceLoginCamera() {
+    const u = document.getElementById('usernameInput').value.trim();
+    const el = document.getElementById('faceLoginStatus');
+    if (!u) { el.style.color = 'var(--danger)'; el.innerText = '⚠️ Ketik Username/NIM Anda dulu di kolom paling atas sebelum membuka kamera.'; return; }
+    el.style.color = 'var(--accent)'; el.innerText = '🎥 Memuat model wajah...';
+    const ok = await loadFaceModelsFull();
+    if (!ok) { el.style.color = 'var(--danger)'; el.innerText = '⚠️ Model wajah gagal dimuat atau browser tidak didukung.'; return; }
+    const video = document.getElementById('faceLoginVideo');
+    try {
+      faceLoginStream = await navigator.mediaDevices.getUserMedia({ video: {} });
+      video.srcObject = faceLoginStream;
+      video.style.display = 'block';
+      document.getElementById('btnVerifyFaceLogin').style.display = 'inline-flex';
+      el.style.color = 'var(--text-light)'; el.innerText = '🔍 Tatap kamera dengan jelas, lalu klik "Verifikasi & Masuk".';
+    } catch (ex) {
+      el.style.color = 'var(--danger)'; el.innerText = '⚠️ Akses kamera ditolak / tidak didukung perangkat ini.';
+    }
+  }
+
+  // Verifikasi wajah HANYA terhadap deskriptor milik username yang diketik — BUKAN dicocokkan ke
+  // seluruh database akun. Ini yang memastikan "hanya yang punya akun [dan sudah daftar wajah] yang
+  // bisa membuka akunnya sendiri" — wajah satu residen tidak bisa dipakai untuk membuka akun lain
+  // walaupun kebetulan mirip, karena pencocokan selalu dikunci ke SATU username yang diketik user.
+  async function verifyFaceLoginAndEnter() {
+    const u = document.getElementById('usernameInput').value.trim();
+    const el = document.getElementById('faceLoginStatus');
+    const video = document.getElementById('faceLoginVideo');
+    if (!u) { el.style.color = 'var(--danger)'; el.innerText = '⚠️ Username kosong.'; return; }
+    if (!video || !video.videoWidth) { el.style.color = 'var(--danger)'; el.innerText = '⚠️ Kamera belum siap, tunggu sebentar lalu coba lagi.'; return; }
+
+    el.style.color = 'var(--accent)'; el.innerText = '🔍 Memverifikasi wajah...';
+
+    db.ref(`users_accounts/${u}`).once('value', async (snap) => {
+      const ud = snap.val();
+      if (!ud) { el.style.color = 'var(--danger)'; el.innerText = '⚠️ Username tidak ditemukan.'; return; }
+      if (!ud.approved) { el.style.color = 'var(--danger)'; el.innerText = '⚠️ Akun ini belum di-approve Admin.'; return; }
+      if (!ud.faceDescriptor || !Array.isArray(ud.faceDescriptor) || ud.faceDescriptor.length !== 128) {
+        el.style.color = 'var(--danger)'; el.innerText = '⚠️ Akun ini belum mendaftarkan Face ID. Masuk dengan password dulu, lalu daftarkan wajah di menu Dashboard Saya > Keamanan Akun.'; return;
+      }
+
+      let detection;
+      try {
+        detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+      } catch (ex) { detection = null; }
+      if (!detection) { el.style.color = 'var(--danger)'; el.innerText = '⚠️ Wajah tidak terdeteksi jelas. Pastikan hanya satu wajah & pencahayaan cukup, lalu coba lagi.'; return; }
+
+      const storedDescriptor = new Float32Array(ud.faceDescriptor);
+      const distance = faceapi.euclideanDistance(storedDescriptor, detection.descriptor);
+      if (distance <= FACE_LOGIN_MATCH_THRESHOLD) {
+        el.style.color = 'var(--success)'; el.innerText = `✅ Wajah cocok dengan akun "${u}". Masuk...`;
+        stopFaceLoginCam();
+        safeSession.setItem('loggedUser', ud.username);
+        safeSession.setItem('loggedRole', ud.role || 'residen');
+        safeSession.setItem('loggedDivisiChief', ud.divisiChief || '');
+        logSystemChange('Login dengan Face ID', ud.username);
+        checkSession();
+      } else {
+        el.style.color = 'var(--danger)'; el.innerText = `❌ Wajah tidak cocok dengan akun "${u}". Akses ditolak — gunakan password, atau daftarkan ulang wajah di Dashboard Saya jika ini memang akun Anda.`;
+      }
+    });
+  }
+
+  function stopFaceLoginCam() {
+    if (faceLoginStream) { faceLoginStream.getTracks().forEach(t => t.stop()); faceLoginStream = null; }
+    const video = document.getElementById('faceLoginVideo');
+    if (video) { video.style.display = 'none'; video.srcObject = null; }
+    const btn = document.getElementById('btnVerifyFaceLogin');
+    if (btn) btn.style.display = 'none';
+  }
+
   // ABSENSI GPS & FACE RECOGNITION (2-Faktor: GPS Geofence dahulu, baru Face ID)
   let faceStream = null;
   let isFaceVerified = false;
   let gpsGateVerifiedDistance = null; // meter, null jika belum lolos GPS
   let capturedFacePhotoBase64 = null;
+  // Face ID untuk BUKA AKUN (login) & pendaftaran wajah — TERPISAH dari faceStream (Absensi Monre di
+  // atas, yang hanya deteksi ADA-tidaknya wajah/liveness, bukan verifikasi identitas). Fitur ini
+  // menyimpan & mencocokkan deskriptor wajah (128 angka, dari faceapi.nets.faceRecognitionNet) per
+  // akun, supaya "buka akun" benar-benar memverifikasi WAJAH SIAPA, bukan cuma "ada wajah".
+  let faceLoginStream = null;
+  let faceEnrollStream = null;
+  let FACE_MODELS_LOADED_FULL = false;
+  const FACE_LOGIN_MATCH_THRESHOLD = 0.5; // euclideanDistance faceapi — makin kecil makin ketat (umum: 0.6)
 
   function resetAbsensiGate() {
     stopFaceCam();
@@ -2782,6 +3058,370 @@
     };
 
     db.ref(`ikve_records/${mStr}/${inisialUpper}/${recordId}`).set(recordData);
+  }
+
+  // ================= ANALISIS BEBAN KERJA DINAMIS & PREDIKSI KESIAPAN VISITE (BETA) =================
+  // Adaptasi dari spesifikasi "Modul Analisis Beban Kerja Dinamis & Prediksi Kesiapan Visite" yang
+  // ditulis untuk backend PHP + MySQL terpisah. CAMS 2026 di file ini TIDAK punya backend PHP/MySQL —
+  // satu-satunya "backend" adalah Firebase Realtime Database yang diakses langsung dari browser. Jadi
+  // seluruh logika (skema data, rumus Kapasitas Bersih COT, aturan Visite Lockout, rekomendasi Anchor,
+  // string WA) diterapkan APA ADANYA secara substansi, tapi ditulis ulang sebagai node Firebase + JS
+  // vanilla supaya benar-benar berjalan di aplikasi yang sesungguhnya kita pakai, bukan kode PHP yang
+  // tidak punya tempat untuk dijalankan.
+  //
+  // SKEMA DATA FIREBASE (padanan dari tabel MySQL yang diminta):
+  //   residen_stase_periods/{periodeKey} = { periodeMulai: 'YYYY-MM-DD', periodeSelesai: 'YYYY-MM-DD',
+  //     uploadedAt, uploadedBy, roster: { inisial: { nama, inisial, tingkat: 'Senior'|'Middle'|'Junior',
+  //     divisi, lokasiTugas: 'Wahidin_COT'|'Wahidin_Luar_COT'|'Jejaring_External' } } }
+  //     -> padanan tabel `residen_stase_log`, TAPI disederhanakan jadi "satu roster per rentang
+  //        tanggal" (bukan satu baris historis per residen per tanggal seperti tabel SQL biasa).
+  //        AWALNYA modul ini hanya menyimpan SATU roster aktif tunggal (residen_stase_current) —
+  //        diupgrade ke periode bertanggal begitu jelas kebutuhan riilnya: stase Agustus (s/d 31
+  //        Agustus) dan stase September adalah DUA roster berbeda yang berlaku bergantian, bukan satu
+  //        roster yang terus ditimpa. Sistem otomatis memilih periode yang mencakup tanggal WITA hari
+  //        ini (lihat pickActiveStasePeriode()) — Chief tidak perlu upload ulang tiap hari.
+  //   tugas_luar_cot_log/{tanggalWITA}/{pushKey} = { inisial, divisi, lokasiTujuan, keterangan,
+  //     dicatatOleh, waktu, timestampMs } -> padanan tabel `tugas_luar_cot_log`, dikelompokkan per
+  //     tanggal (mirip pola daily_patient_log/ikve_records yang sudah ada di aplikasi ini).
+  //
+  // CATATAN JUJUR mengenai "Jumlah Kasus Esok Hari & OK Aktif": spesifikasi asli meminta upload data
+  // terpisah untuk ini, TAPI aplikasi kita SUDAH punya sumber data itu — jadwal yang diimport ke
+  // "Daftar & Input Pasien Utama" (activeSheetData, field p.divisi & p.ok). Dipakai ulang di sini
+  // SENGAJA supaya tidak ada dua tempat input untuk data yang sama (yang berisiko saling berbeda).
+  // Konsekuensinya: "OK Aktif" hanya akurat kalau kolom OK di Excel jadwal sudah diisi Chief — kalau
+  // belum diisi, divisi itu ditandai "Data OK Belum Diisi" (BUKAN dianggap 0 atau diabaikan diam-diam).
+
+  let allStasePeriods = {};     // { periodeKey: {periodeMulai, periodeSelesai, roster, ...} } — SEMUA periode yang pernah diupload
+  let residenStaseCurrent = {}; // roster milik periode yang AKTIF hari ini saja (turunan dari allStasePeriods)
+  let activeStasePeriodKey = null;
+  let tugasLuarCOTToday = {};   // { pushKey: {...} }
+  let lastVisiteCapacityWAText = '';
+
+  function stasePeriodeKeyFromDates(mulai, selesai) {
+    return `p_${mulai}_${selesai}`;
+  }
+
+  // Pilih periode aktif: periode yang rentang [periodeMulai, periodeSelesai]-nya mencakup tanggal WITA
+  // hari ini. Kalau ada lebih dari satu yang cocok (seharusnya tidak terjadi kalau Chief upload dengan
+  // benar, tapi tetap ditangani), pakai yang diupload PALING BARU. Kalau TIDAK ADA yang cocok (belum
+  // diupload / semua periode sudah lewat), tetap tampilkan periode yang tanggal selesainya PALING DEKAT
+  // dengan hari ini sebagai fallback, TAPI ditandai jelas "kedaluwarsa/belum tersedia" — bukan diam-diam
+  // dianggap kosong atau memakai data lama tanpa peringatan.
+  function pickActiveStasePeriode() {
+    const todayStr = todayDateStrWITA();
+    const periods = Object.entries(allStasePeriods);
+    if (periods.length === 0) { activeStasePeriodKey = null; residenStaseCurrent = {}; return { status: 'none' }; }
+
+    const matching = periods.filter(([,p]) => p.periodeMulai <= todayStr && todayStr <= p.periodeSelesai);
+    if (matching.length > 0) {
+      matching.sort((a,b) => (b[1].uploadedAt||'').localeCompare(a[1].uploadedAt||''));
+      activeStasePeriodKey = matching[0][0];
+      residenStaseCurrent = matching[0][1].roster || {};
+      return { status: 'active', periode: matching[0][1] };
+    }
+
+    // Fallback: tidak ada periode yang mencakup hari ini -> tetap tampilkan yang paling relevan
+    // (selesai paling dekat ke hari ini) supaya kartu tidak kosong total, tapi beri peringatan jelas.
+    periods.sort((a,b) => b[1].periodeSelesai.localeCompare(a[1].periodeSelesai));
+    activeStasePeriodKey = periods[0][0];
+    residenStaseCurrent = periods[0][1].roster || {};
+    return { status: 'stale', periode: periods[0][1] };
+  }
+
+  function renderStaseActivePeriodBanner() {
+    const banner = document.getElementById('staseActivePeriodBanner');
+    const listEl = document.getElementById('staseAllPeriodsList');
+    if (!banner) return;
+    const picked = pickActiveStasePeriode();
+    if (picked.status === 'none') {
+      banner.style.background = 'rgba(148,163,184,0.12)'; banner.style.color = 'var(--text-light)';
+      banner.innerHTML = '<i class="fa-solid fa-circle-info"></i> Belum ada roster stase yang diupload untuk periode manapun.';
+    } else if (picked.status === 'active') {
+      banner.style.background = 'rgba(16,185,129,0.12)'; banner.style.color = 'var(--success)';
+      banner.innerHTML = `<i class="fa-solid fa-circle-check"></i> Memakai roster periode <b>${picked.periode.periodeMulai} s/d ${picked.periode.periodeSelesai}</b> (${Object.keys(picked.periode.roster||{}).length} residen) — sesuai tanggal hari ini.`;
+    } else {
+      banner.style.background = 'rgba(245,158,11,0.15)'; banner.style.color = 'var(--warning)';
+      banner.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> TIDAK ADA roster stase yang mencakup tanggal hari ini — menampilkan periode terakhir yang tersedia (<b>${picked.periode.periodeMulai} s/d ${picked.periode.periodeSelesai}</b>, kemungkinan sudah kedaluwarsa). Segera upload roster periode berjalan.`;
+    }
+    if (listEl) {
+      const allSorted = Object.values(allStasePeriods).sort((a,b) => b.periodeMulai.localeCompare(a.periodeMulai));
+      listEl.innerHTML = allSorted.length ? 'Periode tersimpan: ' + allSorted.map(p => `${p.periodeMulai} s/d ${p.periodeSelesai} (${Object.keys(p.roster||{}).length} residen)`).join(' • ') : '';
+    }
+  }
+
+  function initVisiteCapacityAnalysis() {
+    const card = document.getElementById('visiteCapacityCard');
+    if (card) card.style.display = 'block';
+
+    db.ref('residen_stase_periods').on('value', snap => {
+      allStasePeriods = snap.val() || {};
+      renderStaseActivePeriodBanner();
+      populateTarikMendadakResidenSelect();
+      renderVisiteCapacityAnalysis();
+    });
+    db.ref(`tugas_luar_cot_log/${todayDateStrWITA()}`).on('value', snap => {
+      tugasLuarCOTToday = snap.val() || {};
+      renderVisiteCapacityAnalysis();
+    });
+  }
+
+  function populateTarikMendadakResidenSelect() {
+    const sel = document.getElementById('tarikMendadakResiden');
+    if (!sel) return;
+    const entries = Object.values(residenStaseCurrent).filter(r => r.lokasiTugas === 'Wahidin_COT').sort((a,b) => (a.divisi||'').localeCompare(b.divisi||'') || (a.nama||'').localeCompare(b.nama||''));
+    sel.innerHTML = entries.length
+      ? entries.map(r => `<option value="${r.inisial}">${r.nama} (${r.inisial}) — ${r.divisi}</option>`).join('')
+      : '<option value="">-- Upload data stase dahulu --</option>';
+  }
+
+  // Upload/import Excel Stase Residen — kolom fleksibel (deteksi header seperti handleExcelImport).
+  // Sekarang WAJIB disertai Periode Mulai/Selesai: roster disimpan sebagai satu ENTRI PERIODE baru di
+  // residen_stase_periods (BUKAN menimpa satu node tunggal lagi), supaya roster Agustus (s/d 31
+  // Agustus) dan roster September bisa tersimpan berdampingan dan sistem otomatis berpindah pakai
+  // begitu tanggal WITA memasuki periode berikutnya — tidak perlu Chief upload ulang tiap hari.
+  function handleStaseExcelImport(e) {
+    if (!isAdminLevel()) return alert('Akses Ditolak! Hanya Admin/Chief/Wakil Chief yang dapat mengupload data stase.');
+    const f = e.target.files[0]; if (!f) return;
+    const statusEl = document.getElementById('staseUploadStatus');
+    const periodeMulai = document.getElementById('staseePeriodeMulai').value;
+    const periodeSelesai = document.getElementById('staseePeriodeSelesai').value;
+    if (!periodeMulai || !periodeSelesai) {
+      alert('⚠️ Isi dulu "Periode Mulai" dan "Periode Selesai" sebelum upload — sistem perlu tahu rentang tanggal berlakunya roster ini.');
+      e.target.value = ''; return;
+    }
+    if (periodeSelesai < periodeMulai) {
+      alert('⚠️ Periode Selesai tidak boleh lebih awal dari Periode Mulai.');
+      e.target.value = ''; return;
+    }
+    if (statusEl) { statusEl.style.color = 'var(--accent)'; statusEl.innerText = '⏳ Membaca file Excel...'; }
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        let nameIdx=-1, inisialIdx=-1, tingkatIdx=-1, divisiIdx=-1, lokasiIdx=-1, headerFound=false;
+        const result = {};
+        for (let i = 0; i < rawData.length; i++) {
+          const row = rawData[i];
+          if (!row) continue;
+          if (!headerFound) {
+            for (let j = 0; j < row.length; j++) {
+              const c = String(row[j]||'').toLowerCase().trim();
+              if (c.includes('nama')) nameIdx = j;
+              if (c.includes('inisial')) inisialIdx = j;
+              if (c.includes('tingkat')) tingkatIdx = j;
+              if (c.includes('divisi')) divisiIdx = j;
+              if (c.includes('lokasi')) lokasiIdx = j;
+            }
+            if (inisialIdx !== -1 && divisiIdx !== -1) { headerFound = true; }
+            continue;
+          }
+          const inisialVal = row[inisialIdx];
+          if (!inisialVal || String(inisialVal).trim() === '') continue;
+          const inisial = String(inisialVal).trim().toUpperCase();
+          // Normalisasi ENUM lokasi tugas — terima variasi penulisan umum (spasi/underscore/kapital).
+          let lokasiRaw = String(row[lokasiIdx] || 'Wahidin_COT').trim().replace(/\s+/g, '_');
+          let lokasiNorm = 'Wahidin_COT';
+          const lokasiUp = lokasiRaw.toUpperCase();
+          if (lokasiUp.includes('JEJARING')) lokasiNorm = 'Jejaring_External';
+          else if (lokasiUp.includes('LUAR')) lokasiNorm = 'Wahidin_Luar_COT';
+          else if (lokasiUp.includes('COT')) lokasiNorm = 'Wahidin_COT';
+
+          let tingkatRaw = String(row[tingkatIdx] || '').trim();
+          const tingkatUp = tingkatRaw.toUpperCase();
+          let tingkatNorm = 'Middle';
+          if (tingkatUp.includes('SENIOR')) tingkatNorm = 'Senior';
+          else if (tingkatUp.includes('JUNIOR')) tingkatNorm = 'Junior';
+          else if (tingkatUp.includes('MIDDLE')) tingkatNorm = 'Middle';
+
+          result[inisial] = {
+            nama: row[nameIdx] ? String(row[nameIdx]).trim() : inisial,
+            inisial, tingkat: tingkatNorm,
+            divisi: row[divisiIdx] ? String(row[divisiIdx]).trim() : 'Tanpa Divisi',
+            lokasiTugas: lokasiNorm
+          };
+        }
+
+        if (Object.keys(result).length === 0) {
+          if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = '⚠️ Tidak ada baris valid ditemukan. Pastikan kolom "Inisial" dan "Divisi Stase" terisi.'; }
+          return;
+        }
+
+        const periodeKey = stasePeriodeKeyFromDates(periodeMulai, periodeSelesai);
+        const periodePayload = {
+          periodeMulai, periodeSelesai, roster: result,
+          uploadedAt: new Date().toISOString(),
+          uploadedBy: currentUsername
+        };
+        db.ref(`residen_stase_periods/${periodeKey}`).set(periodePayload, (err) => {
+          if (err) { if (statusEl) { statusEl.style.color='var(--danger)'; statusEl.innerText = '⚠️ Gagal menyimpan: ' + (err.message||err); } return; }
+          if (statusEl) { statusEl.style.color = 'var(--success)'; statusEl.innerText = `✅ ${Object.keys(result).length} residen tersimpan untuk periode ${periodeMulai} s/d ${periodeSelesai}.`; }
+          logSystemChange('Upload roster stase residen', `Periode ${periodeMulai} s/d ${periodeSelesai} — ${Object.keys(result).length} residen`);
+        });
+      } catch (ex) {
+        if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = '⚠️ Gagal membaca file: ' + (ex.message||ex); }
+      }
+      e.target.value = '';
+    };
+    reader.readAsArrayBuffer(f);
+  }
+
+  // Catat penarikan mendadak residen dari COT ke tugas luar (IGD/VK/Radiologi Intervensi/dll) hari
+  // ini — INI yang membedakan "Tugas Luar COT" (mendadak, dicatat manual saat kejadian) dari stase
+  // 'Wahidin_Luar_COT' (sudah direncanakan sejak roster stase diupload).
+  function catatTarikanMendadakLuarCOT() {
+    if (!isAdminLevel()) return alert('Akses Ditolak! Hanya Admin/Chief/Wakil Chief yang dapat mencatat penarikan mendadak.');
+    const inisial = document.getElementById('tarikMendadakResiden').value;
+    const lokasiTujuan = document.getElementById('tarikMendadakLokasi').value;
+    const keterangan = document.getElementById('tarikMendadakKeterangan').value.trim();
+    if (!inisial) return alert('⚠️ Pilih residen yang ditarik terlebih dahulu (pastikan data stase sudah diupload).');
+    const r = residenStaseCurrent[inisial];
+    const payload = {
+      inisial, divisi: r ? r.divisi : '-', lokasiTujuan, keterangan,
+      dicatatOleh: currentUsername, waktu: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' }),
+      timestampMs: Date.now()
+    };
+    db.ref(`tugas_luar_cot_log/${todayDateStrWITA()}`).push(payload, (err) => {
+      if (err) return alert('⚠️ Gagal mencatat: ' + (err.message||err));
+      document.getElementById('tarikMendadakKeterangan').value = '';
+      logSystemChange('Catat penarikan mendadak Tugas Luar COT', `${inisial} -> ${lokasiTujuan}`);
+    });
+  }
+
+  // Rumus inti "Kapasitas Bersih COT": total residen divisi yang stase-nya SUDAH di Wahidin COT
+  // (artinya sudah bersih dari Jejaring Eksternal & Tugas Luar COT terjadwal, karena keduanya punya
+  // lokasiTugas berbeda) dikurangi lagi residen yang HARI INI ditarik mendadak dari COT ke tugas luar.
+  //   Kapasitas Bersih COT = Residen Divisi berstatus 'Wahidin_COT' − Ditarik Mendadak Hari Ini
+  // Aturan Visite Lockout: jika Kapasitas Bersih COT <= jumlah OK aktif divisi tsb (setiap residen
+  // yang tersisa habis terserap ke meja OK, tidak ada yang bisa merespons visite emergency ATAU
+  // menyelesaikan laporan visite elektif sebelum jam 5 sore) -> flag BLOCKOUT.
+  function renderVisiteCapacityAnalysis() {
+    const tbody = document.getElementById('visiteCapacityTableBody');
+    const alertBox = document.getElementById('visiteLockoutAlertBox');
+    const waPreviewEl = document.getElementById('visiteCapacityWAPreview');
+    if (!tbody) return;
+
+    const staseList = Object.values(residenStaseCurrent);
+    if (staseList.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">Menunggu data stase residen diupload...</td></tr>';
+      if (alertBox) alertBox.innerHTML = '';
+      if (waPreviewEl) waPreviewEl.innerText = 'Upload data stase residen dahulu untuk menghasilkan ringkasan.';
+      return;
+    }
+
+    // Divisi dari roster stase (Wahidin_COT saja yang relevan untuk kapasitas lantai COT) digabung
+    // dengan divisi yang punya kasus terjadwal (activeSheetData) — supaya divisi yang ada kasus tapi
+    // (secara data) belum ada residen ber-stase COT ikut ditandai, bukan diam-diam hilang dari tabel.
+    const divisiSet = new Set();
+    staseList.forEach(r => { if (r.divisi) divisiSet.add(r.divisi); });
+    (activeSheetData||[]).forEach(p => { if (p.divisi && p.divisi !== '-') divisiSet.add(p.divisi.trim()); });
+
+    const tarikMendadakArr = Object.values(tugasLuarCOTToday);
+    const rows = [];
+    const lockoutDivisi = [];
+
+    Array.from(divisiSet).sort().forEach(divisi => {
+      const anggotaCOT = staseList.filter(r => r.divisi === divisi && r.lokasiTugas === 'Wahidin_COT');
+      const totalWahidinCOT = anggotaCOT.length;
+      const mendadakDivisiIni = tarikMendadakArr.filter(t => t.divisi === divisi && anggotaCOT.some(a => a.inisial === t.inisial));
+      const ditarikMendadak = mendadakDivisiIni.length;
+      const kapasitasBersih = Math.max(0, totalWahidinCOT - ditarikMendadak);
+
+      const kasusDivisi = (activeSheetData||[]).filter(p => (p.divisi||'').trim() === divisi && !isTrueBatalStatus(p.statusCatatan));
+      const okRooms = new Set(kasusDivisi.map(p => (p.ok||'').trim()).filter(x => x));
+      const okAktifKnown = okRooms.size > 0;
+      const jumlahOKAktif = okRooms.size;
+
+      let status, statusColor;
+      if (totalWahidinCOT === 0) {
+        status = 'Tidak Ada Residen COT'; statusColor = 'var(--text-light)';
+      } else if (!okAktifKnown) {
+        status = 'Data OK Belum Diisi'; statusColor = 'var(--text-light)';
+      } else if (kapasitasBersih <= jumlahOKAktif) {
+        status = '🚨 BLOCKOUT'; statusColor = 'var(--danger)';
+        lockoutDivisi.push({ divisi, totalWahidinCOT, ditarikMendadak, kapasitasBersih, jumlahOKAktif, anggotaCOT, mendadakInisial: mendadakDivisiIni.map(m=>m.inisial) });
+      } else if (kapasitasBersih - jumlahOKAktif === 1) {
+        status = '🟡 Rawan (Margin 1 Residen)'; statusColor = 'var(--warning)';
+      } else {
+        status = '✅ Aman'; statusColor = 'var(--success)';
+      }
+
+      rows.push(`<tr>
+        <td style="text-align:left;">${divisi}</td>
+        <td>${totalWahidinCOT}</td>
+        <td>${ditarikMendadak}</td>
+        <td style="font-weight:800;">${kapasitasBersih}</td>
+        <td>${okAktifKnown ? jumlahOKAktif : '-'}</td>
+        <td style="color:${statusColor}; font-weight:700;">${status}</td>
+      </tr>`);
+    });
+
+    tbody.innerHTML = rows.join('');
+
+    // Rekomendasi Anchor Visite & Emergency untuk tiap divisi BLOCKOUT: 1 residen Middle (diutamakan)
+    // atau Junior dari anggota Wahidin_COT divisi tsb yang BELUM tercatat ditarik mendadak hari ini —
+    // dikunci di luar OK mulai pukul 14:00 WITA supaya tetap ada yang merespons visite emergency &
+    // mengejar laporan visite elektif ke DPJP sebelum jam 5 sore. Sisa meja OK yang kosong akibat
+    // penguncian ini WAJIB di-cover residen Float Umum lintas divisi — ini rekomendasi koordinasi
+    // manual untuk Chief, BUKAN penugasan otomatis (aplikasi belum punya data pool "Float Umum").
+    const anchorRecommendations = [];
+    lockoutDivisi.forEach(d => {
+      const kandidat = d.anggotaCOT.filter(a => !d.mendadakInisial.includes(a.inisial) && (a.tingkat === 'Middle' || a.tingkat === 'Junior'));
+      const anchor = kandidat.find(a => a.tingkat === 'Middle') || kandidat[0] || null;
+      anchorRecommendations.push({ divisi: d.divisi, anchor, ...d });
+    });
+
+    if (alertBox) {
+      alertBox.innerHTML = lockoutDivisi.length === 0 ? '' : anchorRecommendations.map(d => `
+        <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.35); border-radius:12px; padding:12px; margin-bottom:10px;">
+          <div style="color:var(--danger); font-weight:800; font-size:12px; margin-bottom:6px;">🚨 ERROR: VISITE & DEADLINE JAM 5 SORE TERANCAM (BLOCKOUT) — Divisi ${d.divisi}</div>
+          <div style="font-size:11px; color:#e2e8f0; line-height:1.6;">
+            Kapasitas Bersih COT (${d.kapasitasBersih}) ≤ Jumlah OK Aktif (${d.jumlahOKAktif}). Semua residen tersisa akan habis terserap ke meja OK — tidak ada yang bisa merespons visite emergency atau menyelesaikan laporan visite elektif sebelum 17:00 WITA.<br>
+            <b>Rekomendasi:</b> ${d.anchor ? `Tunjuk <b>${d.anchor.nama} (${d.anchor.inisial}, ${d.anchor.tingkat})</b> sebagai <b>Anchor Visite & Emergency</b>, dikunci di luar OK mulai pukul 14:00 WITA.` : 'Tidak ada kandidat Junior/Middle tersedia di divisi ini untuk dijadikan Anchor — perlu penambahan residen Float Umum dari divisi lain.'} Meja OK yang kosong akibat penguncian ini wajib di-cover Residen Float Umum lintas divisi.
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ================= STRING GENERATOR "SALIN KE WA" =================
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Makassar' }));
+    const tglLabel = now.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+    let waText = `📊 *ANALISIS BEBAN KERJA & KESIAPAN VISITE — CAMS 2026*\n${tglLabel} (Update ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} WITA)\n\n`;
+    waText += `Total ${staseList.length} residen ter-data pada roster stase aktif, mencakup ${divisiSet.size} divisi.\n\n`;
+    waText += `*RINGKASAN KAPASITAS PER DIVISI:*\n`;
+    Array.from(divisiSet).sort().forEach(divisi => {
+      const anggotaCOT = staseList.filter(r => r.divisi === divisi && r.lokasiTugas === 'Wahidin_COT');
+      const mendadakDivisiIni = tarikMendadakArr.filter(t => t.divisi === divisi && anggotaCOT.some(a => a.inisial === t.inisial));
+      const kapasitasBersih = Math.max(0, anggotaCOT.length - mendadakDivisiIni.length);
+      const kasusDivisi = (activeSheetData||[]).filter(p => (p.divisi||'').trim() === divisi && !isTrueBatalStatus(p.statusCatatan));
+      const okRooms = new Set(kasusDivisi.map(p => (p.ok||'').trim()).filter(x => x));
+      const tanda = anggotaCOT.length === 0 ? '⬜' : (okRooms.size === 0 ? '⬜' : (kapasitasBersih <= okRooms.size ? '🚨' : (kapasitasBersih - okRooms.size === 1 ? '🟡' : '✅')));
+      waText += `${tanda} ${divisi}: ${kapasitasBersih} residen bersih vs ${okRooms.size || '?'} OK aktif\n`;
+    });
+
+    if (lockoutDivisi.length > 0) {
+      waText += `\n🚨 *DIVISI BLOCKOUT — DEADLINE VISITE 17:00 WITA TERANCAM:*\n`;
+      anchorRecommendations.forEach(d => {
+        waText += `- ${d.divisi}: ${d.anchor ? `Anchor Visite & Emergency = *${d.anchor.nama} (${d.anchor.inisial})*, dikunci luar OK mulai 14:00 WITA` : 'BUTUH Float Umum dari divisi lain (tidak ada kandidat Anchor tersedia)'}\n`;
+      });
+      waText += `\nMeja OK kosong akibat penguncian Anchor wajib di-cover Residen Float Umum lintas divisi.\n`;
+    } else {
+      waText += `\n✅ Tidak ada divisi berstatus BLOCKOUT saat ini.\n`;
+    }
+    waText += `\n_Ingat: laporan Visite Elektif ke DPJP paling lambat pukul 17:00 WITA._`;
+
+    lastVisiteCapacityWAText = waText;
+    if (waPreviewEl) waPreviewEl.innerText = waText;
+  }
+
+  function copyVisiteCapacityToWA() {
+    if (!lastVisiteCapacityWAText) { alert('⚠️ Belum ada hasil analisis untuk disalin. Upload data stase residen dahulu.'); return; }
+    navigator.clipboard.writeText(lastVisiteCapacityWAText).then(() => {
+      alert('Ringkasan beban kerja & kesiapan visite berhasil disalin! Silakan tempel ke WhatsApp.');
+    }).catch(() => alert('Gagal menyalin otomatis. Silakan salin manual dari kotak ringkasan.'));
   }
 
   // MANAJEMEN MASTER RESIDEN DI PANEL ADMIN
@@ -6809,6 +7449,8 @@ ${kesimpulanLines.join('\n')}`;
     const now = new Date();
     const mStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     const inisial = currentUsername.toUpperCase().trim();
+
+    renderFaceEnrollStatusBadge();
 
     // --- 1) Jam kerja & kasus bulan ini (dari daily_patient_log, sumber & rumus SAMA dengan
     //     Analisis & Basis Kebijakan, supaya angkanya tidak pernah berbeda antar halaman) ---
