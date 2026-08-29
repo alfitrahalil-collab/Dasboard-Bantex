@@ -74,22 +74,40 @@
 
     .sidebar { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: var(--sidebar-bg); color: white; z-index: 1001; transition: left 0.3s ease; display: flex; flex-direction: column; border-right: 1px solid var(--border); box-shadow: 6px 0 30px rgba(59,130,246,0.15); }
     .sidebar.active { left: 0; }
-    /* DESKTOP/LAPTOP (>=993px): sidebar tampil permanen (bukan off-canvas), hamburger & overlay
-       disembunyikan, konten utama digeser ke kanan selebar sidebar. Di bawah breakpoint ini
-       (termasuk semua HP <=768px) perilaku off-canvas + hamburger di atas tetap berlaku. */
+    /* DESKTOP/LAPTOP (>=993px): sidebar tampil default (bukan off-canvas seperti HP), overlay
+       disembunyikan karena tidak dibutuhkan di layar lebar. TAPI tombol hamburger TETAP tampil di
+       sini (beda dari sebelumnya yang selalu disembunyikan di desktop) supaya menu kiri bisa
+       disembunyikan/ditampilkan lagi dengan sekali klik — lihat toggleSidebar() yang menambah/
+       menghapus class body.sidebar-collapsed khusus untuk breakpoint desktop ini. Di bawah
+       breakpoint ini (termasuk semua HP <=768px) perilaku off-canvas + hamburger yang sudah ada
+       tetap berlaku seperti biasa (tidak diubah). */
     @media (min-width: 993px) {
-      .sidebar { left: 0 !important; box-shadow: none; }
+      .sidebar { left: 0; box-shadow: none; }
       .sidebar-overlay { display: none !important; }
-      #hamburgerBtn { display: none; }
-      .app-header, .container { margin-left: 280px !important; }
+      #hamburgerBtn { display: inline-flex; align-items:center; justify-content:center; }
+      .app-header, .container { margin-left: 280px; transition: margin-left 0.3s ease; }
+      body.sidebar-collapsed .sidebar { left: -280px; }
+      body.sidebar-collapsed .app-header, body.sidebar-collapsed .container { margin-left: 0; }
     }
-    #notifBellPanel { border-left: 1px solid var(--border); border-right: none; box-shadow: -6px 0 30px rgba(59,130,246,0.15); }
-    #notifBellPanel.active { right: 0 !important; }
+    /* Panel notifikasi (bel) — DULU dibuat dari class .sidebar (position:fixed; top:0; height:100%),
+       akibatnya saat dibuka panel menutupi SELURUH sisi kanan layar termasuk tombol Logout di header
+       (yang bukan bagian dari panel ini). Sekarang panel jadi dropdown yang menggantung DI BAWAH ikon
+       bel (position:absolute relatif ke wrapper tombol bel), dengan tinggi dibatasi (max-height) dan
+       daftar notifikasi di dalamnya scroll sendiri — jadi tidak pernah menimpa header/Logout, dan
+       notifikasi yang panjang tetap bisa di-scroll penuh ke bawah untuk dibaca semua. */
+    #notifBellPanel {
+      position: absolute; left: auto; top: calc(100% + 10px); right: -10px; width: 340px;
+      max-height: min(75vh, 560px); border: 1px solid var(--border); border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(59,130,246,0.15);
+      display: flex; flex-direction: column; opacity: 0; visibility: hidden; transform: translateY(-8px);
+      transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s; z-index: 1150; overflow: hidden;
+    }
+    #notifBellPanel.active { opacity: 1; visibility: visible; transform: translateY(0); }
+    #notifBellPanel .sidebar-header { flex: 0 0 auto; }
     /* Notifikasi masuk (bel) dibuat jelas terbaca di HP: panel lebih lebar (hampir layar penuh)
        dan teks pesan diperbesar — sebelumnya 11px/9px terlalu kecil untuk dibaca sambil jaga. */
     @media (max-width: 480px) {
-      #notifBellPanel { width: 92vw !important; right: -100vw; }
-      #notifBellPanel.active { right: 0 !important; }
+      #notifBellPanel { width: 92vw !important; right: -54px; max-height: min(70vh, 520px); }
     }
     .notif-item-text { font-size: 14px !important; line-height: 1.5; }
     .notif-item-time { font-size: 11.5px !important; }
@@ -530,12 +548,12 @@
         <i class="fa-solid fa-bell"></i>
         <span id="notifBellBadge" style="display:none; position:absolute; top:-4px; right:-6px; background:var(--danger); color:#fff; font-size:9px; font-weight:800; padding:1px 5px; border-radius:8px;">0</span>
       </button>
-      <div id="notifBellPanel" class="sidebar" style="left:auto; right:-320px; top:0; width:300px; transition:right 0.3s ease;">
+      <div id="notifBellPanel" style="background: var(--sidebar-bg);">
         <div class="sidebar-header">
           <h3 id="notifBellPanelHeader" style="font-size:15px; font-weight:900;"><i class="fa-solid fa-shield-halved" style="color:var(--warning);"></i> Notifikasi Perubahan</h3>
           <button class="close-sidebar" onclick="toggleNotifBell()"><i class="fa-solid fa-xmark"></i></button>
         </div>
-        <div id="notifBellList" style="overflow-y:auto; flex:1;"></div>
+        <div id="notifBellList" style="overflow-y:auto; flex:1; min-height:0;"></div>
       </div>
     </div>
     <button id="btnInstallPWA" class="btn btn-primary" style="display:none; padding:5px 10px; font-size:11px;" onclick="triggerInstallPWA()"><i class="fa-solid fa-mobile-screen-button"></i> Install App</button>
@@ -720,6 +738,7 @@
       <div class="metric-card"><h4>TOTAL JAM KERJA SAYA (BULAN INI)</h4><div class="value" id="resDashJamKerja">-</div></div>
       <div class="metric-card success"><h4>KASUS SAYA SELESAI (BULAN INI)</h4><div class="value" id="resDashKasus">-</div></div>
       <div class="metric-card" id="resDashBurnoutCard"><h4>STATUS BEBAN KERJA SAYA</h4><div class="value" id="resDashBurnoutStatus" style="font-size:16px;">-</div></div>
+      <div class="metric-card" id="resDashIkveCard"><h4>SKOR IKVE BERSIH (BULAN INI)</h4><div class="value" id="resDashIkveScore" style="font-size:16px;">-</div></div>
     </div>
     <p style="font-size:10px; color:var(--text-light); margin:-8px 0 16px 0;">Dihitung dari riwayat harian (<code>daily_patient_log</code>) bulan berjalan — sama seperti sumber data halaman Analisis & Basis Kebijakan. Ambang: &gt;80 jam/bulan = Peringatan, &gt;100 jam/bulan = Kritis (mengacu pada standar jam kerja residen).</p>
 
@@ -731,6 +750,26 @@
       <div class="card-title" style="color:#fca5a5;"><i class="fa-solid fa-gavel"></i> Pusat Klarifikasi Pelanggaran (Tabayyun — Maksimal 1x24 Jam)</div>
       <p style="font-size:11px; color:var(--text-light); margin:0 0 12px 0;">Daftar catatan kedisiplinan/patient safety/etika yang membutuhkan konfirmasi tertulis Anda. Kirim penjelasan Anda di bawah sebelum batas waktu habis — status akan berubah ke "Sedang Diinvestigasi" dan Chief/KPS/DPJP akan meninjau penjelasan Anda sebelum memutuskan.</p>
       <div id="resDashTabayyunList"><p style="color:#94a3b8; font-size:12px;">Memuat...</p></div>
+    </div>
+
+    <!-- TREN & DISTRIBUSI KINERJA — ditambahkan supaya Residen tidak hanya melihat angka mentah
+         bulan berjalan, tapi juga TREN harian (naik/turun) dan KOMPOSISI rotasi divisinya sendiri,
+         plus posisi bebannya dibanding rata-rata seluruh residen (data pembanding, bukan nama lain —
+         tetap menjaga privasi peer sesuai desain aplikasi). Sumber data tetap daily_patient_log yang
+         sama dengan kartu di atas supaya tidak ada angka ganda. -->
+    <div class="card">
+      <div class="card-title"><i class="fa-solid fa-chart-line"></i> Tren & Distribusi Kinerja Saya (14 Hari Terakhir)</div>
+      <div class="grid-2" style="gap:16px;">
+        <div>
+          <p style="font-size:10.5px; color:var(--text-light); margin:0 0 6px 0;">Jam kerja harian — pantau apakah beban Anda cenderung naik menjelang ambang peringatan.</p>
+          <canvas id="chartResDashTren" height="180"></canvas>
+        </div>
+        <div>
+          <p style="font-size:10.5px; color:var(--text-light); margin:0 0 6px 0;">Distribusi kasus per divisi bulan ini — variasi rotasi klinis Anda.</p>
+          <canvas id="chartResDashDivisi" height="180"></canvas>
+        </div>
+      </div>
+      <div id="resDashBandingRata" style="margin-top:14px; padding:10px 12px; background:rgba(15,23,42,0.5); border-radius:10px; font-size:11.5px; color:#cbd5e1;">Memuat perbandingan...</div>
     </div>
 
     <div class="card">
@@ -752,6 +791,16 @@
        Dashboard Saya milik Residen (daily_patient_log, ambang >80/>100 jam/bulan) supaya tidak
        muncul angka ketiga yang berbeda untuk konsep yang sama. -->
   <div id="page-supervisidpjp" class="tab-page">
+    <!-- RINGKASAN SUPERVISI BULAN INI — ditambahkan supaya DPJP langsung melihat "skor" kepatuhan
+         verifikasinya sendiri (berapa yang sudah dicek vs masih menumpuk) tanpa harus menghitung
+         manual dari tabel di bawah. -->
+    <div class="metrics-grid" style="margin-bottom:16px;">
+      <div class="metric-card success"><h4>KASUS DIVERIFIKASI (BULAN INI)</h4><div class="value" id="dpjpMetricVerified">-</div></div>
+      <div class="metric-card danger"><h4>KASUS DIKOREKSI (BULAN INI)</h4><div class="value" id="dpjpMetricCorrected">-</div></div>
+      <div class="metric-card warning"><h4>MENUNGGU VERIFIKASI ANDA</h4><div class="value" id="dpjpMetricPending">-</div></div>
+      <div class="metric-card"><h4>INSIDEN EDUKATIF DICATAT</h4><div class="value" id="dpjpMetricInsiden">-</div></div>
+    </div>
+
     <div class="card" style="border-top:4px solid #f59e0b; background:rgba(245,158,11,0.06); display:none;" id="dpjpBurnoutAlertCard">
       <div class="card-title" style="color:#fde68a;"><i class="fa-solid fa-triangle-exclamation"></i> Peringatan Kelelahan Residen yang Anda Supervisi (Bulan Ini)</div>
       <p style="font-size:11px; color:var(--text-light); margin:0 0 10px 0;">Residen yang pernah tercatat di bawah supervisi Anda bulan ini (berdasarkan kasus dengan DPJP Anestesi = akun Anda) dan sudah melewati ambang jam kerja aman. Pertimbangkan redistribusi beban kasus.</p>
@@ -767,6 +816,12 @@
           <tbody id="dpjpVerifikasiBody"><tr><td colspan="6" style="color:#888;">Memuat...</td></tr></tbody>
         </table>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><i class="fa-solid fa-users-viewfinder"></i> Beban Kasus Residen yang Anda Supervisi (Bulan Ini)</div>
+      <p style="font-size:11px; color:var(--text-light); margin:0 0 10px 0;">Jumlah kasus selesai per residen dengan DPJP Anestesi = akun Anda — bantu melihat sekilas siapa yang paling sering Anda dampingi bulan ini.</p>
+      <canvas id="chartDPJPBebanResiden" height="140"></canvas>
     </div>
 
     <div class="card" style="border-top:4px solid #34d399;">
@@ -1288,26 +1343,26 @@
       <div class="card" style="border-top:4px solid #ef4444;">
         <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#fca5a5;"><i class="fa-solid fa-ban"></i> 3) Alasan Pembatalan Terbanyak (Batal Murni) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
         <div class="collapsible-body" style="display:block;">
-          <p style="font-size:9.5px; color:var(--text-light); margin:0 0 6px 0;">Tidak termasuk kasus Optimalisasi (lihat tabel terpisah di sebelah kanan) — keduanya berbeda secara klinis.</p>
-          <div style="overflow-x:auto;"><table class="bantex-table" id="tblAlasanBatal"><thead><tr><th>Alasan</th><th>Jumlah</th><th>% dari Total</th></tr></thead><tbody></tbody></table></div>
+          <p style="font-size:9.5px; color:var(--text-light); margin:0 0 6px 0;">Tidak termasuk kasus Optimalisasi (lihat diagram terpisah di sebelah kanan) — keduanya berbeda secara klinis.</p>
+          <canvas id="chartKebijakanAlasanBatal" height="200"></canvas>
         </div>
       </div>
       <div class="card" style="border-top:4px solid #a855f7;">
         <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#c084fc;"><i class="fa-solid fa-notes-medical"></i> Alasan Optimalisasi Terbanyak <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
         <div class="collapsible-body" style="display:block;">
           <p style="font-size:9.5px; color:var(--text-light); margin:0 0 6px 0;">Pasien BELUM batal permanen — perlu follow-up kesiapan kondisi lalu dijadwalkan ulang.</p>
-          <div style="overflow-x:auto;"><table class="bantex-table" id="tblAlasanOptimalisasi"><thead><tr><th>Alasan</th><th>Jumlah</th><th>% dari Total</th></tr></thead><tbody></tbody></table></div>
+          <canvas id="chartKebijakanAlasanOptimalisasi" height="200"></canvas>
         </div>
       </div>
     </div>
     <div class="grid-2" style="margin-bottom:16px;">
       <div class="card" style="border-top:4px solid #ef4444;">
         <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#fca5a5;"><i class="fa-solid fa-diagram-project"></i> Tingkat Pembatalan per Divisi (Murni) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
-        <div class="collapsible-body" style="display:block;"><div style="overflow-x:auto;"><table class="bantex-table" id="tblBatalDivisi"><thead><tr><th>Divisi</th><th>Total Kasus</th><th>Batal</th><th>% Batal</th></tr></thead><tbody></tbody></table></div></div>
+        <div class="collapsible-body" style="display:block;"><canvas id="chartKebijakanBatalDivisi" height="200"></canvas></div>
       </div>
       <div class="card" style="border-top:4px solid #a855f7;">
         <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#c084fc;"><i class="fa-solid fa-diagram-project"></i> Tingkat Optimalisasi per Divisi <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
-        <div class="collapsible-body" style="display:block;"><div style="overflow-x:auto;"><table class="bantex-table" id="tblOptimalisasiDivisi"><thead><tr><th>Divisi</th><th>Total Kasus</th><th>Optimalisasi</th><th>% Optimalisasi</th></tr></thead><tbody></tbody></table></div></div>
+        <div class="collapsible-body" style="display:block;"><canvas id="chartKebijakanOptimalisasiDivisi" height="200"></canvas></div>
       </div>
     </div>
 
@@ -1315,9 +1370,9 @@
     <div class="card" style="border-top:4px solid #f59e0b;">
       <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#fde68a;"><i class="fa-solid fa-user-shield"></i> 2) Beban Kerja & Keselamatan Residen (Rentang Terpilih) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
       <div class="collapsible-body" style="display:block;">
-        <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Residen dengan kasus tinggi SEKALIGUS banyak terlibat kasus batal ditandai ⚠️ — kombinasi ini paling relevan untuk kebijakan redistribusi jaga.</p>
-        <canvas id="chartKebijakanBebanResiden" height="120" style="margin-bottom:12px;"></canvas>
-        <div style="overflow-x:auto;"><table class="bantex-table" id="tblBebanResiden"><thead><tr><th>Residen</th><th>Total Kasus</th><th>Kasus Batal</th><th>% Batal</th><th>Indikator</th></tr></thead><tbody></tbody></table></div>
+        <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Residen dengan kasus tinggi SEKALIGUS banyak terlibat kasus batal ditandai 🔴 pada diagram (kuning = kasus tinggi saja) — kombinasi ini paling relevan untuk kebijakan redistribusi jaga.</p>
+        <canvas id="chartKebijakanBebanResiden" height="120" style="margin-bottom:10px;"></canvas>
+        <div id="kebijakanBebanResidenFlagList" style="font-size:11px; line-height:1.7; color:#e2e8f0;"></div>
       </div>
     </div>
 
@@ -1325,8 +1380,8 @@
     <div class="card" style="border-top:4px solid #a78bfa;">
       <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#c4b5fd;"><i class="fa-solid fa-user-doctor"></i> 4) Kepatuhan & Kualitas Supervisi DPJP (dari data IKVE) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
       <div class="collapsible-body" style="display:block;">
-        <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Dihitung dari bulan-bulan yang tercakup rentang tanggal di atas (data IKVE tersimpan per bulan), dikelompokkan per Residen.</p>
-        <div style="overflow-x:auto;"><table class="bantex-table" id="tblSupervisiDPJP"><thead><tr><th>Residen</th><th>Jumlah Pelanggaran (DIS/SAF/ETI)</th><th>Sudah Diklarifikasi (Tabayyun)</th><th>% Sudah Diklarifikasi</th></tr></thead><tbody></tbody></table></div>
+        <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Dihitung dari bulan-bulan yang tercakup rentang tanggal di atas (data IKVE tersimpan per bulan), dikelompokkan per Residen. Batang = jumlah pelanggaran, garis = % sudah diklarifikasi (Tabayyun).</p>
+        <canvas id="chartKebijakanSupervisiDPJP" height="200"></canvas>
       </div>
     </div>
 
@@ -1337,7 +1392,7 @@
       <div class="card-title collapsible-header is-open" onclick="toggleCollapseCard(this)" style="color:#f9a8d4;"><i class="fa-solid fa-diagram-project"></i> Rekap IKVE per Divisi (Kedisiplinan / Safety / Etika / Reward) <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:12px; float:right;"></i></div>
       <div class="collapsible-body" style="display:block;">
         <p style="font-size:10px; color:var(--text-light); margin:0 0 8px 0;">Mengelompokkan seluruh catatan IKVE pada rentang bulan terpilih berdasarkan Divisi Kejadian (field opsional pada form pelaporan) — untuk melihat divisi mana yang paling banyak tercatat pelanggaran/reward, bukan hanya per Residen.</p>
-        <div style="overflow-x:auto;"><table class="bantex-table" id="tblIKVEPerDivisi"><thead><tr><th>Divisi</th><th>DIS</th><th>SAF</th><th>ETI</th><th>POS (Reward)</th><th>Total Skor Akumulasi</th></tr></thead><tbody></tbody></table></div>
+        <canvas id="chartKebijakanIKVEDivisi" height="220"></canvas>
       </div>
     </div>
 
@@ -1752,9 +1807,20 @@
   // Refresh chart OR Utilization tiap 1 menit agar jam WITA-nya berjalan realtime
   setInterval(() => { if (typeof updateORUtilizationChartRealtime === 'function') updateORUtilizationChartRealtime(); }, 60000);
 
+  // Menu kiri (sidebar) sekarang bisa disembunyikan/ditampilkan lagi dengan sekali klik tombol
+  // hamburger di HP MAUPUN di desktop/laptop (sebelumnya tombol ini disembunyikan total di desktop
+  // dan sidebar dipaksa permanen tampil). Mekanismenya beda per ukuran layar karena perilaku dasarnya
+  // memang beda: di HP sidebar off-canvas + overlay gelap di belakangnya (class .active pada
+  // #sidebarMenu/#sidebarOverlay), sedangkan di desktop sidebar defaultnya sudah tampil di tempat
+  // (bukan overlay) jadi yang di-toggle adalah class body.sidebar-collapsed untuk menggeser sidebar
+  // keluar layar sekaligus mengembalikan lebar konten utama (lihat CSS @media min-width:993px).
   function toggleSidebar() {
-    document.getElementById('sidebarMenu').classList.toggle('active');
-    document.getElementById('sidebarOverlay').classList.toggle('active');
+    if (window.matchMedia('(min-width: 993px)').matches) {
+      document.body.classList.toggle('sidebar-collapsed');
+    } else {
+      document.getElementById('sidebarMenu').classList.toggle('active');
+      document.getElementById('sidebarOverlay').classList.toggle('active');
+    }
   }
 
   function switchPage(pageId) {
@@ -1764,7 +1830,7 @@
     // list emergency) — sesuai kebijakan: parsing/pengelolaan emergency murni domain Chief Residen/
     // Admin yang bertugas jaga. DPJP tetap melihat pasien emergency miliknya sendiri lewat Live
     // Monitoring (Patients & Operations) dan Realisasi, yang sudah terfilter ke pasien mereka saja.
-    if (currentUserRole === 'konsulen' && (pageId === 'page-pediatric' || pageId === 'page-absensi' || pageId === 'page-link' || pageId === 'page-emergency')) return;
+    if (currentUserRole === 'konsulen' && (pageId === 'page-pediatric' || pageId === 'page-absensi' || pageId === 'page-link' || pageId === 'page-emergency' || pageId === 'page-laporan')) return;
 
     document.querySelectorAll('.tab-page').forEach(page => page.classList.remove('active-page'));
     document.querySelectorAll('.sidebar-menu a').forEach(nav => nav.classList.remove('active'));
@@ -2318,6 +2384,15 @@
       // melihat pasien emergency miliknya sendiri lewat Live Monitoring & Realisasi (sudah terfilter).
       const navEmergency = document.getElementById('nav-page-emergency');
       if (navEmergency) navEmergency.style.display = isKonsulen ? 'none' : '';
+
+      // Menu "Reports & Analytics" (Laporan Otomatis Kesimpulan Kerja harian lintas-divisi/DPJP) —
+      // DISEMBUNYIKAN untuk akun Konsulen/DPJP dengan cara yang SAMA seperti Emergency/Absensi/Link
+      // di atas: ini murni alat bantu manajerial Chief Residen/Admin (rekap kapasitas, diagnosis
+      // terbanyak, dsb lintas seluruh divisi), bukan kebutuhan supervisi DPJP terhadap pasiennya
+      // sendiri — yang sudah punya halaman "Supervisi Saya (DPJP)" tersendiri.
+      const navLaporan = document.getElementById('nav-page-laporan');
+      if (navLaporan) navLaporan.style.display = isKonsulen ? 'none' : '';
+      if (isKonsulen && document.getElementById('page-laporan').classList.contains('active-page')) switchPage('page-supervisidpjp');
 
       document.getElementById("menuAdminArea").style.display = isAdmin ? "block" : "none";
       if (isAdminLevel() && currentUserRole !== "admin") {
@@ -5144,6 +5219,19 @@ Ruangan: [Ruangan Asal]`;
     }
   });
 
+  // Tutup dropdown notifikasi (bel) saat klik di luar panel/tombol bel — panel notifikasi sekarang
+  // menggantung di bawah ikon bel (bukan overlay layar penuh lagi), jadi perlu ditutup otomatis
+  // seperti dropdown pada umumnya saat pengguna klik area lain.
+  document.addEventListener('click', (e) => {
+    const notifPanel = document.getElementById('notifBellPanel');
+    if (notifPanel && notifPanel.classList.contains('active')) {
+      const bellWrap = notifPanel.parentElement;
+      if (bellWrap && !bellWrap.contains(e.target)) {
+        notifPanel.classList.remove('active');
+      }
+    }
+  });
+
   // REVISI INTEGRASI PASIEN ELEKTIF & EMERGENCY PADA MONITOR DASHBOARD
   // Badge warna "Asal Sektor" (COT = biru, Luar COT = jingga/kuning, lainnya = abu-abu netral)
   // supaya di satu tabel gabungan, asal pasien tetap bisa dibedakan sekali lihat.
@@ -5929,6 +6017,15 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
   let chartKebijakanKomposisiInstance = null;
   let chartKebijakanBebanResidenInstance = null;
   let chartKebijakanDivisiPolarInstance = null;
+  let chartResDashTrenInstance = null;
+  let chartResDashDivisiInstance = null;
+  let chartDPJPBebanResidenInstance = null;
+  let chartKebijakanAlasanBatalInstance = null;
+  let chartKebijakanAlasanOptimalisasiInstance = null;
+  let chartKebijakanBatalDivisiInstance = null;
+  let chartKebijakanOptimalisasiDivisiInstance = null;
+  let chartKebijakanSupervisiDPJPInstance = null;
+  let chartKebijakanIKVEDivisiInstance = null;
   let lastKebijakanRekomendasiText = '';
 
   // ================= KLASIFIKASI STATUS: BATAL vs OPTIMALISASI (dipisah, bukan digabung) =================
@@ -6064,23 +6161,35 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
         });
       }
 
-      // 3) Alasan pembatalan terbanyak (batal murni) + alasan optimalisasi terbanyak (terpisah)
+      // 3) Alasan pembatalan terbanyak (batal murni) + alasan optimalisasi terbanyak (terpisah) —
+      //    DIAGRAM #5: horizontal bar (Alasan Pembatalan) supaya alasan terpanjang tetap terbaca.
       const alasanCount = {};
       batalRows.forEach(p => { const a = (p.statusCatatan||'').trim(); alasanCount[a] = (alasanCount[a]||0)+1; });
       const alasanSorted = Object.entries(alasanCount).sort((a,b)=>b[1]-a[1]);
-      const tbAlasan = document.querySelector('#tblAlasanBatal tbody');
-      tbAlasan.innerHTML = alasanSorted.length ? alasanSorted.map(([a,c]) =>
-        `<tr><td style="text-align:left;">${a}</td><td>${c}</td><td>${batalCount?Math.round(c/batalCount*100):0}%</td></tr>`
-      ).join('') : '<tr><td colspan="3" style="color:#888;">Tidak ada kasus batal murni pada rentang ini.</td></tr>';
+      const alasanBatalCtx = document.getElementById('chartKebijakanAlasanBatal');
+      if (alasanBatalCtx) {
+        if (chartKebijakanAlasanBatalInstance) chartKebijakanAlasanBatalInstance.destroy();
+        chartKebijakanAlasanBatalInstance = new Chart(alasanBatalCtx.getContext('2d'), {
+          type: 'bar',
+          data: { labels: alasanSorted.map(([a])=>a), datasets: [{ label: 'Jumlah', data: alasanSorted.map(([,c])=>c), backgroundColor: '#ef4444', borderRadius: 6 }] },
+          options: { indexAxis:'y', responsive:true, plugins:{legend:{display:false}, tooltip:{callbacks:{afterLabel: (ctx) => batalCount ? `${Math.round(ctx.parsed.x/batalCount*100)}% dari total batal murni` : ''}}}, scales:{ x:{beginAtZero:true, ticks:{color:'#94a3b8', precision:0}, grid:{color:'rgba(255,255,255,0.05)'}}, y:{ticks:{color:'#cbd5e1', font:{size:9}}, grid:{display:false}} } }
+        });
+      }
 
+      // DIAGRAM #6: pie (Alasan Optimalisasi) — tipe berbeda dari kartu sebelahnya supaya sekilas
+      // pandang langsung terlihat ini kategori terpisah (bukan lanjutan dari Alasan Pembatalan).
       const alasanOptCount = {};
       optRows.forEach(p => { const a = (p.statusCatatan||'').trim(); alasanOptCount[a] = (alasanOptCount[a]||0)+1; });
       const alasanOptSorted = Object.entries(alasanOptCount).sort((a,b)=>b[1]-a[1]);
-      const tbAlasanOpt = document.querySelector('#tblAlasanOptimalisasi tbody');
-      if (tbAlasanOpt) {
-        tbAlasanOpt.innerHTML = alasanOptSorted.length ? alasanOptSorted.map(([a,c]) =>
-          `<tr><td style="text-align:left;">${a}</td><td>${c}</td><td>${optCount?Math.round(c/optCount*100):0}%</td></tr>`
-        ).join('') : '<tr><td colspan="3" style="color:#888;">Tidak ada kasus Optimalisasi pada rentang ini.</td></tr>';
+      const alasanOptCtx = document.getElementById('chartKebijakanAlasanOptimalisasi');
+      if (alasanOptCtx) {
+        if (chartKebijakanAlasanOptimalisasiInstance) chartKebijakanAlasanOptimalisasiInstance.destroy();
+        const optPalette = ['#a855f7','#c084fc','#7c3aed','#d8b4fe','#6d28d9','#e9d5ff'];
+        chartKebijakanAlasanOptimalisasiInstance = new Chart(alasanOptCtx.getContext('2d'), {
+          type: 'pie',
+          data: { labels: alasanOptSorted.map(([a])=>a), datasets: [{ data: alasanOptSorted.map(([,c])=>c), backgroundColor: alasanOptSorted.map((_,i)=>optPalette[i%optPalette.length]), borderWidth: 0 }] },
+          options: { responsive:true, plugins:{legend:{position:'bottom', labels:{color:'#94a3b8', boxWidth:10, font:{size:9}}}} }
+        });
       }
 
       // Tingkat pembatalan per divisi (murni) + tingkat optimalisasi per divisi (terpisah)
@@ -6093,17 +6202,32 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
         if (isOptimalisasiStatus(p.statusCatatan) && !isSelesaiStatus(p)) divMap[d].opt++;
       });
       const divSorted = Object.entries(divMap).sort((a,b) => (b[1].batal/b[1].total) - (a[1].batal/a[1].total));
-      const tbDiv = document.querySelector('#tblBatalDivisi tbody');
-      tbDiv.innerHTML = divSorted.length ? divSorted.map(([d,v]) =>
-        `<tr><td style="text-align:left;">${d}</td><td>${v.total}</td><td>${v.batal}</td><td>${Math.round(v.batal/v.total*100)}%</td></tr>`
-      ).join('') : '<tr><td colspan="4" style="color:#888;">Belum ada data.</td></tr>';
+      // DIAGRAM #7: grouped bar (Total Kasus vs Batal) per divisi — dua series supaya proporsi
+      // langsung kelihatan tanpa perlu baca kolom % terpisah.
+      const batalDivCtx = document.getElementById('chartKebijakanBatalDivisi');
+      if (batalDivCtx) {
+        if (chartKebijakanBatalDivisiInstance) chartKebijakanBatalDivisiInstance.destroy();
+        chartKebijakanBatalDivisiInstance = new Chart(batalDivCtx.getContext('2d'), {
+          type: 'bar',
+          data: { labels: divSorted.map(([d])=>d), datasets: [
+            { label: 'Total Kasus', data: divSorted.map(([,v])=>v.total), backgroundColor: '#3b82f6', borderRadius: 4 },
+            { label: 'Batal Murni', data: divSorted.map(([,v])=>v.batal), backgroundColor: '#ef4444', borderRadius: 4 }
+          ] },
+          options: { responsive:true, plugins:{legend:{labels:{color:'#94a3b8', font:{size:9}}}}, scales:{ x:{ticks:{color:'#94a3b8', font:{size:9}}, grid:{display:false}}, y:{beginAtZero:true, ticks:{color:'#94a3b8', precision:0}, grid:{color:'rgba(255,255,255,0.05)'}} } }
+        });
+      }
 
       const divOptSorted = Object.entries(divMap).sort((a,b) => (b[1].opt/b[1].total) - (a[1].opt/a[1].total));
-      const tbDivOpt = document.querySelector('#tblOptimalisasiDivisi tbody');
-      if (tbDivOpt) {
-        tbDivOpt.innerHTML = divOptSorted.length ? divOptSorted.map(([d,v]) =>
-          `<tr><td style="text-align:left;">${d}</td><td>${v.total}</td><td>${v.opt}</td><td>${Math.round(v.opt/v.total*100)}%</td></tr>`
-        ).join('') : '<tr><td colspan="4" style="color:#888;">Belum ada data.</td></tr>';
+      // DIAGRAM #8: radar (% Optimalisasi per divisi) — tipe berbeda lagi supaya sebaran antar
+      // divisi (bukan perbandingan dua angka) lebih mudah dibaca sekilas dalam satu bentuk.
+      const optDivCtx = document.getElementById('chartKebijakanOptimalisasiDivisi');
+      if (optDivCtx) {
+        if (chartKebijakanOptimalisasiDivisiInstance) chartKebijakanOptimalisasiDivisiInstance.destroy();
+        chartKebijakanOptimalisasiDivisiInstance = new Chart(optDivCtx.getContext('2d'), {
+          type: 'radar',
+          data: { labels: divOptSorted.map(([d])=>d), datasets: [{ label: '% Optimalisasi', data: divOptSorted.map(([,v])=>v.total?Math.round(v.opt/v.total*100):0), backgroundColor: 'rgba(168,85,247,0.25)', borderColor: '#a855f7', pointBackgroundColor: '#a855f7' }] },
+          options: { responsive:true, plugins:{legend:{display:false}}, scales:{ r:{ angleLines:{color:'rgba(255,255,255,0.08)'}, grid:{color:'rgba(255,255,255,0.08)'}, pointLabels:{color:'#94a3b8', font:{size:8}}, ticks:{color:'#94a3b8', backdropColor:'transparent'}, suggestedMin:0 } } }
+        });
       }
 
       // Diagram modern #3: polar area — top 6 divisi berdasarkan total kasus pada rentang terpilih.
@@ -6130,14 +6254,22 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
       });
       const avgCasePerResiden = Object.values(resMap).length ? Object.values(resMap).reduce((a,v)=>a+v.total,0)/Object.values(resMap).length : 0;
       const resSorted = Object.entries(resMap).sort((a,b) => b[1].total - a[1].total);
-      const tbRes = document.querySelector('#tblBebanResiden tbody');
-      tbRes.innerHTML = resSorted.length ? resSorted.map(([r,v]) => {
-        const pctBatal = v.total ? Math.round(v.batal/v.total*100) : 0;
-        const isHighLoad = v.total > avgCasePerResiden * 1.3;
-        const isHighCancel = pctBatal >= 25 && v.batal >= 3;
-        const flag = (isHighLoad && isHighCancel) ? '<span style="color:var(--danger); font-weight:800;">⚠️ Kasus Tinggi + Batal Tinggi</span>' : (isHighLoad ? '<span style="color:var(--warning);">Kasus Tinggi</span>' : '-');
-        return `<tr><td style="text-align:left;">${r}</td><td>${v.total}</td><td>${v.batal}</td><td>${pctBatal}%</td><td>${flag}</td></tr>`;
-      }).join('') : '<tr><td colspan="5" style="color:#888;">Belum ada data.</td></tr>';
+      // Tabel lama diganti daftar singkat HANYA untuk residen yang benar-benar terflag (⚠️/Kasus
+      // Tinggi) — chart di atas sudah mewakili seluruh angka, daftar ini pelengkap teks singkat
+      // supaya nama yang perlu perhatian tetap gampang dibaca tanpa perlu tabel penuh lagi.
+      const flagListEl = document.getElementById('kebijakanBebanResidenFlagList');
+      if (flagListEl) {
+        const flagged = resSorted.map(([r,v]) => {
+          const pctBatal = v.total ? Math.round(v.batal/v.total*100) : 0;
+          const isHighLoad = v.total > avgCasePerResiden * 1.3;
+          const isHighCancel = pctBatal >= 25 && v.batal >= 3;
+          return { r, v, pctBatal, isHighLoad, isHighCancel };
+        }).filter(x => x.isHighLoad);
+        flagListEl.innerHTML = flagged.length ? flagged.map(x => {
+          const label = (x.isHighLoad && x.isHighCancel) ? '<span style="color:var(--danger); font-weight:800;">🔴 Kasus Tinggi + Batal Tinggi</span>' : '<span style="color:var(--warning); font-weight:700;">🟡 Kasus Tinggi</span>';
+          return `<div style="padding:4px 0;">${label} — <b>${x.r}</b>: ${x.v.total} kasus, ${x.v.batal} batal (${x.pctBatal}%)</div>`;
+        }).join('') : '<p style="color:#94a3b8;">Tidak ada residen dengan indikator kasus tinggi pada rentang ini.</p>';
+      }
 
       // Diagram modern #4: horizontal bar top 10 residen berdasarkan beban kasus, warna mengikuti
       // indikator yang SAMA dengan tabel di atas (bukan skala burnout harian — beda basis waktu).
@@ -6182,20 +6314,48 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
           });
         });
         const ikveSorted = Object.entries(ikveMap).sort((a,b) => b[1].viol - a[1].viol);
-        const tbSup = document.querySelector('#tblSupervisiDPJP tbody');
-        tbSup.innerHTML = ikveSorted.length ? ikveSorted.map(([inisial,v]) => {
-          const resObj = MASTER_RESIDENTS.find(x => x.inisial === inisial);
-          const nama = resObj ? `${resObj.nama} (${inisial})` : inisial;
-          const pctResolved = v.viol ? Math.round(v.resolved/v.viol*100) : 0;
-          return `<tr><td style="text-align:left;">${nama}</td><td>${v.viol}</td><td>${v.resolved}</td><td>${pctResolved}%</td></tr>`;
-        }).join('') : '<tr><td colspan="4" style="color:#888;">Tidak ada catatan pelanggaran IKVE pada rentang bulan ini.</td></tr>';
-
+        // DIAGRAM #9: mixed bar (jumlah pelanggaran) + line (% sudah diklarifikasi, sumbu kanan) —
+        // gabungan dua tipe dalam satu chart supaya kedua ukuran (volume & kepatuhan) langsung
+        // terlihat berkorelasi atau tidak per residen, tanpa perlu baca dua kolom tabel terpisah.
+        const supDPJPCtx = document.getElementById('chartKebijakanSupervisiDPJP');
+        if (supDPJPCtx) {
+          if (chartKebijakanSupervisiDPJPInstance) chartKebijakanSupervisiDPJPInstance.destroy();
+          const supLabels = ikveSorted.map(([inisial]) => {
+            const resObj = MASTER_RESIDENTS.find(x => x.inisial === inisial);
+            return resObj ? `${resObj.nama} (${inisial})` : inisial;
+          });
+          chartKebijakanSupervisiDPJPInstance = new Chart(supDPJPCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+              labels: supLabels,
+              datasets: [
+                { type: 'bar', label: 'Jumlah Pelanggaran', data: ikveSorted.map(([,v])=>v.viol), backgroundColor: '#c4b5fd', borderRadius: 4, yAxisID: 'y' },
+                { type: 'line', label: '% Sudah Diklarifikasi', data: ikveSorted.map(([,v])=>v.viol?Math.round(v.resolved/v.viol*100):0), borderColor: '#22d3ee', backgroundColor: '#22d3ee', tension: 0.3, yAxisID: 'y1' }
+              ]
+            },
+            options: { responsive:true, plugins:{legend:{labels:{color:'#94a3b8', font:{size:9}}}}, scales:{
+              x: { ticks:{color:'#94a3b8', font:{size:9}}, grid:{display:false} },
+              y: { position:'left', beginAtZero:true, ticks:{color:'#94a3b8', precision:0}, grid:{color:'rgba(255,255,255,0.05)'}, title:{display:true, text:'Jumlah Pelanggaran', color:'#94a3b8', font:{size:9}} },
+              y1: { position:'right', beginAtZero:true, max:100, ticks:{color:'#94a3b8'}, grid:{display:false}, title:{display:true, text:'% Diklarifikasi', color:'#94a3b8', font:{size:9}} }
+            } }
+          });
+        }
         const divisiIkveSorted = Object.entries(divisiIkveMap).sort((a,b) => b[1].skor - a[1].skor);
-        const tbDivIkve = document.querySelector('#tblIKVEPerDivisi tbody');
-        if (tbDivIkve) {
-          tbDivIkve.innerHTML = divisiIkveSorted.length ? divisiIkveSorted.map(([divisi,v]) => {
-            return `<tr><td style="text-align:left;">${divisi}</td><td>${v.DIS}</td><td>${v.SAF}</td><td>${v.ETI}</td><td>${v.POS}</td><td style="font-weight:800; color:${v.skor<0?'#fca5a5':'#6ee7b7'};">${v.skor>0?'+':''}${v.skor}</td></tr>`;
-          }).join('') : '<tr><td colspan="6" style="color:#888;">Tidak ada catatan IKVE pada rentang bulan ini.</td></tr>';
+        // DIAGRAM #10: stacked bar (DIS/SAF/ETI/POS per divisi) — tipe terakhir yang berbeda lagi,
+        // menunjukkan komposisi domain per divisi sekaligus total tinggi-rendahnya dalam satu batang.
+        const ikveDivCtx = document.getElementById('chartKebijakanIKVEDivisi');
+        if (ikveDivCtx) {
+          if (chartKebijakanIKVEDivisiInstance) chartKebijakanIKVEDivisiInstance.destroy();
+          chartKebijakanIKVEDivisiInstance = new Chart(ikveDivCtx.getContext('2d'), {
+            type: 'bar',
+            data: { labels: divisiIkveSorted.map(([d])=>d), datasets: [
+              { label: 'DIS', data: divisiIkveSorted.map(([,v])=>v.DIS), backgroundColor: '#ef4444', stack: 's' },
+              { label: 'SAF', data: divisiIkveSorted.map(([,v])=>v.SAF), backgroundColor: '#f59e0b', stack: 's' },
+              { label: 'ETI', data: divisiIkveSorted.map(([,v])=>v.ETI), backgroundColor: '#8b5cf6', stack: 's' },
+              { label: 'POS (Reward)', data: divisiIkveSorted.map(([,v])=>v.POS), backgroundColor: '#10b981', stack: 's' }
+            ] },
+            options: { responsive:true, plugins:{legend:{labels:{color:'#94a3b8', font:{size:9}}}}, scales:{ x:{stacked:true, ticks:{color:'#94a3b8', font:{size:9}}, grid:{display:false}}, y:{stacked:true, beginAtZero:true, ticks:{color:'#94a3b8', precision:0}, grid:{color:'rgba(255,255,255,0.05)'}} } }
+          });
         }
 
         generateKebijakanRekomendasi({
@@ -6462,6 +6622,70 @@ ${kesimpulanLines.join('\n')}`;
     body.style.display = isOpening ? 'block' : 'none';
     headerEl.classList.toggle('is-open', isOpening);
   }
+
+  // ================= PENERAPAN COLLAPSIBLE KE SEMUA KARTU (SUPAYA TIDAK MONOTON) =================
+  // Sebelumnya hanya sebagian kartu (list ICU/HCU, Realisasi DPJP, Rekomendasi Kebijakan, dll) yang
+  // bisa disembunyikan/ditampilkan lewat klik judul. Permintaan terbaru: SEMUA kotak/kartu di seluruh
+  // halaman dibuat seperti itu supaya tampilan tidak monoton. Daripada mengedit ~30 kartu satu-satu di
+  // HTML (rawan salah pasang/lupa), dipakai pendekatan generik: saat halaman dimuat, setiap `.card`
+  // yang PUNYA konten di bawah judulnya otomatis "dibungkus" jadi collapsible dengan mekanisme yang
+  // SAMA PERSIS dengan toggleCollapseCard() yang sudah ada (bukan sistem baru/terpisah).
+  // Yang SENGAJA DILEWATI (tidak diubah jadi collapsible):
+  //   1) Kartu yang sudah collapsible manual (title-nya sudah class collapsible-header) — dibiarkan.
+  //   2) Kartu ringkasan dashboard yang seluruh badannya sendiri sudah punya onclick (mis. kartu
+  //      "RUANGAN ASAL PASIEN TERBANYAK", "Resident Burnout Index" mini) — kartu itu klik = buka
+  //      modal detail analitik; menambah toggle collapse di situ akan tabrakan dengan interaksi yang
+  //      sudah ada, jadi dilewati.
+  //   3) Kartu tanpa konten apapun setelah judul (tidak ada yang perlu disembunyikan).
+  // Status default SELALU tetap terbuka (is-open / display:block) — fitur ini murni tambahan opsional
+  // dan TIDAK mengubah tampilan default yang sudah berjalan selama ini.
+  function enhanceCardsCollapsible() {
+    document.querySelectorAll('.card').forEach(card => {
+      if (card.dataset.collapsibleEnhanced) return;
+      card.dataset.collapsibleEnhanced = '1';
+      if (card.querySelector(':scope > .collapsible-header')) return; // sudah collapsible manual
+      if (card.getAttribute('onclick')) return; // kartu ini sudah punya interaksi klik sendiri (drill-down modal)
+
+      // Cari elemen header: (a) .card-title langsung sebagai anak .card, ATAU (b) div pembungkus baris
+      // (judul + tombol/kontrol sejajar) yang jadi anak langsung .card dan memuat .card-title di dalamnya
+      // — pola ini sudah dipakai manual di kartu "Realisasi DPJP Bulanan" dkk.
+      let headerEl = null, titleEl = null;
+      for (const child of card.children) {
+        if (child.classList && child.classList.contains('card-title')) { headerEl = child; titleEl = child; break; }
+        const innerTitle = child.querySelector ? child.querySelector('.card-title') : null;
+        if (innerTitle) { headerEl = child; titleEl = innerTitle; break; }
+      }
+      if (!headerEl || !titleEl || headerEl.classList.contains('collapsible-header')) return;
+
+      const bodyItems = [];
+      let node = headerEl.nextElementSibling;
+      while (node) { bodyItems.push(node); node = node.nextElementSibling; }
+      if (bodyItems.length === 0) return; // tidak ada konten untuk disembunyikan
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'collapsible-body';
+      wrapper.style.display = 'block';
+      bodyItems.forEach(el => wrapper.appendChild(el));
+      headerEl.after(wrapper);
+
+      headerEl.classList.add('collapsible-header', 'is-open');
+      headerEl.style.cursor = 'pointer';
+      headerEl.addEventListener('click', function(e) {
+        // Kalau yang diklik adalah kontrol interaktif di baris header (tombol/select/input/link, mis.
+        // dropdown sheet atau tombol Download Excel), biarkan berfungsi normal — JANGAN toggle collapse.
+        if (e.target.closest('button, select, input, a, textarea, label')) return;
+        toggleCollapseCard(headerEl);
+      });
+
+      if (!titleEl.querySelector('.collapse-chevron')) {
+        const chev = document.createElement('i');
+        chev.className = 'fa-solid fa-chevron-down collapse-chevron';
+        chev.style.cssText = 'font-size:11px; margin-left:8px;';
+        titleEl.appendChild(chev);
+      }
+    });
+  }
+  enhanceCardsCollapsible();
   function copyReportToWA() { let t="KESIMPULAN\n"; reportKeys.forEach(k=>t+=`${k.padEnd(35,' ')}: ${document.getElementById(`rep_${k}`).value}\n`); navigator.clipboard.writeText(t).then(()=>alert("Disalin!")); }
 
   function switchSheet(s) { currentSheetName=s; activeSheetData=allSheetsData[s]||[]; populateFilterDropdowns(); renderBantexTable(); recalculateDashboardAndReport(); renderActiveStatusLists(); }
@@ -6592,11 +6816,14 @@ ${kesimpulanLines.join('\n')}`;
       const raw = snap.val() || {};
       const datesThisMonth = Object.keys(raw).filter(d => d.startsWith(mStr));
       let totalKasus = 0, totalJamMenit = 0;
+      const divisiCount = {};
       datesThisMonth.forEach(d => {
         (raw[d].pasien || []).forEach(p => {
           if ((p.residen || '').toUpperCase().trim() !== inisial) return;
           if (!isSelesaiStatus(p)) return;
           totalKasus++;
+          const div = (p.divisi || 'Tidak diketahui').trim() || 'Tidak diketahui';
+          divisiCount[div] = (divisiCount[div] || 0) + 1;
           if (p.mulai && p.selesai) {
             const [h1,m1] = p.mulai.split(':').map(Number);
             const [h2,m2] = p.selesai.split(':').map(Number);
@@ -6618,6 +6845,95 @@ ${kesimpulanLines.join('\n')}`;
       else if (totalJam > 80) { statusLabel = '🟡 Peringatan (Beban Tinggi)'; color = '#f59e0b'; }
       if (statusEl) { statusEl.innerText = statusLabel; statusEl.style.color = color; }
       if (cardEl) cardEl.style.borderColor = color;
+
+      // --- 1b) Tren jam kerja HARIAN 14 hari terakhir (line chart) — dihitung dari raw yang sama
+      //     supaya tidak fetch dobel, mencakup lintas bulan jika 14 hari menyentuh bulan lalu. ---
+      const days14 = [];
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(now); d.setDate(d.getDate() - i);
+        days14.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+      }
+      const jamHarian = days14.map(dStr => {
+        const dayData = raw[dStr];
+        if (!dayData || !dayData.pasien) return 0;
+        let menit = 0;
+        dayData.pasien.forEach(p => {
+          if ((p.residen || '').toUpperCase().trim() !== inisial || !isSelesaiStatus(p) || !p.mulai || !p.selesai) return;
+          const [h1,m1] = p.mulai.split(':').map(Number), [h2,m2] = p.selesai.split(':').map(Number);
+          if (isNaN(h1)||isNaN(m1)||isNaN(h2)||isNaN(m2)) return;
+          let mn = (h2*60+m2)-(h1*60+m1); if (mn<0) mn += 24*60;
+          menit += mn;
+        });
+        return +(menit/60).toFixed(1);
+      });
+      const trenCanvas = document.getElementById('chartResDashTren');
+      if (trenCanvas) {
+        if (chartResDashTrenInstance) chartResDashTrenInstance.destroy();
+        chartResDashTrenInstance = new Chart(trenCanvas.getContext('2d'), {
+          type: 'line',
+          data: { labels: days14.map(d => d.slice(5)), datasets: [{ label: 'Jam Kerja/Hari', data: jamHarian, borderColor: '#6ee7b7', backgroundColor: 'rgba(110,231,183,0.15)', fill: true, tension: 0.35, pointRadius: 2 }] },
+          options: { responsive:true, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#94a3b8', font:{size:9}}, grid:{display:false}}, y:{beginAtZero:true, ticks:{color:'#94a3b8', precision:0}, grid:{color:'rgba(255,255,255,0.05)'}} } }
+        });
+      }
+
+      // --- 1c) Distribusi kasus per divisi bulan ini (doughnut) ---
+      const divCanvas = document.getElementById('chartResDashDivisi');
+      if (divCanvas) {
+        if (chartResDashDivisiInstance) chartResDashDivisiInstance.destroy();
+        const divEntries = Object.entries(divisiCount).sort((a,b)=>b[1]-a[1]);
+        const palette = ['#3b82f6','#8b5cf6','#f59e0b','#10b981','#ef4444','#06b6d4','#ec4899','#a855f7'];
+        chartResDashDivisiInstance = new Chart(divCanvas.getContext('2d'), {
+          type: 'doughnut',
+          data: { labels: divEntries.map(e=>e[0]), datasets: [{ data: divEntries.map(e=>e[1]), backgroundColor: divEntries.map((_,i)=>palette[i%palette.length]), borderWidth: 0 }] },
+          options: { responsive:true, plugins:{legend:{position:'bottom', labels:{color:'#94a3b8', boxWidth:10, font:{size:9}}}} }
+        });
+      }
+
+      // --- 1d) Posisi Anda dibanding rata-rata seluruh residen bulan ini — hanya angka agregat,
+      //     TANPA nama residen lain, supaya tidak melanggar privasi peer (konsisten dengan redaksi
+      //     nama IKVE di halaman Analisis & Basis Kebijakan untuk viewer Residen). ---
+      const jamPerResidenLain = {};
+      datesThisMonth.forEach(d => {
+        (raw[d].pasien || []).forEach(p => {
+          const r = (p.residen||'').toUpperCase().trim();
+          if (!r || !isSelesaiStatus(p) || !p.mulai || !p.selesai) return;
+          const [h1,m1] = p.mulai.split(':').map(Number), [h2,m2] = p.selesai.split(':').map(Number);
+          if (isNaN(h1)||isNaN(m1)||isNaN(h2)||isNaN(m2)) return;
+          let mn = (h2*60+m2)-(h1*60+m1); if (mn<0) mn += 24*60;
+          jamPerResidenLain[r] = (jamPerResidenLain[r]||0) + mn/60;
+        });
+      });
+      const semuaJam = Object.values(jamPerResidenLain);
+      const bandingEl = document.getElementById('resDashBandingRata');
+      if (bandingEl) {
+        if (semuaJam.length === 0) {
+          bandingEl.innerHTML = 'Belum cukup data residen lain bulan ini untuk perbandingan.';
+        } else {
+          const rataRata = semuaJam.reduce((a,b)=>a+b,0) / semuaJam.length;
+          const lebihRendah = semuaJam.filter(j => j < totalJam).length;
+          const persentil = Math.round((lebihRendah / semuaJam.length) * 100);
+          const selisih = totalJam - rataRata;
+          const arah = selisih >= 0 ? 'lebih tinggi' : 'lebih rendah';
+          const warnaBanding = totalJam > 100 ? '#ef4444' : (totalJam > 80 ? '#f59e0b' : '#6ee7b7');
+          bandingEl.innerHTML = `<i class="fa-solid fa-scale-balanced"></i> Jam kerja Anda bulan ini <b style="color:${warnaBanding};">${Math.abs(selisih).toFixed(1)} jam ${arah}</b> dibanding rata-rata seluruh residen (<b>${rataRata.toFixed(1)} jam</b>, dari ${semuaJam.length} residen aktif). Beban Anda berada di sekitar <b>persentil ke-${persentil}</b> (semakin tinggi = semakin berat dibanding rekan sejawat).`;
+        }
+      }
+    });
+
+    // --- 1e) Skor IKVE bersih bulan ini (semua domain, pelanggaran = skor negatif, POS/reward =
+    //     skor positif) — murni angka total milik akun sendiri, bukan perbandingan peer. ---
+    db.ref(`ikve_records/${mStr}/${inisial}`).once('value', snap => {
+      const data = snap.val() || {};
+      const totalSkor = Object.values(data).reduce((sum, rec) => sum + (Number(rec.skor) || 0), 0);
+      const ikveEl = document.getElementById('resDashIkveScore');
+      const ikveCardEl = document.getElementById('resDashIkveCard');
+      if (ikveEl) {
+        const sign = totalSkor > 0 ? '+' : '';
+        ikveEl.innerText = `${sign}${totalSkor} poin`;
+        const warna = totalSkor < 0 ? '#ef4444' : (totalSkor > 0 ? '#10b981' : '#94a3b8');
+        ikveEl.style.color = warna;
+        if (ikveCardEl) ikveCardEl.style.borderColor = warna;
+      }
     });
 
     // --- 2) Pusat Klarifikasi (Tabayyun) interaktif — hanya pelanggaran (bukan Reward/POS) milik
@@ -6715,12 +7031,36 @@ ${kesimpulanLines.join('\n')}`;
     // --- 1) Verifikasi Realisasi Kasus — dari activeSheetData (sheet yang sedang aktif), hanya
     //     pasien milik DPJP ini sendiri (isMyDPJPPatient), sudah Selesai, belum diverifikasi. ---
     const pendingVerif = [];
+    let verifiedCount = 0, correctedCount = 0;
+    const bebanResidenMap = {};
+    activeSheetData.forEach((p) => {
+      if (!isMyDPJPPatient(p.dpjpAnestesi)) return;
+      if (!isSelesaiStatus(p)) return;
+      if (p.statusSupervisiDPJP === 'VERIFIED') verifiedCount++;
+      else if (p.statusSupervisiDPJP === 'REJECTED_DISCREPANCY') correctedCount++;
+      const rNama = (p.residen || 'Tidak diketahui').trim() || 'Tidak diketahui';
+      bebanResidenMap[rNama] = (bebanResidenMap[rNama] || 0) + 1;
+    });
     activeSheetData.forEach((p, idx) => {
       if (!isMyDPJPPatient(p.dpjpAnestesi)) return;
       if (!isSelesaiStatus(p)) return;
       if (p.statusSupervisiDPJP === 'VERIFIED' || p.statusSupervisiDPJP === 'REJECTED_DISCREPANCY') return;
       pendingVerif.push(idx);
     });
+    const mVerified = document.getElementById('dpjpMetricVerified'); if (mVerified) mVerified.innerText = verifiedCount;
+    const mCorrected = document.getElementById('dpjpMetricCorrected'); if (mCorrected) mCorrected.innerText = correctedCount;
+    const mPending = document.getElementById('dpjpMetricPending'); if (mPending) mPending.innerText = pendingVerif.length;
+
+    const bebanCanvas = document.getElementById('chartDPJPBebanResiden');
+    if (bebanCanvas) {
+      if (chartDPJPBebanResidenInstance) chartDPJPBebanResidenInstance.destroy();
+      const bebanEntries = Object.entries(bebanResidenMap).sort((a,b)=>b[1]-a[1]);
+      chartDPJPBebanResidenInstance = new Chart(bebanCanvas.getContext('2d'), {
+        type: 'bar',
+        data: { labels: bebanEntries.map(e=>e[0]), datasets: [{ label: 'Jumlah Kasus', data: bebanEntries.map(e=>e[1]), backgroundColor: '#93c5fd', borderRadius: 6 }] },
+        options: { responsive:true, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#94a3b8', font:{size:9}}, grid:{display:false}}, y:{beginAtZero:true, ticks:{color:'#94a3b8', precision:0}, grid:{color:'rgba(255,255,255,0.05)'}} } }
+      });
+    }
     const tbVerif = document.getElementById('dpjpVerifikasiBody');
     if (tbVerif) {
       tbVerif.innerHTML = pendingVerif.length ? pendingVerif.map(idx => {
@@ -6787,6 +7127,7 @@ ${kesimpulanLines.join('\n')}`;
     db.ref(`insiden_edukatif/${mStr}`).on('value', snap => {
       const data = snap.val() || {};
       const mine = Object.entries(data).filter(([,rec]) => rec.dpjpPelapor === currentUsername);
+      const mInsiden = document.getElementById('dpjpMetricInsiden'); if (mInsiden) mInsiden.innerText = mine.length;
       const listEl = document.getElementById('insEduHistoryList');
       if (!listEl) return;
       listEl.innerHTML = mine.length ? mine.map(([key,rec]) => `
