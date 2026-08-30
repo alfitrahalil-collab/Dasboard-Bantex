@@ -456,6 +456,7 @@
     <li><a id="nav-page-absensi" onclick="switchPage('page-absensi')"><i class="fa-solid fa-location-dot"></i> Absensi Monre GPS & Face ID</a></li>
     <li><a id="nav-page-laporan" onclick="switchPage('page-laporan')"><i class="fa-solid fa-file-lines"></i> Reports & Analytics</a></li>
     <li><a id="nav-page-kebijakan" onclick="switchPage('page-kebijakan')"><i class="fa-solid fa-scale-balanced" style="color:#67e8f9;"></i> Analisis & Basis Kebijakan</a></li>
+    <li><a id="nav-page-riwayat" onclick="switchPage('page-riwayat')"><i class="fa-solid fa-clock-rotate-left" style="color:#fbbf24;"></i> Riwayat Harian (Buka Tanggal)</a></li>
     <li><a id="nav-page-link" onclick="switchPage('page-link')"><i class="fa-solid fa-link"></i> Link Sistem Eksternal</a></li>
     <li><a id="nav-page-pediatric" onclick="switchPage('page-pediatric')"><i class="fa-solid fa-calculator" style="color:#6ee7b7;"></i> Formula Anestesi Pediatric</a></li>
     <li id="menuAdminArea" style="display:none; margin-top:20px; border-top:1px solid var(--border); padding-top:10px;">
@@ -886,6 +887,33 @@
           <button class="btn btn-success" style="padding:6px 10px; font-size:11px;" onclick="copyVisiteCapacityToWA()"><i class="fa-solid fa-copy"></i> Salin ke WA</button>
         </div>
         <div id="visiteCapacityWAPreview" style="font-size:12px; line-height:1.7; color:#e2e8f0; white-space:pre-line; background:rgba(15,23,42,0.5); border-radius:12px; padding:14px; min-height:60px;">Upload data stase residen dahulu untuk menghasilkan ringkasan.</div>
+      </div>
+
+      <!-- RIWAYAT KAPASITAS VISITE — REKONSTRUKSI dari data historis yang SUDAH ADA
+           (tugas_luar_cot_log/{tanggal}, daily_patient_log/{tanggal}, roster periode stase yang
+           mencakup tanggal tsb), BUKAN snapshot baru yang mulai disimpan sejak fitur ini dibuat.
+           Konsekuensinya: tanggal yang lebih lama dari data pendukung di atas (mis. sebelum jadwal
+           RS Mitra/Pelamonia diisi, atau sebelum tugas_luar_cot_log dipakai rutin) bisa menampilkan
+           hasil yang KURANG AKURAT — makanya selalu ada catatan status di visiteHistNote. -->
+      <h4 class="collapsible-header" onclick="toggleCollapseCard(this)" style="font-size:11.5px; color:#fda4af; margin:0 0 10px 0; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:rgba(251,113,133,0.08); padding:8px 12px; border-radius:10px;">
+        <span><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Kapasitas Visite (Lihat Tanggal Lampau)</span>
+        <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:11px;"></i>
+      </h4>
+      <div class="collapsible-body" style="display:none;">
+        <p style="font-size:9.5px; color:var(--text-light); margin:0 0 8px 0;">Dihitung ulang (rekonstruksi) dari roster stase periode yang berlaku pada tanggal tsb, ditambah data Tugas Luar COT &amp; log pasien harian pada tanggal yang sama. Bukan snapshot tersimpan — hasil bergantung pada kelengkapan data historis tanggal tersebut.</p>
+        <div style="display:flex; gap:8px; align-items:flex-end; margin-bottom:10px; flex-wrap:wrap;">
+          <div class="form-group" style="margin:0;"><label style="font-size:9.5px;">Pilih Tanggal</label><input type="date" id="visiteHistDateInput" class="login-input" style="margin:0;"></div>
+          <button class="btn btn-warning" style="padding:8px 14px; font-size:11px; font-weight:800;" onclick="reconstructVisiteCapacityForDate(document.getElementById('visiteHistDateInput').value)"><i class="fa-solid fa-magnifying-glass"></i> Tampilkan</button>
+        </div>
+        <div id="visiteHistNote" style="font-size:10.5px; margin-bottom:8px; color:var(--text-light);">Pilih tanggal lalu klik "Tampilkan".</div>
+        <div id="visiteHistSummaryLine" style="font-size:12px; font-weight:700; margin-bottom:10px;"></div>
+        <div style="overflow-x:auto; margin-bottom:12px;">
+          <table class="bantex-table" style="text-align:center; font-size:11px;">
+            <thead><tr><th style="text-align:left;">Divisi</th><th>Residen di Wahidin COT (Stase)</th><th>Ditarik Mendadak</th><th>Kapasitas Bersih COT</th><th>OK Aktif</th><th>Status</th></tr></thead>
+            <tbody id="visiteHistTableBody"><tr><td colspan="6" style="color:#888;">Belum ada tanggal dipilih.</td></tr></tbody>
+          </table>
+        </div>
+        <div id="visiteHistAlertBox"></div>
       </div>
     </div>
   </div>
@@ -1601,6 +1629,54 @@
     </div>
   </div>
 
+  <!-- ================= PAGE: RIWAYAT HARIAN (BUKA TANGGAL) =================
+       "Mesin waktu" per-hari: daily_patient_log SUDAH tersimpan harian sejak lama, tapi sebelumnya
+       hanya dipakai untuk agregat (grafik tren Kebijakan, AutoML) — tidak ada cara membuka SATU
+       tanggal spesifik dan melihat persis kondisinya. Halaman ini menutup celah itu. Dibangun dalam
+       bentuk TAB supaya domain data lain (Absensi Monre, Kapasitas Visite, IKVE per-tanggal) bisa
+       ditambahkan sebagai tab baru nanti tanpa membongkar halaman ini dari awal — prioritas pertama
+       (dikonfirmasi eksplisit): Daftar Pasien & OK per tanggal. -->
+  <div id="page-riwayat" class="tab-page">
+    <div class="card" style="border-top:4px solid #fbbf24; background:linear-gradient(135deg, rgba(30,41,59,0.85) 0%, rgba(60,50,10,0.35) 100%);">
+      <div class="card-title" style="color:#fde68a;"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Harian — Buka Tanggal Manapun</div>
+      <p style="font-size:11px; color:var(--text-light); margin:0 0 14px 0;">Membuka kondisi data PERSIS pada satu tanggal di masa lalu — dihitung ulang dari <code>daily_patient_log</code> tersimpan (bukan tabel terpisah, supaya angkanya selalu konsisten dengan Dashboard/Analisis & Basis Kebijakan/AutoML yang memakai sumber data yang sama).</p>
+
+      <div style="display:flex; gap:10px; align-items:end; flex-wrap:wrap; margin-bottom:14px;">
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:10px;">Pilih Tanggal</label>
+          <input type="date" id="riwayatTanggalPicker" class="login-input" style="margin:0;" onchange="loadRiwayatHarianTanggal()">
+        </div>
+        <button class="btn btn-secondary" style="padding:10px 14px; font-size:11px;" onclick="riwayatGeserTanggal(-1)"><i class="fa-solid fa-chevron-left"></i> Hari Sebelumnya</button>
+        <button class="btn btn-secondary" style="padding:10px 14px; font-size:11px;" onclick="riwayatGeserTanggal(1)">Hari Berikutnya <i class="fa-solid fa-chevron-right"></i></button>
+        <button class="btn btn-primary" style="padding:10px 14px; font-size:11px;" onclick="riwayatKeHariIni()"><i class="fa-solid fa-calendar-day"></i> Hari Ini</button>
+      </div>
+
+      <div id="riwayatSummaryLine" style="font-size:12px; font-weight:700; margin-bottom:12px;"></div>
+
+      <!-- Mini grafik tren 14 hari di sekitar tanggal terpilih, dengan tanggal terpilih ditandai beda
+           warna — bagian "grafik tren diperluas" dari permintaan, tetap terhubung ke tanggal yang
+           sedang dibuka (bukan grafik terpisah tak berkaitan). -->
+      <canvas id="chartRiwayatTren" height="90" style="margin-bottom:16px;"></canvas>
+
+      <div style="overflow-x:auto;">
+        <table class="bantex-table" style="font-size:11px;">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Nama / RM</th>
+              <th>Divisi</th>
+              <th>Residen</th>
+              <th>DPJP Anestesi</th>
+              <th>Jam Mulai–Selesai</th>
+              <th>Room (OK)</th>
+              <th>Status Laporan</th>
+            </tr>
+          </thead>
+          <tbody id="riwayatPasienTableBody"><tr><td colspan="7" style="text-align:center; color:var(--text-light);">Pilih tanggal di atas untuk membuka riwayat.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= PAGE 8: LINK EXTERNAL ================= -->
   <div id="page-link" class="tab-page">
     <div class="card">
@@ -2127,6 +2203,7 @@
     if (pageId === 'page-dashboardsaya' && currentUserRole === 'residen') renderResidentPersonalDashboard();
     if (pageId === 'page-supervisidpjp' && currentUserRole === 'konsulen') renderDPJPSupervisionDashboard();
     if (pageId === 'page-pediatric') populatePediatricPatientPicker();
+    if (pageId === 'page-riwayat' && !riwayatCurrentDate) riwayatKeHariIni();
   }
 
   // FIREBASE CONFIGURATION
@@ -3960,6 +4037,104 @@
   // Aturan Visite Lockout: jika Kapasitas Bersih COT <= jumlah OK aktif divisi tsb (setiap residen
   // yang tersisa habis terserap ke meja OK, tidak ada yang bisa merespons visite emergency ATAU
   // menyelesaikan laporan visite elektif sebelum jam 5 sore) -> flag BLOCKOUT.
+  // ================= MESIN PERHITUNGAN KAPASITAS VISITE (SATU SUMBER KEBENARAN) =================
+  // Fungsi murni (tanpa efek samping DOM) — dipakai baik untuk tampilan LIVE hari ini
+  // (renderVisiteCapacityAnalysis) maupun REKONSTRUKSI tanggal riwayat (reconstructVisiteCapacityForDate).
+  // Sengaja diekstrak jadi satu tempat SUPAYA rumusnya tidak bisa diam-diam berbeda antara live &
+  // riwayat — pelajaran dari bug isBatalStatus yang sebelumnya sempat terduplikasi di 2 tempat berbeda.
+  function computeVisiteCapacityTable(effectiveStaseList, tarikMendadakArr, patientListForDate) {
+    const divisiSet = new Set();
+    effectiveStaseList.forEach(r => { if (r.divisi) divisiSet.add(r.divisi); });
+    (patientListForDate||[]).forEach(p => { if (p.divisi && p.divisi !== '-') divisiSet.add(p.divisi.trim()); });
+
+    const rows = [];
+    const lockoutDivisi = [];
+    const statusCounts = { aman: 0, rawan: 0, blockout: 0, tidakDiketahui: 0 };
+
+    Array.from(divisiSet).sort().forEach(divisi => {
+      const anggotaCOT = effectiveStaseList.filter(r => r.divisi === divisi && r.lokasiTugas === 'Wahidin_COT');
+      const totalWahidinCOT = anggotaCOT.length;
+      const mendadakDivisiIni = tarikMendadakArr.filter(t => t.divisi === divisi && anggotaCOT.some(a => a.inisial === t.inisial));
+      const ditarikMendadak = mendadakDivisiIni.length;
+      const kapasitasBersih = Math.max(0, totalWahidinCOT - ditarikMendadak);
+
+      const kasusDivisi = (patientListForDate||[]).filter(p => (p.divisi||'').trim() === divisi && !isTrueBatalStatus(p.statusCatatan));
+      const okRooms = new Set(kasusDivisi.map(p => (p.ok||'').trim()).filter(x => x));
+      const okAktifKnown = okRooms.size > 0;
+      const jumlahOKAktif = okRooms.size;
+
+      let status, statusColor;
+      if (totalWahidinCOT === 0) {
+        status = 'Tidak Ada Residen COT'; statusColor = 'var(--text-light)'; statusCounts.tidakDiketahui++;
+      } else if (!okAktifKnown) {
+        status = 'Data OK Belum Diisi'; statusColor = 'var(--text-light)'; statusCounts.tidakDiketahui++;
+      } else if (kapasitasBersih <= jumlahOKAktif) {
+        status = '🚨 BLOCKOUT'; statusColor = 'var(--danger)'; statusCounts.blockout++;
+        lockoutDivisi.push({ divisi, totalWahidinCOT, ditarikMendadak, kapasitasBersih, jumlahOKAktif, anggotaCOT, mendadakInisial: mendadakDivisiIni.map(m=>m.inisial) });
+      } else if (kapasitasBersih - jumlahOKAktif === 1) {
+        status = '🟡 Rawan (Margin 1 Residen)'; statusColor = 'var(--warning)'; statusCounts.rawan++;
+      } else {
+        status = '✅ Aman'; statusColor = 'var(--success)'; statusCounts.aman++;
+      }
+
+      rows.push({ divisi, totalWahidinCOT, ditarikMendadak, kapasitasBersih, okAktifKnown, jumlahOKAktif, status, statusColor });
+    });
+
+    return { divisiSet, rows, lockoutDivisi, statusCounts };
+  }
+
+  function visiteCapacityRowsToHTML(rows) {
+    return rows.map(r => `<tr>
+        <td style="text-align:left;">${r.divisi}</td>
+        <td>${r.totalWahidinCOT}</td>
+        <td>${r.ditarikMendadak}</td>
+        <td style="font-weight:800;">${r.kapasitasBersih}</td>
+        <td>${r.okAktifKnown ? r.jumlahOKAktif : '-'}</td>
+        <td style="color:${r.statusColor}; font-weight:700;">${r.status}</td>
+      </tr>`).join('');
+  }
+
+  // contextLabel = "hari ini" (live) atau "pada [tanggal]" (riwayat) — supaya kalimatnya tetap masuk
+  // akal dipakai di kedua konteks tanpa harus menulis dua versi terpisah.
+  function visiteCapacitySummaryToHTML(statusCounts, totalDivisi, contextLabel) {
+    if (statusCounts.blockout > 0) {
+      return `🚨 <span style="color:var(--danger);">${statusCounts.blockout} dari ${totalDivisi} divisi BLOCKOUT ${contextLabel}</span> — deadline laporan Visite 17:00 WITA terancam.${statusCounts.rawan ? ` ${statusCounts.rawan} divisi lain bermargin tipis (1 residen).` : ''}`;
+    } else if (statusCounts.rawan > 0) {
+      return `🟡 <span style="color:var(--warning);">${statusCounts.rawan} dari ${totalDivisi} divisi bermargin tipis (1 residen)</span> ${contextLabel} — belum kritis, tapi rawan kalau ada penarikan mendadak tambahan. ${statusCounts.aman} divisi lain aman.`;
+    } else if (statusCounts.aman > 0) {
+      return `✅ <span style="color:var(--success);">Semua ${statusCounts.aman} divisi dengan data lengkap dalam kondisi aman</span> ${contextLabel}.${statusCounts.tidakDiketahui ? ` (${statusCounts.tidakDiketahui} divisi belum bisa dinilai — data OK/roster belum lengkap.)` : ''}`;
+    }
+    return `ℹ️ Belum ada divisi yang bisa dinilai ${contextLabel} — data OK aktif dan/atau roster COT belum lengkap untuk ${totalDivisi} divisi yang terdeteksi.`;
+  }
+
+  // Rekomendasi Anchor Visite & Emergency untuk tiap divisi BLOCKOUT: 1 residen Middle (diutamakan)
+  // atau Junior dari anggota Wahidin_COT divisi tsb yang BELUM tercatat ditarik mendadak — dikunci di
+  // luar OK mulai pukul 14:00 WITA supaya tetap ada yang merespons visite emergency & mengejar laporan
+  // visite elektif ke DPJP sebelum jam 5 sore. Sisa meja OK yang kosong akibat penguncian ini WAJIB
+  // di-cover residen Float Umum lintas divisi — ini rekomendasi koordinasi manual untuk Chief, BUKAN
+  // penugasan otomatis (aplikasi belum punya data pool "Float Umum").
+  function buildVisiteAnchorRecommendations(lockoutDivisi) {
+    return lockoutDivisi.map(d => {
+      const kandidat = d.anggotaCOT.filter(a => !d.mendadakInisial.includes(a.inisial) && (a.tingkat === 'Middle' || a.tingkat === 'Junior'));
+      const anchor = kandidat.find(a => a.tingkat === 'Middle') || kandidat[0] || null;
+      return { divisi: d.divisi, anchor, ...d };
+    });
+  }
+
+  function visiteCapacityAlertToHTML(lockoutDivisi, contextLabelUpper) {
+    if (lockoutDivisi.length === 0) return '';
+    const anchorRecommendations = buildVisiteAnchorRecommendations(lockoutDivisi);
+    return anchorRecommendations.map(d => `
+      <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.35); border-radius:12px; padding:12px; margin-bottom:10px;">
+        <div style="color:var(--danger); font-weight:800; font-size:12px; margin-bottom:6px;">🚨 ERROR: VISITE & DEADLINE JAM 5 SORE TERANCAM (BLOCKOUT) — Divisi ${d.divisi} ${contextLabelUpper}</div>
+        <div style="font-size:11px; color:#e2e8f0; line-height:1.6;">
+          Kapasitas Bersih COT (${d.kapasitasBersih}) ≤ Jumlah OK Aktif (${d.jumlahOKAktif}). Semua residen tersisa akan habis terserap ke meja OK — tidak ada yang bisa merespons visite emergency atau menyelesaikan laporan visite elektif sebelum 17:00 WITA.<br>
+          <b>Rekomendasi:</b> ${d.anchor ? `Tunjuk <b>${d.anchor.nama} (${d.anchor.inisial}, ${d.anchor.tingkat})</b> sebagai <b>Anchor Visite & Emergency</b>, dikunci di luar OK mulai pukul 14:00 WITA.` : 'Tidak ada kandidat Junior/Middle tersedia di divisi ini untuk dijadikan Anchor — perlu penambahan residen Float Umum dari divisi lain.'} Meja OK yang kosong akibat penguncian ini wajib di-cover Residen Float Umum lintas divisi.
+        </div>
+      </div>
+    `).join('');
+  }
+
   function renderVisiteCapacityAnalysis() {
     const tbody = document.getElementById('visiteCapacityTableBody');
     const alertBox = document.getElementById('visiteLockoutAlertBox');
@@ -3981,111 +4156,24 @@
     // Wahidin_COT pada divisi spesialisasi aslinya — bukan lagi selalu dianggap 100% eksternal.
     const todayStr = todayDateStrWITA();
     const effectiveStaseList = buildEffectiveStaseListForDate(residenStaseCurrent, todayStr);
-
-    // Divisi dari roster stase EFEKTIF (Wahidin_COT saja yang relevan untuk kapasitas lantai COT)
-    // digabung dengan divisi yang punya kasus terjadwal (activeSheetData) — supaya divisi yang ada
-    // kasus tapi (secara data) belum ada residen ber-stase COT ikut ditandai, bukan diam-diam hilang.
-    const divisiSet = new Set();
-    effectiveStaseList.forEach(r => { if (r.divisi) divisiSet.add(r.divisi); });
-    (activeSheetData||[]).forEach(p => { if (p.divisi && p.divisi !== '-') divisiSet.add(p.divisi.trim()); });
-
     const tarikMendadakArr = Object.values(tugasLuarCOTToday);
-    const rows = [];
-    const lockoutDivisi = [];
-    const statusCounts = { aman: 0, rawan: 0, blockout: 0, tidakDiketahui: 0 };
 
-    Array.from(divisiSet).sort().forEach(divisi => {
-      const anggotaCOT = effectiveStaseList.filter(r => r.divisi === divisi && r.lokasiTugas === 'Wahidin_COT');
-      const totalWahidinCOT = anggotaCOT.length;
-      const mendadakDivisiIni = tarikMendadakArr.filter(t => t.divisi === divisi && anggotaCOT.some(a => a.inisial === t.inisial));
-      const ditarikMendadak = mendadakDivisiIni.length;
-      const kapasitasBersih = Math.max(0, totalWahidinCOT - ditarikMendadak);
+    const { divisiSet, rows, lockoutDivisi, statusCounts } = computeVisiteCapacityTable(effectiveStaseList, tarikMendadakArr, activeSheetData);
 
-      const kasusDivisi = (activeSheetData||[]).filter(p => (p.divisi||'').trim() === divisi && !isTrueBatalStatus(p.statusCatatan));
-      const okRooms = new Set(kasusDivisi.map(p => (p.ok||'').trim()).filter(x => x));
-      const okAktifKnown = okRooms.size > 0;
-      const jumlahOKAktif = okRooms.size;
-
-      let status, statusColor;
-      if (totalWahidinCOT === 0) {
-        status = 'Tidak Ada Residen COT'; statusColor = 'var(--text-light)'; statusCounts.tidakDiketahui++;
-      } else if (!okAktifKnown) {
-        status = 'Data OK Belum Diisi'; statusColor = 'var(--text-light)'; statusCounts.tidakDiketahui++;
-      } else if (kapasitasBersih <= jumlahOKAktif) {
-        status = '🚨 BLOCKOUT'; statusColor = 'var(--danger)'; statusCounts.blockout++;
-        lockoutDivisi.push({ divisi, totalWahidinCOT, ditarikMendadak, kapasitasBersih, jumlahOKAktif, anggotaCOT, mendadakInisial: mendadakDivisiIni.map(m=>m.inisial) });
-      } else if (kapasitasBersih - jumlahOKAktif === 1) {
-        status = '🟡 Rawan (Margin 1 Residen)'; statusColor = 'var(--warning)'; statusCounts.rawan++;
-      } else {
-        status = '✅ Aman'; statusColor = 'var(--success)'; statusCounts.aman++;
-      }
-
-      rows.push(`<tr>
-        <td style="text-align:left;">${divisi}</td>
-        <td>${totalWahidinCOT}</td>
-        <td>${ditarikMendadak}</td>
-        <td style="font-weight:800;">${kapasitasBersih}</td>
-        <td>${okAktifKnown ? jumlahOKAktif : '-'}</td>
-        <td style="color:${statusColor}; font-weight:700;">${status}</td>
-      </tr>`);
-    });
-
-    tbody.innerHTML = rows.join('');
-
-    // Kalimat kesimpulan otomatis satu baris — supaya bisa ditangkap sekilas ("indikator") tanpa
-    // harus membaca seluruh tabel/warna status satu per satu.
-    if (summaryEl) {
-      const totalDivisi = divisiSet.size;
-      if (statusCounts.blockout > 0) {
-        summaryEl.innerHTML = `🚨 <span style="color:var(--danger);">${statusCounts.blockout} dari ${totalDivisi} divisi BLOCKOUT hari ini</span> — deadline laporan Visite 17:00 WITA terancam, lihat rekomendasi Anchor di bawah.${statusCounts.rawan ? ` ${statusCounts.rawan} divisi lain bermargin tipis (1 residen).` : ''}`;
-      } else if (statusCounts.rawan > 0) {
-        summaryEl.innerHTML = `🟡 <span style="color:var(--warning);">${statusCounts.rawan} dari ${totalDivisi} divisi bermargin tipis (1 residen)</span> — belum kritis, tapi rawan kalau ada penarikan mendadak tambahan. ${statusCounts.aman} divisi lain aman.`;
-      } else if (statusCounts.aman > 0) {
-        summaryEl.innerHTML = `✅ <span style="color:var(--success);">Semua ${statusCounts.aman} divisi dengan data lengkap dalam kondisi aman</span> hari ini.${statusCounts.tidakDiketahui ? ` (${statusCounts.tidakDiketahui} divisi belum bisa dinilai — data OK/roster belum lengkap.)` : ''}`;
-      } else {
-        summaryEl.innerHTML = `ℹ️ Belum ada divisi yang bisa dinilai — data OK aktif dan/atau roster COT belum lengkap untuk ${totalDivisi} divisi yang terdeteksi.`;
-      }
-    }
-
-    // Rekomendasi Anchor Visite & Emergency untuk tiap divisi BLOCKOUT: 1 residen Middle (diutamakan)
-    // atau Junior dari anggota Wahidin_COT divisi tsb yang BELUM tercatat ditarik mendadak hari ini —
-    // dikunci di luar OK mulai pukul 14:00 WITA supaya tetap ada yang merespons visite emergency &
-    // mengejar laporan visite elektif ke DPJP sebelum jam 5 sore. Sisa meja OK yang kosong akibat
-    // penguncian ini WAJIB di-cover residen Float Umum lintas divisi — ini rekomendasi koordinasi
-    // manual untuk Chief, BUKAN penugasan otomatis (aplikasi belum punya data pool "Float Umum").
-    const anchorRecommendations = [];
-    lockoutDivisi.forEach(d => {
-      const kandidat = d.anggotaCOT.filter(a => !d.mendadakInisial.includes(a.inisial) && (a.tingkat === 'Middle' || a.tingkat === 'Junior'));
-      const anchor = kandidat.find(a => a.tingkat === 'Middle') || kandidat[0] || null;
-      anchorRecommendations.push({ divisi: d.divisi, anchor, ...d });
-    });
-
-    if (alertBox) {
-      alertBox.innerHTML = lockoutDivisi.length === 0 ? '' : anchorRecommendations.map(d => `
-        <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.35); border-radius:12px; padding:12px; margin-bottom:10px;">
-          <div style="color:var(--danger); font-weight:800; font-size:12px; margin-bottom:6px;">🚨 ERROR: VISITE & DEADLINE JAM 5 SORE TERANCAM (BLOCKOUT) — Divisi ${d.divisi}</div>
-          <div style="font-size:11px; color:#e2e8f0; line-height:1.6;">
-            Kapasitas Bersih COT (${d.kapasitasBersih}) ≤ Jumlah OK Aktif (${d.jumlahOKAktif}). Semua residen tersisa akan habis terserap ke meja OK — tidak ada yang bisa merespons visite emergency atau menyelesaikan laporan visite elektif sebelum 17:00 WITA.<br>
-            <b>Rekomendasi:</b> ${d.anchor ? `Tunjuk <b>${d.anchor.nama} (${d.anchor.inisial}, ${d.anchor.tingkat})</b> sebagai <b>Anchor Visite & Emergency</b>, dikunci di luar OK mulai pukul 14:00 WITA.` : 'Tidak ada kandidat Junior/Middle tersedia di divisi ini untuk dijadikan Anchor — perlu penambahan residen Float Umum dari divisi lain.'} Meja OK yang kosong akibat penguncian ini wajib di-cover Residen Float Umum lintas divisi.
-          </div>
-        </div>
-      `).join('');
-    }
+    tbody.innerHTML = visiteCapacityRowsToHTML(rows);
+    if (summaryEl) summaryEl.innerHTML = visiteCapacitySummaryToHTML(statusCounts, divisiSet.size, 'hari ini');
+    if (alertBox) alertBox.innerHTML = visiteCapacityAlertToHTML(lockoutDivisi, '(Hari Ini)');
 
     // ================= STRING GENERATOR "SALIN KE WA" =================
+    const anchorRecommendations = buildVisiteAnchorRecommendations(lockoutDivisi);
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Makassar' }));
     const tglLabel = now.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
     let waText = `📊 *ANALISIS BEBAN KERJA & KESIAPAN VISITE — CAMS 2026*\n${tglLabel} (Update ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} WITA)\n\n`;
     waText += `Total ${staseList.length} residen ter-data pada roster stase aktif, mencakup ${divisiSet.size} divisi.\n\n`;
     waText += `*RINGKASAN KAPASITAS PER DIVISI:*\n`;
-    Array.from(divisiSet).sort().forEach(divisi => {
-      const anggotaCOT = effectiveStaseList.filter(r => r.divisi === divisi && r.lokasiTugas === 'Wahidin_COT');
-      const mendadakDivisiIni = tarikMendadakArr.filter(t => t.divisi === divisi && anggotaCOT.some(a => a.inisial === t.inisial));
-      const kapasitasBersih = Math.max(0, anggotaCOT.length - mendadakDivisiIni.length);
-      const kasusDivisi = (activeSheetData||[]).filter(p => (p.divisi||'').trim() === divisi && !isTrueBatalStatus(p.statusCatatan));
-      const okRooms = new Set(kasusDivisi.map(p => (p.ok||'').trim()).filter(x => x));
-      const tanda = anggotaCOT.length === 0 ? '⬜' : (okRooms.size === 0 ? '⬜' : (kapasitasBersih <= okRooms.size ? '🚨' : (kapasitasBersih - okRooms.size === 1 ? '🟡' : '✅')));
-      waText += `${tanda} ${divisi}: ${kapasitasBersih} residen bersih vs ${okRooms.size || '?'} OK aktif\n`;
+    rows.forEach(r => {
+      const tanda = r.totalWahidinCOT === 0 ? '⬜' : (!r.okAktifKnown ? '⬜' : (r.kapasitasBersih <= r.jumlahOKAktif ? '🚨' : (r.kapasitasBersih - r.jumlahOKAktif === 1 ? '🟡' : '✅')));
+      waText += `${tanda} ${r.divisi}: ${r.kapasitasBersih} residen bersih vs ${r.okAktifKnown ? r.jumlahOKAktif : '?'} OK aktif\n`;
     });
 
     if (lockoutDivisi.length > 0) {
@@ -4101,6 +4189,72 @@
 
     lastVisiteCapacityWAText = waText;
     if (waPreviewEl) waPreviewEl.innerText = waText;
+  }
+
+  // ================= RIWAYAT: REKONSTRUKSI KAPASITAS VISITE UNTUK TANGGAL LAMPAU =================
+  // Modul Kapasitas Visite selalu dihitung LIVE dari data hari berjalan — tidak pernah disimpan
+  // sebagai snapshot harian. Untuk tanggal di masa lalu, dihitung ULANG (bukan dibaca dari cache)
+  // memakai data historis yang MEMANG sudah tersimpan per tanggal: roster periode yang berlaku pada
+  // tanggal itu (residen_stase_periods), catatan Ditarik Mendadak hari itu (tugas_luar_cot_log/{tgl}),
+  // dan data pasien/OK hari itu (daily_patient_log/{tgl}) — memakai fungsi murni yang SAMA dengan
+  // tampilan live (computeVisiteCapacityTable) supaya rumusnya tidak pernah berbeda.
+  // KETERBATASAN JUJUR: akurat untuk tanggal SEJAK fitur Ditarik Mendadak & Jadwal RS Mitra mulai
+  // dipakai. Tanggal sebelum itu (atau sebelum roster/riwayat pasien pernah diupload) akan
+  // menunjukkan hasil TIDAK LENGKAP — selalu ditandai jelas, tidak diam-diam dianggap "0"/aman.
+  function findStasePeriodRosterForDate(dateStr) {
+    const periods = Object.values(allStasePeriods || {});
+    const matching = periods.filter(p => p.periodeMulai <= dateStr && dateStr <= p.periodeSelesai);
+    if (matching.length === 0) return null;
+    matching.sort((a,b) => (b.uploadedAt||'').localeCompare(a.uploadedAt||''));
+    return matching[0].roster || {};
+  }
+
+  function reconstructVisiteCapacityForDate(dateStr) {
+    const tbody = document.getElementById('visiteHistTableBody');
+    const alertBox = document.getElementById('visiteHistAlertBox');
+    const summaryEl = document.getElementById('visiteHistSummaryLine');
+    const noteEl = document.getElementById('visiteHistNote');
+    if (!tbody) return;
+    if (!dateStr) { if (noteEl) noteEl.innerText = 'Pilih tanggal terlebih dahulu.'; return; }
+
+    const todayStr = todayDateStrWITA();
+    if (dateStr > todayStr) { if (noteEl) noteEl.innerText = '⚠️ Tidak bisa menampilkan tanggal di masa depan.'; tbody.innerHTML=''; if(alertBox) alertBox.innerHTML=''; if(summaryEl) summaryEl.innerHTML=''; return; }
+
+    const rosterForDate = findStasePeriodRosterForDate(dateStr);
+    if (!rosterForDate) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">Tidak ada roster periode stase yang mencakup tanggal ini.</td></tr>';
+      if (alertBox) alertBox.innerHTML = '';
+      if (summaryEl) summaryEl.innerHTML = '';
+      if (noteEl) noteEl.innerText = '⚠️ Data tidak lengkap: belum ada roster stase yang diupload untuk periode yang mencakup tanggal ini.';
+      return;
+    }
+
+    if (noteEl) noteEl.innerText = '🔍 Menghitung ulang dari data historis...';
+    const effectiveStaseListForDate = buildEffectiveStaseListForDate(rosterForDate, dateStr);
+
+    Promise.all([
+      db.ref(`tugas_luar_cot_log/${dateStr}`).once('value'),
+      db.ref(`daily_patient_log/${dateStr}`).once('value')
+    ]).then(([tugasSnap, logSnap]) => {
+      const tarikMendadakArr = Object.values(tugasSnap.val() || {});
+      const patientListForDate = ((logSnap.val() || {}).pasien) || [];
+      const hasPatientLog = logSnap.exists();
+
+      const { divisiSet, rows, lockoutDivisi, statusCounts } = computeVisiteCapacityTable(effectiveStaseListForDate, tarikMendadakArr, patientListForDate);
+      const tglLabel = new Date(dateStr + 'T00:00:00').toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+      tbody.innerHTML = rows.length ? visiteCapacityRowsToHTML(rows) : '<tr><td colspan="6" style="color:#888;">Tidak ada divisi terdeteksi untuk tanggal ini.</td></tr>';
+      if (summaryEl) summaryEl.innerHTML = visiteCapacitySummaryToHTML(statusCounts, divisiSet.size, `pada ${tglLabel}`);
+      if (alertBox) alertBox.innerHTML = visiteCapacityAlertToHTML(lockoutDivisi, `(${tglLabel})`);
+      if (noteEl) {
+        noteEl.innerText = hasPatientLog
+          ? `📅 Menampilkan REKONSTRUKSI ${tglLabel} — bukan data live hari ini. Tombol Upload/Catat Penarikan Mendadak tidak berlaku untuk tanggal lampau.`
+          : `📅 Menampilkan REKONSTRUKSI ${tglLabel}. ⚠️ Data pasien/OK aktif (daily_patient_log) untuk tanggal ini TIDAK ditemukan — kolom "OK Aktif" & status kemungkinan tidak lengkap/tidak akurat.`;
+      }
+    }).catch(ex => {
+      console.error('Gagal merekonstruksi Kapasitas Visite tanggal lampau:', ex);
+      if (noteEl) noteEl.innerText = '⚠️ Gagal memuat data historis: ' + (ex.message || ex);
+    });
   }
 
   function copyVisiteCapacityToWA() {
@@ -5454,6 +5608,8 @@ Ruangan: [Ruangan Asal]`;
   }
 
   let allSheetsData={}, activeSheetData=[], currentSheetName="Sheet1", chartDPJPInstance, chartOperatorInstance, chartStatusInstance, chartBurnoutInstance, chartDivisiInstance;
+  // Halaman "Riwayat Harian" — tanggal yang sedang dibuka & instance mini-chart trennya.
+  let riwayatCurrentDate = null, chartRiwayatTrenInstance = null;
   let mobilePatientView = 'grid'; // 'grid' = 4 kotak ala handphone (default) | 'detail' = list lengkap
 
   function setMobilePatientView(mode) {
@@ -5692,6 +5848,56 @@ Ruangan: [Ruangan Asal]`;
     const sum = computePediatricAutoSummary(p.tglLahirAnak, parseFloat(p.bbAnak));
     if (!sum) return '';
     return ` <span title="Kategori: ${sum.kategoriUsia} | Usia: ${sum.umurTahun} th | EBV: ${sum.ebv} cc | ETT: ${sum.ettSize} (kedalaman ${sum.ettDepth})" style="display:inline-block; background:rgba(52,211,153,0.18); color:#6ee7b7; border:1px solid rgba(52,211,153,0.4); border-radius:6px; padding:1px 6px; font-size:9px; font-weight:800; margin-left:4px; vertical-align:middle; white-space:nowrap;"><i class="fa-solid fa-baby"></i> ${sum.kategoriUsia} · EBV ${sum.ebv}cc</span>`;
+  }
+
+  // ================= TANDA KHUSUS PADA KOTAK PASIEN =================
+  // 1) patientStageBadgesHTML: tanda per-tahapan waktu (Mulai/Selesai/Masuk PACU/Keluar PACU) —
+  //    sebelumnya hanya terlihat kalau membuka/scan tiap kotak input jam satu-satu di kotak pasien.
+  //    Sekarang tiap tahap yang SUDAH terisi diberi tanda centang hijau, yang BELUM diberi lingkaran
+  //    kosong abu-abu — bisa dipindai sekilas dari luar kotak tanpa membuka form.
+  // 2) patientStatusBadgesHTML: tanda status yang SUDAH diketahui sejak Excel Bantex diimpor —
+  //    statusCatatan (Batal/Optimalisasi, lihat isTrueBatalStatus/isOptimalisasiStatus) dan
+  //    tujuanRawat (ICU/HCU/NICU/PICU, lihat detectICUCategory — field ini SUDAH diparse otomatis
+  //    dari kolom "Tujuan Rawat"/"ICU/HCU" pada import Excel, lihat handleExcelImport()). Kotak
+  //    pasien sebelumnya hanya menandai ini lewat warna border kartu (status-merah/status-
+  //    optimalisasi) — tidak menandai ICU sama sekali dan warna saja sulit dipindai cepat/tidak
+  //    ramah buta warna, jadi ditambahkan label teks eksplisit.
+  function patientStageBadgesHTML(p, compact) {
+    const stages = [
+      { key: 'mulai', label: 'Mulai', icon: 'fa-solid fa-play' },
+      { key: 'selesai', label: 'Selesai', icon: 'fa-solid fa-flag-checkered' },
+      { key: 'masukPacu', label: 'Msk PACU', icon: 'fa-solid fa-right-to-bracket' },
+      { key: 'keluarPacu', label: 'Klr PACU', icon: 'fa-solid fa-right-from-bracket' },
+    ];
+    const chips = stages.map(s => {
+      const val = (p[s.key] || '').trim();
+      const filled = val !== '';
+      const color = filled ? '#34d399' : '#475569';
+      const markIcon = filled ? 'fa-solid fa-circle-check' : 'fa-regular fa-circle';
+      const title = `${s.label}${filled ? ': ' + val : ' — belum'}`;
+      if (compact) {
+        return `<i class="${markIcon}" title="${title}" style="font-size:9px; color:${color};"></i>`;
+      }
+      const bg = filled ? 'rgba(16,185,129,0.18)' : 'rgba(100,116,139,0.12)';
+      const border = filled ? 'rgba(16,185,129,0.4)' : 'rgba(100,116,139,0.3)';
+      return `<span title="${title}" style="display:inline-flex; align-items:center; gap:3px; background:${bg}; color:${color}; border:1px solid ${border}; border-radius:6px; padding:1px 6px; font-size:9px; font-weight:700; white-space:nowrap;"><i class="${markIcon}" style="font-size:8px;"></i> ${s.label}${filled ? ' ' + val : ''}</span>`;
+    }).join('');
+    return `<div style="display:flex; flex-wrap:wrap; gap:${compact ? '4px' : '4px'}; margin:${compact ? '3px 0 0 0' : '4px 0'};">${chips}</div>`;
+  }
+
+  function patientStatusBadgesHTML(p) {
+    let badges = '';
+    const st = p.statusCatatan || '';
+    if (isTrueBatalStatus(st)) {
+      badges += ` <span title="Status (dari import/laporan): ${st}" style="display:inline-block; background:rgba(239,68,68,0.18); color:#fca5a5; border:1px solid rgba(239,68,68,0.4); border-radius:6px; padding:1px 6px; font-size:9px; font-weight:800; margin-left:4px; vertical-align:middle; white-space:nowrap;"><i class="fa-solid fa-ban"></i> BATAL</span>`;
+    } else if (isOptimalisasiStatus(st)) {
+      badges += ` <span title="Status (dari import/laporan): ${st}" style="display:inline-block; background:rgba(168,85,247,0.18); color:#d8b4fe; border:1px solid rgba(168,85,247,0.4); border-radius:6px; padding:1px 6px; font-size:9px; font-weight:800; margin-left:4px; vertical-align:middle; white-space:nowrap;"><i class="fa-solid fa-triangle-exclamation"></i> OPTIMALISASI</span>`;
+    }
+    const icuCat = detectICUCategory(p);
+    if (icuCat) {
+      badges += ` <span title="Tujuan rawat (dari import/laporan): ${icuCat}" style="display:inline-block; background:rgba(244,114,182,0.18); color:#f9a8d4; border:1px solid rgba(244,114,182,0.4); border-radius:6px; padding:1px 6px; font-size:9px; font-weight:800; margin-left:4px; vertical-align:middle; white-space:nowrap;"><i class="fa-solid fa-bed-pulse"></i> ${icuCat}</span>`;
+    }
+    return badges;
   }
 
   function savePatientDetailEditModal(idx) {
@@ -6691,8 +6897,10 @@ Ruangan: [Ruangan Asal]`;
             <span class="tile-no">#${p.no}</span>
             <div class="tile-name">${p.nama}${pediatricBadgeHTML(p)}</div>
             <div class="tile-rm">RM: ${p.rm}</div>
+            ${patientStatusBadgesHTML(p) ? `<div style="margin:2px 0;">${patientStatusBadgesHTML(p)}</div>` : ''}
             <div class="tile-row"><i class="fa-solid fa-user-doctor"></i> <b>${(p.dpjpAnestesi||'-').split('(').pop().replace(')','')}</b></div>
             <div class="tile-row"><i class="fa-solid fa-bed-pulse"></i> ${p.kamar || '-'}</div>
+            ${patientStageBadgesHTML(p, true)}
             <span class="tile-ok-badge">OK: ${p.ok || '-'}</span>
           </div>
         `;
@@ -6701,7 +6909,7 @@ Ruangan: [Ruangan Asal]`;
         <div class="patient-card ${statusClass}">
           <div class="patient-header" style="cursor:pointer;" onclick="openPatientDetailEditModal(${idx})" title="Klik untuk buka Detail Pasien (edit lengkap)">
             <div>
-              <h3 class="patient-name">#${p.no}. ${p.nama} <i class="fa-solid fa-pen-to-square" style="font-size:10px; color:var(--accent);"></i>${pediatricBadgeHTML(p)}</h3>
+              <h3 class="patient-name">#${p.no}. ${p.nama} <i class="fa-solid fa-pen-to-square" style="font-size:10px; color:var(--accent);"></i>${pediatricBadgeHTML(p)}${patientStatusBadgesHTML(p)}</h3>
               <div style="font-size:11px; color:var(--text-light); margin-top:2px;">${p.rencanaTindakan || '-'}</div>
             </div>
             <span class="patient-rm">RM: ${p.rm}</span>
@@ -6709,6 +6917,7 @@ Ruangan: [Ruangan Asal]`;
           <div style="text-align:right; margin:-4px 0 6px 0;">
             <button class="btn btn-primary" style="padding:3px 8px; font-size:9.5px;" onclick="openPatientDetailEditModal(${idx})"><i class="fa-solid fa-user-pen"></i> Detail Pasien</button>
           </div>
+          ${patientStageBadgesHTML(p, false)}
 
           <div class="patient-info-grid">
             <span><b>Div:</b> ${p.divisi}</span>
@@ -7414,6 +7623,129 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
   }
   function isSelesaiStatus(p) {
     return (p.selesai && p.selesai.trim() !== '') || (p.statusCatatan || '').toLowerCase().includes('sudah dikerja');
+  }
+
+  // ================= HALAMAN RIWAYAT HARIAN (BUKA TANGGAL MANAPUN) =================
+  // Dibangun di atas daily_patient_log/{tanggal} yang sama persis dipakai Dashboard/Analisis &
+  // Basis Kebijakan/AutoML — supaya angka yang muncul di sini TIDAK PERNAH berbeda dari halaman
+  // lain untuk tanggal yang sama. Tidak ada tabel/snapshot terpisah yang baru dibuat khusus untuk
+  // halaman ini.
+  function riwayatStatusBadge(statusCatatan) {
+    const st = statusCatatan || '';
+    if (isUrgencyStatusText(st)) return { label: st, color: '#f59e0b' };
+    if (isSelesaiStatus({ statusCatatan: st, selesai: '' }) || st.toLowerCase().includes('sudah dikerja')) return { label: st || 'Sudah Dikerja', color: '#10b981' };
+    if (isOngoingStatus(st)) return { label: st, color: '#38bdf8' };
+    if (st.trim() === '') return { label: '-', color: '#64748b' };
+    // Sisanya: batal murni atau optimalisasi (lihat isBatalStatus/isTrueBatalStatus).
+    return { label: st, color: '#ef4444' };
+  }
+
+  function riwayatKeHariIni() {
+    const picker = document.getElementById('riwayatTanggalPicker');
+    const today = todayDateStrWITA();
+    if (picker) picker.value = today;
+    loadRiwayatHarianTanggal(today);
+  }
+
+  function riwayatGeserTanggal(delta) {
+    const base = riwayatCurrentDate || todayDateStrWITA();
+    const d = new Date(base + 'T00:00:00');
+    d.setDate(d.getDate() + delta);
+    const next = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const picker = document.getElementById('riwayatTanggalPicker');
+    if (picker) picker.value = next;
+    loadRiwayatHarianTanggal(next);
+  }
+
+  // dateStr opsional: kalau tidak diisi, dibaca dari input date (dipakai oleh onchange picker).
+  function loadRiwayatHarianTanggal(dateStr) {
+    const picker = document.getElementById('riwayatTanggalPicker');
+    const tanggal = dateStr || (picker ? picker.value : '') || todayDateStrWITA();
+    if (!tanggal) return;
+    riwayatCurrentDate = tanggal;
+    if (picker && picker.value !== tanggal) picker.value = tanggal;
+
+    const summaryEl = document.getElementById('riwayatSummaryLine');
+    const tbody = document.getElementById('riwayatPasienTableBody');
+    if (summaryEl) summaryEl.innerHTML = '🔍 Memuat data...';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-light);">Memuat...</td></tr>';
+
+    db.ref(`daily_patient_log/${tanggal}`).once('value').then(snap => {
+      const data = snap.val();
+      const pasienList = (data && Array.isArray(data.pasien)) ? data.pasien : [];
+      const tglLabel = new Date(tanggal + 'T00:00:00').toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+      if (!snap.exists()) {
+        if (summaryEl) summaryEl.innerHTML = `📅 <b>${tglLabel}</b> — tidak ada data tersimpan untuk tanggal ini (kemungkinan hari libur, atau tanggal sebelum sistem mulai mencatat <code>daily_patient_log</code> harian).`;
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-light);">Tidak ada data untuk tanggal ini.</td></tr>';
+        renderRiwayatTrenChart(tanggal);
+        return;
+      }
+
+      const total = pasienList.length;
+      const selesai = pasienList.filter(p => isSelesaiStatus(p)).length;
+      const urgency = pasienList.filter(p => isUrgencyStatusText(p.statusCatatan)).length;
+      const batal = pasienList.filter(p => isTrueBatalStatus(p.statusCatatan)).length;
+      const optimalisasi = pasienList.filter(p => isOptimalisasiStatus(p.statusCatatan)).length;
+
+      if (summaryEl) {
+        summaryEl.innerHTML = `📅 <b>${tglLabel}</b> — Total ${total} pasien: `
+          + `<span style="color:#10b981;">${selesai} selesai</span>, `
+          + `<span style="color:#f59e0b;">${urgency} urgency/emergency</span>, `
+          + `<span style="color:#ef4444;">${batal} batal murni</span>, `
+          + `<span style="color:#fb923c;">${optimalisasi} tidak optimal</span>.`;
+      }
+
+      if (tbody) {
+        tbody.innerHTML = total ? pasienList.map(p => {
+          const badge = riwayatStatusBadge(p.statusCatatan);
+          return `<tr>
+            <td style="text-align:left;">${p.nama||'-'} ${p.rm ? `<span style="color:var(--text-light);">(${p.rm})</span>` : ''}</td>
+            <td>${p.divisi||'-'}</td>
+            <td>${p.residen||'-'}</td>
+            <td>${p.dpjpAnestesi||'-'}</td>
+            <td>${p.mulai||'-'} – ${p.selesai||'-'}</td>
+            <td>${p.ok||'-'}</td>
+            <td><span style="color:${badge.color}; font-weight:700;">${badge.label}</span></td>
+          </tr>`;
+        }).join('') : '<tr><td colspan="7" style="text-align:center; color:var(--text-light);">Tidak ada pasien tercatat pada tanggal ini.</td></tr>';
+      }
+
+      renderRiwayatTrenChart(tanggal);
+    }).catch(ex => {
+      if (summaryEl) summaryEl.innerHTML = `❌ Gagal memuat data: ${ex.message}`;
+      if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#ef4444;">Gagal memuat data.</td></tr>';
+    });
+  }
+
+  // Mini grafik tren 14 hari di sekitar tanggal terpilih (7 sebelum s/d 7 sesudah), tanggal yang
+  // sedang dibuka ditandai warna beda supaya posisinya dalam tren langsung terlihat.
+  function renderRiwayatTrenChart(centerDateStr) {
+    const canvas = document.getElementById('chartRiwayatTren');
+    if (!canvas || typeof Chart === 'undefined') return;
+    const center = new Date(centerDateStr + 'T00:00:00');
+    const todayStr = todayDateStrWITA();
+    const dateStrs = [];
+    for (let i = -7; i <= 7; i++) {
+      const d = new Date(center);
+      d.setDate(d.getDate() + i);
+      const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      if (ds <= todayStr) dateStrs.push(ds);
+    }
+    Promise.all(dateStrs.map(ds => db.ref(`daily_patient_log/${ds}`).once('value'))).then(snaps => {
+      const counts = snaps.map(s => {
+        const v = s.val();
+        return (v && Array.isArray(v.pasien)) ? v.pasien.length : 0;
+      });
+      const labels = dateStrs.map(ds => new Date(ds + 'T00:00:00').toLocaleDateString('id-ID', { day:'2-digit', month:'2-digit' }));
+      const colors = dateStrs.map(ds => ds === centerDateStr ? '#fbbf24' : '#475569');
+      if (chartRiwayatTrenInstance) { chartRiwayatTrenInstance.destroy(); chartRiwayatTrenInstance = null; }
+      chartRiwayatTrenInstance = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Jumlah Pasien', data: counts, backgroundColor: colors, borderRadius: 4 }] },
+        options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, grid:{ color:'rgba(255,255,255,0.05)' }, ticks:{ color:'#94a3b8', precision:0 } }, x:{ grid:{ display:false }, ticks:{ color:'#94a3b8', font:{ size:9 } } } } }
+      });
+    }).catch(() => { /* grafik tren bersifat pelengkap, gagal diam-diam tidak menghalangi tabel utama */ });
   }
 
   // ================= AutoML: MESIN STATISTIK ADAPTIF RINGAN =================
