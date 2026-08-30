@@ -792,39 +792,55 @@
            terhadap seluruh periode yang sudah diupload — lihat pickActiveStasePeriode()). -->
       <div id="staseActivePeriodBanner" style="font-size:11px; font-weight:700; padding:8px 12px; border-radius:10px; margin-bottom:12px;"></div>
 
-      <div class="grid-2" style="gap:14px; margin-bottom:14px;" id="visiteAdminControls">
-        <div>
-          <div style="font-weight:800; font-size:11px; color:#fda4af; margin-bottom:6px;"><i class="fa-solid fa-file-excel"></i> Upload Roster Stase Residen (Per Periode)</div>
-          <p style="font-size:9.5px; color:var(--text-light); margin:0 0 6px 0;">Kolom Excel wajib: Nama Residen, Inisial, Tingkat PPDS (Senior/Middle/Junior), Divisi Stase, Lokasi Tugas (Wahidin_COT / Wahidin_Luar_COT / Jejaring_External). Isi tanggal berlaku periode ini dahulu, lalu upload — sistem otomatis memakai roster periode yang mencakup tanggal HARI INI, tidak perlu diganti manual tiap hari.</p>
-          <div class="grid-2" style="gap:8px; margin-bottom:8px;">
-            <div class="form-group" style="margin:0;"><label style="font-size:9.5px;">Periode Mulai</label><input type="date" id="staseePeriodeMulai" class="login-input" style="margin:0;"></div>
-            <div class="form-group" style="margin:0;"><label style="font-size:9.5px;">Periode Selesai</label><input type="date" id="staseePeriodeSelesai" class="login-input" style="margin:0;"></div>
+      <!-- TAMPILAN DIRAPIKAN: sebelumnya form upload, form catat tarikan mendadak, tabel, AutoML, dan
+           ringkasan WA SEMUA tampil sekaligus di satu layar (terlalu ramai, kurang fungsional untuk
+           dipakai cepat). Sekarang hanya TABEL + PERINGATAN yang selalu tampil (itu yang paling sering
+           dicek harian) — Input/Pengaturan Data, Peringatan Dini AutoML, dan Ringkasan WA disembunyikan
+           di balik toggle "▸ klik untuk buka" (tetap dipakai mekanisme toggleCollapseCard yang sama
+           dengan kartu-kartu lain), buka hanya saat memang dibutuhkan. -->
+      <h4 class="collapsible-header" onclick="toggleCollapseCard(this)" style="font-size:11.5px; color:#fda4af; margin:0 0 10px 0; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:rgba(251,113,133,0.08); padding:8px 12px; border-radius:10px;">
+        <span><i class="fa-solid fa-sliders"></i> Input &amp; Pengaturan Data (Upload Roster, Catat Penarikan Mendadak)</span>
+        <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:11px;"></i>
+      </h4>
+      <div class="collapsible-body" style="display:none; margin-bottom:14px;">
+        <div class="grid-2" style="gap:14px;" id="visiteAdminControls">
+          <div>
+            <div style="font-weight:800; font-size:11px; color:#fda4af; margin-bottom:6px;"><i class="fa-solid fa-file-excel"></i> Upload Roster Stase Residen (Per Periode)</div>
+            <p style="font-size:9.5px; color:var(--text-light); margin:0 0 6px 0;">Kolom Excel wajib: Nama Residen, Inisial, Tingkat PPDS (Senior/Middle/Junior), Divisi Stase, Lokasi Tugas (Wahidin_COT / Wahidin_Luar_COT / Jejaring_External). Isi tanggal berlaku periode ini dahulu, lalu upload — sistem otomatis memakai roster periode yang mencakup tanggal HARI INI, tidak perlu diganti manual tiap hari.</p>
+            <div class="grid-2" style="gap:8px; margin-bottom:8px;">
+              <div class="form-group" style="margin:0;"><label style="font-size:9.5px;">Periode Mulai</label><input type="date" id="staseePeriodeMulai" class="login-input" style="margin:0;"></div>
+              <div class="form-group" style="margin:0;"><label style="font-size:9.5px;">Periode Selesai</label><input type="date" id="staseePeriodeSelesai" class="login-input" style="margin:0;"></div>
+            </div>
+            <div class="upload-area" style="border:2px dashed rgba(251,113,133,0.5); padding:12px; text-align:center; background:rgba(30,10,20,0.5); border-radius:12px; cursor:pointer;" onclick="document.getElementById('staseExcelInput').click()">
+              <p style="margin:0; font-weight:700; color:#fda4af; font-size:11px;"><i class="fa-solid fa-upload"></i> Klik untuk Unggah Excel Stase (.xlsx) — Periode di Atas Wajib Diisi</p>
+              <input type="file" id="staseExcelInput" accept=".xlsx, .xls" style="display:none;" onchange="handleStaseExcelImport(event)">
+            </div>
+            <div id="staseUploadStatus" style="font-size:10.5px; margin-top:6px; color:var(--text-light);"></div>
+            <div id="staseAllPeriodsList" style="font-size:10px; margin-top:8px; color:var(--text-light);"></div>
           </div>
-          <div class="upload-area" style="border:2px dashed rgba(251,113,133,0.5); padding:12px; text-align:center; background:rgba(30,10,20,0.5); border-radius:12px; cursor:pointer;" onclick="document.getElementById('staseExcelInput').click()">
-            <p style="margin:0; font-weight:700; color:#fda4af; font-size:11px;"><i class="fa-solid fa-upload"></i> Klik untuk Unggah Excel Stase (.xlsx) — Periode di Atas Wajib Diisi</p>
-            <input type="file" id="staseExcelInput" accept=".xlsx, .xls" style="display:none;" onchange="handleStaseExcelImport(event)">
-          </div>
-          <div id="staseUploadStatus" style="font-size:10.5px; margin-top:6px; color:var(--text-light);"></div>
-          <div id="staseAllPeriodsList" style="font-size:10px; margin-top:8px; color:var(--text-light);"></div>
-        </div>
-        <div>
-          <div style="font-weight:800; font-size:11px; color:#fda4af; margin-bottom:6px;"><i class="fa-solid fa-person-running"></i> Catat Penarikan Mendadak Luar COT (Hari Ini)</div>
-          <div class="form-group" style="margin-bottom:6px;"><select id="tarikMendadakResiden" class="login-input" style="margin:0;"></select></div>
-          <div class="form-group" style="margin-bottom:6px;">
-            <select id="tarikMendadakLokasi" class="login-input" style="margin:0;">
-              <option value="IGD">IGD</option>
-              <option value="VK_Kamar_Bersalin">VK / Kamar Bersalin</option>
-              <option value="Radiologi_Intervensi">Radiologi Intervensi</option>
-              <option value="Lainnya">Lainnya</option>
-            </select>
-          </div>
-          <div style="display:flex; gap:6px;">
-            <input type="text" id="tarikMendadakKeterangan" class="login-input" style="margin:0; flex:1;" placeholder="Keterangan singkat (opsional)">
-            <button class="btn btn-danger" style="padding:8px 12px; font-size:11px;" onclick="catatTarikanMendadakLuarCOT()"><i class="fa-solid fa-plus"></i> Catat</button>
+          <div>
+            <div style="font-weight:800; font-size:11px; color:#fda4af; margin-bottom:6px;"><i class="fa-solid fa-person-running"></i> Catat Penarikan Mendadak Luar COT (Hari Ini)</div>
+            <div class="form-group" style="margin-bottom:6px;"><select id="tarikMendadakResiden" class="login-input" style="margin:0;"></select></div>
+            <div class="form-group" style="margin-bottom:6px;">
+              <select id="tarikMendadakLokasi" class="login-input" style="margin:0;">
+                <option value="IGD">IGD</option>
+                <option value="VK_Kamar_Bersalin">VK / Kamar Bersalin</option>
+                <option value="Radiologi_Intervensi">Radiologi Intervensi</option>
+                <option value="Lainnya">Lainnya</option>
+              </select>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <input type="text" id="tarikMendadakKeterangan" class="login-input" style="margin:0; flex:1;" placeholder="Keterangan singkat (opsional)">
+              <button class="btn btn-danger" style="padding:8px 12px; font-size:11px;" onclick="catatTarikanMendadakLuarCOT()"><i class="fa-solid fa-plus"></i> Catat</button>
+            </div>
           </div>
         </div>
       </div>
 
+      <!-- BAGIAN INTI — selalu tampil, ini yang dicek setiap hari. Satu kalimat kesimpulan otomatis
+           di atas tabel, supaya bisa langsung ditangkap sekilas tanpa harus membaca semua baris/warna
+           status satu-satu ("grafik/tabel mudah dimengerti dengan penjelasan singkat analisisnya"). -->
+      <div id="visiteCapacitySummaryLine" style="font-size:12px; font-weight:700; margin-bottom:10px;"></div>
       <div style="overflow-x:auto; margin-bottom:12px;">
         <table class="bantex-table" style="text-align:center; font-size:11px;">
           <thead><tr><th style="text-align:left;">Divisi</th><th>Residen di Wahidin COT (Stase)</th><th>Ditarik Mendadak Hari Ini</th><th>Kapasitas Bersih COT</th><th>OK Aktif Besok</th><th>Status</th></tr></thead>
@@ -838,17 +854,28 @@
            HARI INI (data roster & jadwal yang sudah pasti). Blok ini beda: memprediksi divisi mana yang
            BERISIKO tinggi lockout besok berdasarkan POLA HISTORIS (rata-rata "ditarik mendadak" &
            rata-rata OK aktif per hari-dalam-minggu selama 28 hari terakhir) — supaya Chief sudah
-           waspada SEBELUM data roster/jadwal besok final diupload, bukan baru tahu sore harinya. -->
-      <div style="background:rgba(251,113,133,0.08); border:1px dashed rgba(251,113,133,0.4); border-radius:12px; padding:14px; margin-bottom:14px;">
-        <div style="font-weight:800; font-size:11px; color:#fda4af; margin-bottom:6px;"><i class="fa-solid fa-robot"></i> AutoML — Peringatan Dini Risiko Lockout Besok (dari Pola Historis, Sebelum Data Final)</div>
-        <div id="automlLockoutEarlyWarningBox" style="font-size:11px; color:var(--text-light);">Menghitung...</div>
+           waspada SEBELUM data roster/jadwal besok final diupload, bukan baru tahu sore harinya.
+           Disembunyikan di balik toggle karena sifatnya beta/pelengkap, bukan bagian inti harian. -->
+      <h4 class="collapsible-header" onclick="toggleCollapseCard(this)" style="font-size:11.5px; color:#fda4af; margin:0 0 10px 0; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:rgba(251,113,133,0.08); padding:8px 12px; border-radius:10px;">
+        <span><i class="fa-solid fa-robot"></i> AutoML — Peringatan Dini Risiko Lockout Besok (Beta, dari Pola Historis)</span>
+        <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:11px;"></i>
+      </h4>
+      <div class="collapsible-body" style="display:none; margin-bottom:14px;">
+        <div style="background:rgba(251,113,133,0.08); border:1px dashed rgba(251,113,133,0.4); border-radius:12px; padding:14px;">
+          <div id="automlLockoutEarlyWarningBox" style="font-size:11px; color:var(--text-light);">Menghitung...</div>
+        </div>
       </div>
 
-      <div style="display:flex; justify-content:space-between; align-items:center; margin:14px 0 8px 0;">
-        <div style="font-weight:800; font-size:11px; color:#fda4af;"><i class="fa-solid fa-comment-dots"></i> Ringkasan untuk Grup WA Koordinasi Residen</div>
-        <button class="btn btn-success" style="padding:6px 10px; font-size:11px;" onclick="copyVisiteCapacityToWA()"><i class="fa-solid fa-copy"></i> Salin ke WA</button>
+      <h4 class="collapsible-header" onclick="toggleCollapseCard(this)" style="font-size:11.5px; color:#fda4af; margin:0 0 10px 0; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:rgba(251,113,133,0.08); padding:8px 12px; border-radius:10px;">
+        <span><i class="fa-solid fa-comment-dots"></i> Ringkasan untuk Grup WA Koordinasi Residen</span>
+        <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:11px;"></i>
+      </h4>
+      <div class="collapsible-body" style="display:none;">
+        <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+          <button class="btn btn-success" style="padding:6px 10px; font-size:11px;" onclick="copyVisiteCapacityToWA()"><i class="fa-solid fa-copy"></i> Salin ke WA</button>
+        </div>
+        <div id="visiteCapacityWAPreview" style="font-size:12px; line-height:1.7; color:#e2e8f0; white-space:pre-line; background:rgba(15,23,42,0.5); border-radius:12px; padding:14px; min-height:60px;">Upload data stase residen dahulu untuk menghasilkan ringkasan.</div>
       </div>
-      <div id="visiteCapacityWAPreview" style="font-size:12px; line-height:1.7; color:#e2e8f0; white-space:pre-line; background:rgba(15,23,42,0.5); border-radius:12px; padding:14px; min-height:60px;">Upload data stase residen dahulu untuk menghasilkan ringkasan.</div>
     </div>
   </div>
 
@@ -3831,12 +3858,14 @@
     const tbody = document.getElementById('visiteCapacityTableBody');
     const alertBox = document.getElementById('visiteLockoutAlertBox');
     const waPreviewEl = document.getElementById('visiteCapacityWAPreview');
+    const summaryEl = document.getElementById('visiteCapacitySummaryLine');
     if (!tbody) return;
 
     const staseList = Object.values(residenStaseCurrent);
     if (staseList.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">Menunggu data stase residen diupload...</td></tr>';
       if (alertBox) alertBox.innerHTML = '';
+      if (summaryEl) summaryEl.innerText = '';
       if (waPreviewEl) waPreviewEl.innerText = 'Upload data stase residen dahulu untuk menghasilkan ringkasan.';
       return;
     }
@@ -3851,6 +3880,7 @@
     const tarikMendadakArr = Object.values(tugasLuarCOTToday);
     const rows = [];
     const lockoutDivisi = [];
+    const statusCounts = { aman: 0, rawan: 0, blockout: 0, tidakDiketahui: 0 };
 
     Array.from(divisiSet).sort().forEach(divisi => {
       const anggotaCOT = staseList.filter(r => r.divisi === divisi && r.lokasiTugas === 'Wahidin_COT');
@@ -3866,16 +3896,16 @@
 
       let status, statusColor;
       if (totalWahidinCOT === 0) {
-        status = 'Tidak Ada Residen COT'; statusColor = 'var(--text-light)';
+        status = 'Tidak Ada Residen COT'; statusColor = 'var(--text-light)'; statusCounts.tidakDiketahui++;
       } else if (!okAktifKnown) {
-        status = 'Data OK Belum Diisi'; statusColor = 'var(--text-light)';
+        status = 'Data OK Belum Diisi'; statusColor = 'var(--text-light)'; statusCounts.tidakDiketahui++;
       } else if (kapasitasBersih <= jumlahOKAktif) {
-        status = '🚨 BLOCKOUT'; statusColor = 'var(--danger)';
+        status = '🚨 BLOCKOUT'; statusColor = 'var(--danger)'; statusCounts.blockout++;
         lockoutDivisi.push({ divisi, totalWahidinCOT, ditarikMendadak, kapasitasBersih, jumlahOKAktif, anggotaCOT, mendadakInisial: mendadakDivisiIni.map(m=>m.inisial) });
       } else if (kapasitasBersih - jumlahOKAktif === 1) {
-        status = '🟡 Rawan (Margin 1 Residen)'; statusColor = 'var(--warning)';
+        status = '🟡 Rawan (Margin 1 Residen)'; statusColor = 'var(--warning)'; statusCounts.rawan++;
       } else {
-        status = '✅ Aman'; statusColor = 'var(--success)';
+        status = '✅ Aman'; statusColor = 'var(--success)'; statusCounts.aman++;
       }
 
       rows.push(`<tr>
@@ -3889,6 +3919,21 @@
     });
 
     tbody.innerHTML = rows.join('');
+
+    // Kalimat kesimpulan otomatis satu baris — supaya bisa ditangkap sekilas ("indikator") tanpa
+    // harus membaca seluruh tabel/warna status satu per satu.
+    if (summaryEl) {
+      const totalDivisi = divisiSet.size;
+      if (statusCounts.blockout > 0) {
+        summaryEl.innerHTML = `🚨 <span style="color:var(--danger);">${statusCounts.blockout} dari ${totalDivisi} divisi BLOCKOUT hari ini</span> — deadline laporan Visite 17:00 WITA terancam, lihat rekomendasi Anchor di bawah.${statusCounts.rawan ? ` ${statusCounts.rawan} divisi lain bermargin tipis (1 residen).` : ''}`;
+      } else if (statusCounts.rawan > 0) {
+        summaryEl.innerHTML = `🟡 <span style="color:var(--warning);">${statusCounts.rawan} dari ${totalDivisi} divisi bermargin tipis (1 residen)</span> — belum kritis, tapi rawan kalau ada penarikan mendadak tambahan. ${statusCounts.aman} divisi lain aman.`;
+      } else if (statusCounts.aman > 0) {
+        summaryEl.innerHTML = `✅ <span style="color:var(--success);">Semua ${statusCounts.aman} divisi dengan data lengkap dalam kondisi aman</span> hari ini.${statusCounts.tidakDiketahui ? ` (${statusCounts.tidakDiketahui} divisi belum bisa dinilai — data OK/roster belum lengkap.)` : ''}`;
+      } else {
+        summaryEl.innerHTML = `ℹ️ Belum ada divisi yang bisa dinilai — data OK aktif dan/atau roster COT belum lengkap untuk ${totalDivisi} divisi yang terdeteksi.`;
+      }
+    }
 
     // Rekomendasi Anchor Visite & Emergency untuk tiap divisi BLOCKOUT: 1 residen Middle (diutamakan)
     // atau Junior dari anggota Wahidin_COT divisi tsb yang BELUM tercatat ditarik mendadak hari ini —
