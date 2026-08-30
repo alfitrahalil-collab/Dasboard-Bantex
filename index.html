@@ -895,11 +895,11 @@
            Konsekuensinya: tanggal yang lebih lama dari data pendukung di atas (mis. sebelum jadwal
            RS Mitra/Pelamonia diisi, atau sebelum tugas_luar_cot_log dipakai rutin) bisa menampilkan
            hasil yang KURANG AKURAT — makanya selalu ada catatan status di visiteHistNote. -->
-      <h4 class="collapsible-header" onclick="toggleCollapseCard(this)" style="font-size:11.5px; color:#fda4af; margin:0 0 10px 0; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:rgba(251,113,133,0.08); padding:8px 12px; border-radius:10px;">
+      <h4 id="visiteHistCollapsibleHeader" class="collapsible-header" onclick="toggleCollapseCard(this)" style="font-size:11.5px; color:#fda4af; margin:0 0 10px 0; cursor:pointer; display:flex; justify-content:space-between; align-items:center; background:rgba(251,113,133,0.08); padding:8px 12px; border-radius:10px;">
         <span><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Kapasitas Visite (Lihat Tanggal Lampau)</span>
         <i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:11px;"></i>
       </h4>
-      <div class="collapsible-body" style="display:none;">
+      <div id="visiteHistCollapsibleBody" class="collapsible-body" style="display:none;">
         <p style="font-size:9.5px; color:var(--text-light); margin:0 0 8px 0;">Dihitung ulang (rekonstruksi) dari roster stase periode yang berlaku pada tanggal tsb, ditambah data Tugas Luar COT &amp; log pasien harian pada tanggal yang sama. Bukan snapshot tersimpan — hasil bergantung pada kelengkapan data historis tanggal tersebut.</p>
         <div style="display:flex; gap:8px; align-items:flex-end; margin-bottom:10px; flex-wrap:wrap;">
           <div class="form-group" style="margin:0;"><label style="font-size:9.5px;">Pilih Tanggal</label><input type="date" id="visiteHistDateInput" class="login-input" style="margin:0;"></div>
@@ -1651,6 +1651,39 @@
         <button class="btn btn-primary" style="padding:10px 14px; font-size:11px;" onclick="riwayatKeHariIni()"><i class="fa-solid fa-calendar-day"></i> Hari Ini</button>
       </div>
 
+      <!-- FILTER DINAMIS — pilihan tiap dropdown diisi otomatis dari data pasien tanggal yang sedang
+           dibuka (bukan daftar statis), supaya selalu relevan dengan tanggal itu. Mengubah salah satu
+           filter langsung memicu riwayatApplyFilterSort() yang merender ulang TABEL + RINGKASAN
+           sekaligus — keduanya selalu mengikuti hasil filter yang sama, tidak pernah beda angka. -->
+      <div class="grid-3" style="gap:8px; margin-bottom:10px;" id="riwayatFilterBar">
+        <div class="form-group" style="margin:0;"><label style="font-size:9px;">Divisi</label><select id="riwayatFilterDivisi" class="login-input" style="margin:0;" onchange="riwayatApplyFilterSort()"><option value="">-- Semua Divisi --</option></select></div>
+        <div class="form-group" style="margin:0;"><label style="font-size:9px;">Residen</label><select id="riwayatFilterResiden" class="login-input" style="margin:0;" onchange="riwayatApplyFilterSort()"><option value="">-- Semua Residen --</option></select></div>
+        <div class="form-group" style="margin:0;"><label style="font-size:9px;">DPJP Anestesi</label><select id="riwayatFilterDPJP" class="login-input" style="margin:0;" onchange="riwayatApplyFilterSort()"><option value="">-- Semua DPJP --</option></select></div>
+        <div class="form-group" style="margin:0;"><label style="font-size:9px;">Status Laporan</label>
+          <select id="riwayatFilterStatus" class="login-input" style="margin:0;" onchange="riwayatApplyFilterSort()">
+            <option value="">-- Semua Status --</option>
+            <option value="selesai">Selesai</option>
+            <option value="batal">Batal Murni</option>
+            <option value="optimalisasi">Optimalisasi</option>
+            <option value="urgency">Urgency/Emergency</option>
+            <option value="berlangsung">Sedang Berlangsung</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;"><label style="font-size:9px;">Sektor</label>
+          <select id="riwayatFilterSektor" class="login-input" style="margin:0;" onchange="riwayatApplyFilterSort()"><option value="">-- Semua Sektor --</option></select>
+        </div>
+        <div class="form-group" style="margin:0;"><label style="font-size:9px;">Tujuan Rawat</label>
+          <select id="riwayatFilterTujuan" class="login-input" style="margin:0;" onchange="riwayatApplyFilterSort()">
+            <option value="">-- Semua Tujuan --</option>
+            <option value="ICU">ICU</option><option value="HCU">HCU</option><option value="NICU">NICU</option><option value="PICU">PICU</option>
+            <option value="_none">Bukan ICU/HCU/NICU/PICU</option>
+          </select>
+        </div>
+      </div>
+      <div style="text-align:right; margin-bottom:12px;">
+        <button class="btn btn-secondary" style="padding:5px 10px; font-size:10px;" onclick="riwayatResetFilter()"><i class="fa-solid fa-filter-circle-xmark"></i> Reset Filter</button>
+      </div>
+
       <div id="riwayatSummaryLine" style="font-size:12px; font-weight:700; margin-bottom:12px;"></div>
 
       <!-- Mini grafik tren 14 hari di sekitar tanggal terpilih, dengan tanggal terpilih ditandai beda
@@ -1662,17 +1695,40 @@
         <table class="bantex-table" style="font-size:11px;">
           <thead>
             <tr>
-              <th style="text-align:left;">Nama / RM</th>
-              <th>Divisi</th>
-              <th>Residen</th>
-              <th>DPJP Anestesi</th>
-              <th>Jam Mulai–Selesai</th>
-              <th>Room (OK)</th>
-              <th>Status Laporan</th>
+              <th style="text-align:left; cursor:pointer;" onclick="riwayatSortBy('nama')">Nama / RM <span id="riwayatSortIcon_nama"></span></th>
+              <th style="cursor:pointer;" onclick="riwayatSortBy('divisi')">Divisi <span id="riwayatSortIcon_divisi"></span></th>
+              <th style="cursor:pointer;" onclick="riwayatSortBy('residen')">Residen <span id="riwayatSortIcon_residen"></span></th>
+              <th style="cursor:pointer;" onclick="riwayatSortBy('dpjpAnestesi')">DPJP Anestesi <span id="riwayatSortIcon_dpjpAnestesi"></span></th>
+              <th style="cursor:pointer;" onclick="riwayatSortBy('mulai')">Jam Mulai–Selesai <span id="riwayatSortIcon_mulai"></span></th>
+              <th style="cursor:pointer;" onclick="riwayatSortBy('ok')">Room (OK) <span id="riwayatSortIcon_ok"></span></th>
+              <th style="cursor:pointer;" onclick="riwayatSortBy('statusCatatan')">Status Laporan <span id="riwayatSortIcon_statusCatatan"></span></th>
             </tr>
           </thead>
           <tbody id="riwayatPasienTableBody"><tr><td colspan="7" style="text-align:center; color:var(--text-light);">Pilih tanggal di atas untuk membuka riwayat.</td></tr></tbody>
         </table>
+      </div>
+
+      <!-- INTEGRASI ANALISIS LINTAS-MODUL UNTUK TANGGAL YANG SAMA — bukan menghitung ulang dengan
+           rumus baru/terpisah, tapi memanggil FUNGSI PERHITUNGAN YANG SAMA PERSIS dengan yang
+           dipakai modul aslinya (computeVisiteCapacityTable() dari Kapasitas Visite; klasifikasi
+           isTrueBatalStatus/isOptimalisasiStatus yang sama dengan Analisis & Basis Kebijakan) —
+           supaya angka ringkasan di sini TIDAK PERNAH menyimpang dari modul aslinya. Tombol "Buka
+           Analisis Lengkap" pindah ke halaman modul aslinya dengan tanggal ini sudah otomatis terisi.  -->
+      <div class="grid-2" style="gap:14px; margin-top:16px;">
+        <div style="background:rgba(251,113,133,0.08); border:1px dashed rgba(251,113,133,0.4); border-radius:12px; padding:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="font-weight:800; font-size:11px; color:#fda4af;"><i class="fa-solid fa-door-open"></i> Kapasitas Visite COT (Tanggal Ini)</div>
+            <button class="btn btn-danger" style="padding:4px 8px; font-size:9.5px;" onclick="riwayatJumpToVisiteCapacity()"><i class="fa-solid fa-up-right-from-square"></i> Detail Lengkap</button>
+          </div>
+          <div id="riwayatVisiteCapacityBox" style="font-size:11px; color:var(--text-light);">Pilih tanggal untuk menghitung.</div>
+        </div>
+        <div style="background:rgba(34,211,238,0.08); border:1px dashed rgba(34,211,238,0.4); border-radius:12px; padding:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="font-weight:800; font-size:11px; color:#67e8f9;"><i class="fa-solid fa-chart-pie"></i> Indikator Kebijakan (Tanggal Ini)</div>
+            <button class="btn btn-primary" style="padding:4px 8px; font-size:9.5px;" onclick="riwayatJumpToKebijakan()"><i class="fa-solid fa-up-right-from-square"></i> Analisis Lengkap</button>
+          </div>
+          <div id="riwayatKebijakanBox" style="font-size:11px; color:var(--text-light);">Pilih tanggal untuk menghitung.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -7630,6 +7686,15 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
   // Basis Kebijakan/AutoML — supaya angka yang muncul di sini TIDAK PERNAH berbeda dari halaman
   // lain untuk tanggal yang sama. Tidak ada tabel/snapshot terpisah yang baru dibuat khusus untuk
   // halaman ini.
+  //
+  // FILTER + SORTIR DINAMIS: riwayatRawPasienList menyimpan data MENTAH hasil fetch tanggal
+  // terpilih (tidak berubah sampai tanggal diganti). riwayatApplyFilterSort() setiap kali dipanggil
+  // (saat ganti filter ATAU klik header kolom untuk sortir) membaca ulang riwayatRawPasienList,
+  // menyaring sesuai filter yang aktif, mengurutkan sesuai riwayatSortState, lalu me-render TABEL
+  // dan RINGKASAN dari HASIL YANG SAMA — supaya keduanya tidak pernah berbeda angka satu sama lain.
+  let riwayatRawPasienList = [];
+  let riwayatSortState = { key: null, dir: 1 };
+
   function riwayatStatusBadge(statusCatatan) {
     const st = statusCatatan || '';
     if (isUrgencyStatusText(st)) return { label: st, color: '#f59e0b' };
@@ -7638,6 +7703,18 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
     if (st.trim() === '') return { label: '-', color: '#64748b' };
     // Sisanya: batal murni atau optimalisasi (lihat isBatalStatus/isTrueBatalStatus).
     return { label: st, color: '#ef4444' };
+  }
+
+  // Kategori status dipakai SATU FUNGSI ini di filter dropdown & di tabel/ringkasan, supaya definisi
+  // "batal"/"optimalisasi"/dst yang dipilih di filter selalu konsisten dengan yang dihitung.
+  function riwayatStatusCategory(statusCatatan) {
+    const st = statusCatatan || '';
+    if (isUrgencyStatusText(st)) return 'urgency';
+    if (isSelesaiStatus({ statusCatatan: st, selesai: '' })) return 'selesai';
+    if (isOngoingStatus(st)) return 'berlangsung';
+    if (isOptimalisasiStatus(st)) return 'optimalisasi';
+    if (isTrueBatalStatus(st)) return 'batal';
+    return '';
   }
 
   function riwayatKeHariIni() {
@@ -7657,65 +7734,233 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
     loadRiwayatHarianTanggal(next);
   }
 
+  function riwayatResetFilter() {
+    ['riwayatFilterDivisi','riwayatFilterResiden','riwayatFilterDPJP','riwayatFilterStatus','riwayatFilterSektor','riwayatFilterTujuan'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    riwayatSortState = { key: null, dir: 1 };
+    riwayatApplyFilterSort();
+  }
+
+  // Populasi ulang pilihan dropdown filter dari data MENTAH tanggal yang sedang dibuka — supaya
+  // pilihan yang muncul selalu relevan (tidak menampilkan divisi/residen yang tidak ada di tanggal
+  // itu). Nilai yang sedang dipilih user dipertahankan kalau masih valid.
+  function riwayatPopulateFilterOptions(pasienList) {
+    const uniqSorted = (arr) => Array.from(new Set(arr.filter(v => v && v.trim() !== ''))).sort((a,b) => a.localeCompare(b));
+    const fillSelect = (id, values) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const prev = el.value;
+      const placeholder = el.options[0];
+      el.innerHTML = '';
+      el.appendChild(placeholder);
+      values.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; el.appendChild(o); });
+      if (values.includes(prev)) el.value = prev;
+    };
+    fillSelect('riwayatFilterDivisi', uniqSorted(pasienList.map(p => p.divisi)));
+    fillSelect('riwayatFilterResiden', uniqSorted(pasienList.map(p => p.residen)));
+    fillSelect('riwayatFilterDPJP', uniqSorted(pasienList.map(p => p.dpjpAnestesi)));
+    fillSelect('riwayatFilterSektor', uniqSorted(pasienList.map(p => p.asalSektor)));
+  }
+
+  function riwayatSortBy(key) {
+    if (riwayatSortState.key === key) riwayatSortState.dir *= -1;
+    else riwayatSortState = { key, dir: 1 };
+    riwayatApplyFilterSort();
+  }
+
+  // Menyaring riwayatRawPasienList sesuai filter aktif, mengurutkan sesuai riwayatSortState, lalu
+  // merender TABEL + RINGKASAN dari hasil yang sama persis (satu sumber, tidak ada rumus terpisah).
+  function riwayatApplyFilterSort() {
+    const val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
+    const fDivisi = val('riwayatFilterDivisi'), fResiden = val('riwayatFilterResiden'), fDPJP = val('riwayatFilterDPJP'),
+          fStatus = val('riwayatFilterStatus'), fSektor = val('riwayatFilterSektor'), fTujuan = val('riwayatFilterTujuan');
+
+    let filtered = riwayatRawPasienList.filter(p => {
+      if (fDivisi && p.divisi !== fDivisi) return false;
+      if (fResiden && p.residen !== fResiden) return false;
+      if (fDPJP && p.dpjpAnestesi !== fDPJP) return false;
+      if (fStatus && riwayatStatusCategory(p.statusCatatan) !== fStatus) return false;
+      if (fSektor && p.asalSektor !== fSektor) return false;
+      if (fTujuan) {
+        const cat = detectICUCategory(p);
+        if (fTujuan === '_none') { if (cat) return false; }
+        else if (cat !== fTujuan) return false;
+      }
+      return true;
+    });
+
+    if (riwayatSortState.key) {
+      const k = riwayatSortState.key, dir = riwayatSortState.dir;
+      filtered = filtered.slice().sort((a, b) => {
+        const av = (a[k] || '').toString().toLowerCase();
+        const bv = (b[k] || '').toString().toLowerCase();
+        if (av < bv) return -1 * dir;
+        if (av > bv) return 1 * dir;
+        return 0;
+      });
+    }
+
+    ['nama','divisi','residen','dpjpAnestesi','mulai','ok','statusCatatan'].forEach(k => {
+      const iconEl = document.getElementById('riwayatSortIcon_' + k);
+      if (!iconEl) return;
+      iconEl.innerHTML = (riwayatSortState.key === k) ? (riwayatSortState.dir === 1 ? '▲' : '▼') : '';
+    });
+
+    riwayatRenderSummaryAndTable(filtered);
+  }
+
+  function riwayatRenderSummaryAndTable(pasienList) {
+    const summaryEl = document.getElementById('riwayatSummaryLine');
+    const tbody = document.getElementById('riwayatPasienTableBody');
+    const tglLabel = riwayatCurrentDate ? new Date(riwayatCurrentDate + 'T00:00:00').toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) : '-';
+    const isFiltered = pasienList.length !== riwayatRawPasienList.length;
+
+    const total = pasienList.length;
+    const selesai = pasienList.filter(p => isSelesaiStatus(p)).length;
+    const urgency = pasienList.filter(p => isUrgencyStatusText(p.statusCatatan)).length;
+    const batal = pasienList.filter(p => isTrueBatalStatus(p.statusCatatan)).length;
+    const optimalisasi = pasienList.filter(p => isOptimalisasiStatus(p.statusCatatan)).length;
+
+    if (summaryEl) {
+      summaryEl.innerHTML = `📅 <b>${tglLabel}</b>${isFiltered ? ` — <span style="color:#fbbf24;">Terfilter: ${total} dari ${riwayatRawPasienList.length} pasien</span>` : ` — Total ${total} pasien`}: `
+        + `<span style="color:#10b981;">${selesai} selesai</span>, `
+        + `<span style="color:#f59e0b;">${urgency} urgency/emergency</span>, `
+        + `<span style="color:#ef4444;">${batal} batal murni</span>, `
+        + `<span style="color:#fb923c;">${optimalisasi} tidak optimal</span>.`;
+    }
+
+    if (tbody) {
+      tbody.innerHTML = total ? pasienList.map(p => {
+        const badge = riwayatStatusBadge(p.statusCatatan);
+        return `<tr>
+          <td style="text-align:left;">${p.nama||'-'} ${p.rm ? `<span style="color:var(--text-light);">(${p.rm})</span>` : ''}${patientStatusBadgesHTML(p)}</td>
+          <td>${p.divisi||'-'}</td>
+          <td>${p.residen||'-'}</td>
+          <td>${p.dpjpAnestesi||'-'}</td>
+          <td>${p.mulai||'-'} – ${p.selesai||'-'}</td>
+          <td>${p.ok||'-'}</td>
+          <td><span style="color:${badge.color}; font-weight:700;">${badge.label}</span></td>
+        </tr>`;
+      }).join('') : `<tr><td colspan="7" style="text-align:center; color:var(--text-light);">${riwayatRawPasienList.length ? 'Tidak ada pasien yang cocok dengan filter ini.' : 'Tidak ada pasien tercatat pada tanggal ini.'}</td></tr>`;
+    }
+  }
+
   // dateStr opsional: kalau tidak diisi, dibaca dari input date (dipakai oleh onchange picker).
   function loadRiwayatHarianTanggal(dateStr) {
     const picker = document.getElementById('riwayatTanggalPicker');
     const tanggal = dateStr || (picker ? picker.value : '') || todayDateStrWITA();
     if (!tanggal) return;
     riwayatCurrentDate = tanggal;
+    riwayatSortState = { key: null, dir: 1 };
     if (picker && picker.value !== tanggal) picker.value = tanggal;
 
     const summaryEl = document.getElementById('riwayatSummaryLine');
     const tbody = document.getElementById('riwayatPasienTableBody');
+    const visiteBox = document.getElementById('riwayatVisiteCapacityBox');
+    const kebijakanBox = document.getElementById('riwayatKebijakanBox');
     if (summaryEl) summaryEl.innerHTML = '🔍 Memuat data...';
     if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-light);">Memuat...</td></tr>';
+    if (visiteBox) visiteBox.innerHTML = 'Menghitung...';
+    if (kebijakanBox) kebijakanBox.innerHTML = 'Menghitung...';
 
     db.ref(`daily_patient_log/${tanggal}`).once('value').then(snap => {
       const data = snap.val();
       const pasienList = (data && Array.isArray(data.pasien)) ? data.pasien : [];
+      riwayatRawPasienList = pasienList;
       const tglLabel = new Date(tanggal + 'T00:00:00').toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+      riwayatPopulateFilterOptions(pasienList);
 
       if (!snap.exists()) {
         if (summaryEl) summaryEl.innerHTML = `📅 <b>${tglLabel}</b> — tidak ada data tersimpan untuk tanggal ini (kemungkinan hari libur, atau tanggal sebelum sistem mulai mencatat <code>daily_patient_log</code> harian).`;
         if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-light);">Tidak ada data untuk tanggal ini.</td></tr>';
+        if (kebijakanBox) kebijakanBox.innerHTML = '<span style="color:var(--text-light);">Tidak ada data pasien pada tanggal ini.</span>';
         renderRiwayatTrenChart(tanggal);
+        riwayatRenderVisiteCapacitySummary(tanggal);
         return;
       }
 
-      const total = pasienList.length;
-      const selesai = pasienList.filter(p => isSelesaiStatus(p)).length;
-      const urgency = pasienList.filter(p => isUrgencyStatusText(p.statusCatatan)).length;
-      const batal = pasienList.filter(p => isTrueBatalStatus(p.statusCatatan)).length;
-      const optimalisasi = pasienList.filter(p => isOptimalisasiStatus(p.statusCatatan)).length;
-
-      if (summaryEl) {
-        summaryEl.innerHTML = `📅 <b>${tglLabel}</b> — Total ${total} pasien: `
-          + `<span style="color:#10b981;">${selesai} selesai</span>, `
-          + `<span style="color:#f59e0b;">${urgency} urgency/emergency</span>, `
-          + `<span style="color:#ef4444;">${batal} batal murni</span>, `
-          + `<span style="color:#fb923c;">${optimalisasi} tidak optimal</span>.`;
-      }
-
-      if (tbody) {
-        tbody.innerHTML = total ? pasienList.map(p => {
-          const badge = riwayatStatusBadge(p.statusCatatan);
-          return `<tr>
-            <td style="text-align:left;">${p.nama||'-'} ${p.rm ? `<span style="color:var(--text-light);">(${p.rm})</span>` : ''}</td>
-            <td>${p.divisi||'-'}</td>
-            <td>${p.residen||'-'}</td>
-            <td>${p.dpjpAnestesi||'-'}</td>
-            <td>${p.mulai||'-'} – ${p.selesai||'-'}</td>
-            <td>${p.ok||'-'}</td>
-            <td><span style="color:${badge.color}; font-weight:700;">${badge.label}</span></td>
-          </tr>`;
-        }).join('') : '<tr><td colspan="7" style="text-align:center; color:var(--text-light);">Tidak ada pasien tercatat pada tanggal ini.</td></tr>';
-      }
-
+      riwayatApplyFilterSort();
+      riwayatRenderKebijakanIndicator(pasienList);
       renderRiwayatTrenChart(tanggal);
+      riwayatRenderVisiteCapacitySummary(tanggal);
     }).catch(ex => {
       if (summaryEl) summaryEl.innerHTML = `❌ Gagal memuat data: ${ex.message}`;
       if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#ef4444;">Gagal memuat data.</td></tr>';
     });
+  }
+
+  // Indikator Kebijakan ringkas untuk SATU tanggal — dihitung dari pasienList tanggal yang sama
+  // (bukan filter tabel di atas, ini gambaran keseluruhan hari) memakai fungsi klasifikasi yang
+  // SAMA PERSIS dengan runKebijakanAnalysis() di halaman Analisis & Basis Kebijakan (lihat
+  // isTrueBatalStatus/isOptimalisasiStatus/isSelesaiStatus) — supaya persennya tidak pernah beda.
+  function riwayatRenderKebijakanIndicator(pasienList) {
+    const box = document.getElementById('riwayatKebijakanBox');
+    if (!box) return;
+    const total = pasienList.length;
+    if (!total) { box.innerHTML = '<span style="color:var(--text-light);">Tidak ada data pasien pada tanggal ini.</span>'; return; }
+    const selesai = pasienList.filter(isSelesaiStatus).length;
+    const batalRows = pasienList.filter(p => isTrueBatalStatus(p.statusCatatan));
+    const optRows = pasienList.filter(p => isOptimalisasiStatus(p.statusCatatan) && !isSelesaiStatus(p));
+    const alasanCount = {};
+    batalRows.forEach(p => { const a = (p.statusCatatan||'').trim(); alasanCount[a] = (alasanCount[a]||0) + 1; });
+    const topAlasan = Object.entries(alasanCount).sort((a,b) => b[1]-a[1])[0];
+    box.innerHTML = `Total <b>${total}</b> kasus — Selesai <b style="color:#10b981;">${Math.round(selesai/total*100)}%</b>, `
+      + `Batal Murni <b style="color:#ef4444;">${Math.round(batalRows.length/total*100)}%</b> (${batalRows.length}), `
+      + `Optimalisasi <b style="color:#a855f7;">${Math.round(optRows.length/total*100)}%</b> (${optRows.length}).`
+      + (topAlasan ? `<br>Alasan batal terbanyak: <i>"${topAlasan[0]}"</i> (${topAlasan[1]}×).` : '');
+  }
+
+  // Ringkasan Kapasitas Visite COT untuk SATU tanggal — memanggil computeVisiteCapacityTable() yang
+  // SAMA PERSIS dipakai reconstructVisiteCapacityForDate()/renderVisiteCapacityAnalysis() (lihat
+  // bagian Kapasitas Visite), bukan rumus baru. Kalau tidak ada periode roster yang mencakup
+  // tanggal ini, ditandai eksplisit sebagai keterbatasan data — bukan ditampilkan sebagai nol.
+  function riwayatRenderVisiteCapacitySummary(dateStr) {
+    const box = document.getElementById('riwayatVisiteCapacityBox');
+    if (!box) return;
+    const rosterForDate = findStasePeriodRosterForDate(dateStr);
+    if (!rosterForDate) { box.innerHTML = '<span style="color:var(--text-light);">Tidak ada periode roster stase yang mencakup tanggal ini.</span>'; return; }
+    const effectiveStaseListForDate = buildEffectiveStaseListForDate(rosterForDate, dateStr);
+    db.ref(`tugas_luar_cot_log/${dateStr}`).once('value').then(tugasSnap => {
+      const tarikMendadakArr = Object.values(tugasSnap.val() || {});
+      const { divisiSet, lockoutDivisi, statusCounts } = computeVisiteCapacityTable(effectiveStaseListForDate, tarikMendadakArr, riwayatRawPasienList);
+      box.innerHTML = `${divisiSet.size} divisi — `
+        + `<span style="color:#10b981;">${statusCounts.aman||0} aman</span>, `
+        + `<span style="color:#fbbf24;">${statusCounts.rawan||0} rawan</span>, `
+        + `<span style="color:#ef4444;">${statusCounts.blockout||0} BLOCKOUT</span>`
+        + (lockoutDivisi && lockoutDivisi.length ? `<br><span style="color:#f87171; font-weight:700;">⚠️ Lockout: ${lockoutDivisi.join(', ')}</span>` : '');
+    }).catch(ex => { box.innerHTML = `<span style="color:#ef4444;">Gagal menghitung: ${ex.message}</span>`; });
+  }
+
+  // Deep-link ke modul Kapasitas Visite (page-dashboard) dengan tanggal yang sedang dibuka di
+  // Riwayat Harian sudah otomatis terisi & dihitung — bukan duplikasi tampilan, hanya membuka
+  // panel "Riwayat Kapasitas Visite" yang sudah ada dan memanggil fungsi rekonstruksi yang sama.
+  function riwayatJumpToVisiteCapacity() {
+    if (!riwayatCurrentDate) return;
+    switchPage('page-dashboard');
+    const card = document.getElementById('visiteCapacityCard');
+    if (card) card.style.display = 'block';
+    const dateInput = document.getElementById('visiteHistDateInput');
+    if (dateInput) dateInput.value = riwayatCurrentDate;
+    const body = document.getElementById('visiteHistCollapsibleBody');
+    const header = document.getElementById('visiteHistCollapsibleHeader');
+    if (body) body.style.display = 'block';
+    if (header) header.classList.add('is-open');
+    reconstructVisiteCapacityForDate(riwayatCurrentDate);
+    setTimeout(() => { if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 150);
+  }
+
+  // Deep-link ke Analisis & Basis Kebijakan (page-kebijakan) dengan rentang tanggal DIPERSEMPIT ke
+  // satu tanggal yang sama, lalu menjalankan runKebijakanAnalysis() yang sesungguhnya (bukan angka
+  // ringkas di atas) supaya seluruh grafik/rekomendasi kebijakan lengkap tersedia untuk tanggal ini.
+  function riwayatJumpToKebijakan() {
+    if (!riwayatCurrentDate) return;
+    switchPage('page-kebijakan');
+    const s = document.getElementById('kebijakanDateStart'), e = document.getElementById('kebijakanDateEnd');
+    if (s) s.value = riwayatCurrentDate;
+    if (e) e.value = riwayatCurrentDate;
+    runKebijakanAnalysis();
   }
 
   // Mini grafik tren 14 hari di sekitar tanggal terpilih (7 sebelum s/d 7 sesudah), tanggal yang
