@@ -1336,6 +1336,19 @@
       <div class="card-title" style="color:var(--accent);"><i class="fa-solid fa-user-check"></i> Absensi Residen (Monre GPS & Face Recognition)</div>
       <p style="font-size:11px; color:var(--text-light); margin-bottom:12px;">Validasi 2 Faktor: (1) Lokasi GPS radius ≤50m dari Rumah Sakit wajib lolos terlebih dahulu, baru (2) Kamera Face ID akan aktif untuk verifikasi wajah.</p>
 
+      <!-- PENGECUALIAN ABSEN MONRE: residen yang stase-nya BUKAN Wahidin_COT/Wahidin_Luar_COT (mis.
+           Jejaring Eksternal/RS Satelit), atau divisi-nya termasuk daftar dikecualikan Admin (default:
+           Resusitasi, ICU, Bedah Thoraks/BTKV, Bedah Anak), atau dicatat manual "Jaga Malam"/pengecualian
+           ad-hoc hari ini oleh Admin/Chief, TIDAK diwajibkan Absen Monre — supaya mereka tidak lagi
+           dipaksa lolos GPS di titik Wahidin padahal secara sah sedang bertugas di tempat lain, dan
+           TIDAK dicatat sebagai pelanggaran (DIS-02) hanya karena tidak berada di lokasi tsb. Lihat
+           checkMonreExemptionForCurrentUser().  -->
+      <div id="monreExemptionBox" style="display:none; background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.4); border-radius:12px; padding:14px; margin-bottom:14px; text-align:center;">
+        <div style="font-size:22px;"><i class="fa-solid fa-circle-check" style="color:var(--success);"></i></div>
+        <div id="monreExemptionText" style="font-weight:700; font-size:12px; margin-top:6px; color:#a7f3d0;"></div>
+        <button class="btn btn-primary" style="margin-top:10px; padding:6px 12px; font-size:11px;" onclick="forceShowMonreGateAnyway()"><i class="fa-solid fa-unlock"></i> Tetap Ingin Absen Monre Manual</button>
+      </div>
+
       <div class="gps-gate-box" id="gpsGateBox">
         <div style="font-size:28px;"><i class="fa-solid fa-satellite-dish"></i></div>
         <div id="gpsGateStatus" style="font-weight:700; margin-top:6px; font-size:12px;">Menunggu izin lokasi GPS...</div>
@@ -1626,6 +1639,74 @@
             <tbody id="auditLogTableBody"></tbody>
           </table>
         </div>
+      </div>
+
+      <!-- SETTING LOKASI GPS & JAM BATAS ABSEN MONRE -->
+      <div style="background:rgba(15,23,42,0.6); padding:16px; border-radius:14px; border:2px solid var(--danger); margin-bottom:20px;">
+        <h5 style="margin:0 0 10px 0; color:var(--danger);"><i class="fa-solid fa-location-crosshairs"></i> Setting Lokasi GPS &amp; Jam Batas Absen Monre</h5>
+        <p style="font-size:10px; color:var(--text-light); margin:0 0 12px 0;">Titik koordinat &amp; radius di bawah ini adalah acuan yang dipakai sistem untuk memverifikasi lokasi GPS residen saat Absen Monre (menu "Absensi Monre GPS &amp; Face ID"). Jam batas menentukan kapan absen dianggap "Terlambat" dan otomatis tercatat sebagai pelanggaran disiplin (DIS-01) ke Pelaporan IKVE. Cara paling akurat memperbaiki GPS yang salah: berdirilah tepat di titik Monre RS yang sebenarnya, lalu klik tombol "Gunakan Lokasi GPS Saya Sekarang" di bawah ini.</p>
+        <div id="monreSettingsActiveInfo" style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.4); border-radius:10px; padding:10px 12px; font-size:11px; margin-bottom:12px; color:#fecaca;">Memuat setting aktif...</div>
+        <div class="grid-3" style="margin-bottom:10px;">
+          <div>
+            <label style="font-size:10px; color:var(--text-light); display:block; margin-bottom:4px;">Latitude Monre</label>
+            <input type="text" id="monreSetLat" class="login-input" placeholder="Contoh: -5.1332" style="margin:0;">
+          </div>
+          <div>
+            <label style="font-size:10px; color:var(--text-light); display:block; margin-bottom:4px;">Longitude Monre</label>
+            <input type="text" id="monreSetLng" class="login-input" placeholder="Contoh: 119.4883" style="margin:0;">
+          </div>
+          <div>
+            <label style="font-size:10px; color:var(--text-light); display:block; margin-bottom:4px;">Radius Toleransi (meter)</label>
+            <input type="number" id="monreSetRadius" class="login-input" placeholder="Contoh: 50" min="10" max="5000" style="margin:0;">
+          </div>
+        </div>
+        <div class="grid-2" style="margin-bottom:10px; align-items:end;">
+          <div>
+            <label style="font-size:10px; color:var(--text-light); display:block; margin-bottom:4px;">Jam Batas Absen Monre (WITA) — lewat jam ini otomatis "Terlambat"</label>
+            <input type="time" id="monreSetCutoff" class="login-input" value="06:30" style="margin:0;">
+          </div>
+          <button class="btn btn-warning" style="height:44px;" onclick="useMyGPSForMonreSetting()"><i class="fa-solid fa-crosshairs"></i> Gunakan Lokasi GPS Saya Sekarang</button>
+        </div>
+        <button class="btn btn-danger" style="width:100%; font-weight:800;" onclick="saveMonreSettings()"><i class="fa-solid fa-floppy-disk"></i> Simpan Setting Lokasi &amp; Jam Absen Monre</button>
+        <p id="monreSetStatus" style="font-size:11px; margin:10px 0 0 0; color:var(--text-light);"></p>
+      </div>
+
+      <!-- PENGECUALIAN ABSEN MONRE: divisi/stase yang TIDAK diwajibkan Absen Monre meski sedang -->
+      <!-- stase Wahidin (mis. Resusitasi, ICU, BTKV, Bedah Anak — bertugas di titik lain RS/jam -->
+      <!-- berbeda), PLUS pengecualian manual harian (Jaga Malam / ad-hoc) per residen. -->
+      <div style="background:rgba(15,23,42,0.6); padding:16px; border-radius:14px; border:2px solid #a78bfa; margin-bottom:20px;">
+        <h5 style="margin:0 0 10px 0; color:#c4b5fd;"><i class="fa-solid fa-user-shield"></i> Pengecualian Wajib Absen Monre</h5>
+        <p style="font-size:10px; color:var(--text-light); margin:0 0 12px 0;">Residen yang stase aktifnya BUKAN di Wahidin (RS Satelit/Afiliasi/Jejaring) otomatis dikecualikan dari data roster stase — tidak perlu diatur di sini. Kolom di bawah HANYA untuk divisi yang tetap tercatat "stase Wahidin" tapi secara kebijakan tidak wajib Absen Monre (mis. Resusitasi, ICU, BTKV/Bedah Thoraks, Bedah Anak — cocok berdasarkan nama divisi, tidak case-sensitive), serta pengecualian manual satu-hari (mis. Jaga Malam) per residen.</p>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:10px; color:var(--text-light); display:block; margin-bottom:4px;">Divisi yang Dikecualikan (pisahkan dengan koma)</label>
+          <textarea id="monreExemptDivisiInput" class="login-input" style="margin:0; min-height:50px; resize:vertical;" placeholder="Resusitasi, ICU, Bedah Thoraks, Bedah Anak"></textarea>
+          <button class="btn btn-warning" style="width:100%; margin-top:8px; font-weight:800;" onclick="saveMonreExemptDivisi()"><i class="fa-solid fa-floppy-disk"></i> Simpan Daftar Divisi Dikecualikan</button>
+          <p id="monreExemptDivisiStatus" style="font-size:11px; margin:8px 0 0 0; color:var(--text-light);"></p>
+        </div>
+        <div style="border-top:1px solid var(--border); padding-top:12px;">
+          <label style="font-size:10px; color:var(--text-light); display:block; margin-bottom:4px;">Catat Pengecualian Manual Hari Ini (mis. Jaga Malam semalam)</label>
+          <div class="grid-3" style="margin-bottom:8px;">
+            <select id="monreExemptManualResiden" class="login-input" style="margin:0;"><option value="">-- Pilih Residen --</option></select>
+            <input type="text" id="monreExemptManualAlasan" class="login-input" style="margin:0;" placeholder="Alasan (Contoh: Jaga Malam)" value="Jaga Malam">
+            <button class="btn btn-success" onclick="catatMonreExemptionManual()"><i class="fa-solid fa-user-check"></i> Catat Pengecualian</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="bantex-table" style="background:rgba(15,23,42,0.6);">
+              <thead><tr><th>Residen</th><th>Alasan</th><th>Dicatat Oleh</th><th>Waktu</th><th>Aksi</th></tr></thead>
+              <tbody id="monreExemptManualTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PENGECEKAN RESIDEN BELUM ABSEN MONRE: menutup celah "residen yang benar-benar tidak absen -->
+      <!-- sama sekali (bukan cuma telat) tidak pernah tercatat sebagai pelanggaran" — dipicu manual -->
+      <!-- oleh Chief/Admin setelah jam Monre lewat, membandingkan roster wajib vs attendance_logs hari ini. -->
+      <div style="background:rgba(15,23,42,0.6); padding:16px; border-radius:14px; border:2px solid var(--danger); margin-bottom:20px;">
+        <h5 style="margin:0 0 10px 0; color:var(--danger);"><i class="fa-solid fa-user-slash"></i> Cek Residen Belum Absen Monre Hari Ini</h5>
+        <p style="font-size:10px; color:var(--text-light); margin:0 0 12px 0;">Membandingkan residen yang WAJIB Absen Monre hari ini (stase Wahidin_COT/Wahidin_Luar_COT, di luar divisi/pengecualian manual di atas) dengan <code>attendance_logs</code> hari ini. Yang wajib tapi belum tercatat sama sekali otomatis dicatat sebagai pelanggaran DIS-01 "Tidak Absen Monre Tanpa Keterangan" (sekali per residen per hari, tidak dobel). Jalankan setelah jam batas Monre lewat, bukan sebelum jam Morning Report selesai.</p>
+        <button class="btn btn-danger" style="width:100%; font-weight:800;" onclick="cekResidenBelumAbsenMonre()"><i class="fa-solid fa-magnifying-glass"></i> Cek &amp; Catat Sekarang</button>
+        <div id="monreNoShowResultBox" style="font-size:11px; margin-top:10px; color:var(--text-light); white-space:pre-line;"></div>
       </div>
 
       <!-- MANAJEMEN MASTER RESIDEN (TAMBAH / HAPUS) -->
@@ -1934,6 +2015,14 @@
     // Monitoring (Patients & Operations) dan Realisasi, yang sudah terfilter ke pasien mereka saja.
     if (currentUserRole === 'konsulen' && (pageId === 'page-pediatric' || pageId === 'page-absensi' || pageId === 'page-link' || pageId === 'page-emergency' || pageId === 'page-laporan')) return;
 
+    // Face ID WAJIB bagi Residen: selama akun Residen belum mendaftarkan wajah (lihat
+    // renderFaceEnrollStatusBadge/residentFaceEnrollRequired), navigasi dikunci ke Dashboard Saya
+    // saja supaya pendaftaran tidak bisa ditunda tanpa batas sambil tetap memakai menu lain.
+    if (currentUserRole === 'residen' && residentFaceEnrollRequired && pageId !== 'page-dashboardsaya') {
+      alert('🔒 Daftarkan Face ID Anda dulu di Dashboard Saya — menu lain terkunci sampai pendaftaran wajah selesai (kebijakan keamanan akun Residen).');
+      pageId = 'page-dashboardsaya';
+    }
+
     document.querySelectorAll('.tab-page').forEach(page => page.classList.remove('active-page'));
     document.querySelectorAll('.sidebar-menu a').forEach(nav => nav.classList.remove('active'));
 
@@ -1989,6 +2078,328 @@
   // sebelumnya — jadi menambahkan fitur ini tidak mengubah perilaku absensi yang sudah berjalan benar.
   const HOSPITAL_GEOFENCE_POLYGON = []; // contoh format: [[-5.1330,119.4881],[-5.1330,119.4886],[-5.1335,119.4886],[-5.1335,119.4881]]
   const GPS_DRIFT_ACCURACY_THRESHOLD_M = 25; // toleransi hanya berlaku jika akurasi GPS device > nilai ini (sinyal lemah/di dalam gedung)
+
+  // SETTING LOKASI & JAM BATAS ABSEN MONRE — DAPAT DIUBAH ADMIN TANPA EDIT KODE.
+  // MONRE_LAT/MONRE_LNG/MAX_RADIUS_METERS di atas TETAP dipakai sebagai nilai default/fallback
+  // (dipakai HANYA jika belum pernah ada admin yang menyimpan setting di Firebase — 'app_settings/monre').
+  // Begitu admin menyimpan lewat Panel Admin > "Setting Lokasi GPS & Jam Batas Absen Monre",
+  // MONRE_SETTINGS di-overwrite oleh listenMonreSettings() dan SELURUH pengecekan GPS (checkGPSBeforeFace)
+  // serta pengecekan keterlambatan (doMonreAttendanceWithFace) memakai nilai baru ini secara realtime,
+  // tanpa perlu deploy ulang aplikasi. Default cutoffTime 06:30 WITA sesuai jam Morning Report RSWS.
+  let MONRE_SETTINGS = { lat: MONRE_LAT, lng: MONRE_LNG, radiusMeters: MAX_RADIUS_METERS, cutoffTime: "06:30" };
+  let monreSettingsFormPopulatedOnce = false;
+
+  function listenMonreSettings() {
+    db.ref('app_settings/monre').on('value', snap => {
+      const v = snap.val();
+      if (v && typeof v.lat === 'number' && typeof v.lng === 'number' && !isNaN(v.lat) && !isNaN(v.lng)) {
+        MONRE_SETTINGS = {
+          lat: v.lat,
+          lng: v.lng,
+          radiusMeters: (typeof v.radiusMeters === 'number' && v.radiusMeters > 0) ? v.radiusMeters : MAX_RADIUS_METERS,
+          cutoffTime: (typeof v.cutoffTime === 'string' && /^\d{2}:\d{2}$/.test(v.cutoffTime)) ? v.cutoffTime : "06:30"
+        };
+      } else {
+        // Belum pernah disetel admin — pakai default lama (MONRE_LAT/MONRE_LNG/MAX_RADIUS_METERS)
+        // supaya absensi tidak tiba-tiba berhenti berfungsi sebelum admin sempat menyetel yang benar.
+        MONRE_SETTINGS = { lat: MONRE_LAT, lng: MONRE_LNG, radiusMeters: MAX_RADIUS_METERS, cutoffTime: "06:30" };
+      }
+      renderMonreSettingsAdminPanel(v);
+    });
+  }
+
+  // Menampilkan info setting aktif (selalu live-update) dan mengisi form input HANYA sekali di awal
+  // (supaya kalau admin sedang mengetik nilai baru, form tidak tiba-tiba tertimpa oleh listener realtime).
+  function renderMonreSettingsAdminPanel(rawVal) {
+    const info = document.getElementById('monreSettingsActiveInfo');
+    if (info) {
+      const sourceLabel = rawVal ? `disetel oleh ${rawVal.updatedBy || '-'} pada ${rawVal.updatedAt || '-'}` : 'BELUM PERNAH DISETEL ADMIN — masih memakai koordinat default lama di kode (kemungkinan besar inilah sumber GPS salah selama ini)';
+      info.innerHTML = `<b>Setting Aktif Saat Ini:</b> Lat ${MONRE_SETTINGS.lat}, Lng ${MONRE_SETTINGS.lng}, Radius ${MONRE_SETTINGS.radiusMeters}m, Jam Batas ${MONRE_SETTINGS.cutoffTime} WITA<br><span style="opacity:0.8;">${sourceLabel}</span>`;
+    }
+    if (!monreSettingsFormPopulatedOnce) {
+      const latEl = document.getElementById('monreSetLat');
+      const lngEl = document.getElementById('monreSetLng');
+      const radEl = document.getElementById('monreSetRadius');
+      const cutEl = document.getElementById('monreSetCutoff');
+      if (latEl && lngEl && radEl && cutEl) {
+        latEl.value = MONRE_SETTINGS.lat;
+        lngEl.value = MONRE_SETTINGS.lng;
+        radEl.value = MONRE_SETTINGS.radiusMeters;
+        cutEl.value = MONRE_SETTINGS.cutoffTime;
+        monreSettingsFormPopulatedOnce = true;
+      }
+    }
+  }
+
+  // Ambil GPS device admin SAAT INI dan isikan ke form Lat/Lng — cara paling akurat memperbaiki
+  // koordinat Monre yang salah: admin berdiri fisik di titik Monre RS yang benar, lalu klik tombol ini.
+  function useMyGPSForMonreSetting() {
+    const statusEl = document.getElementById('monreSetStatus');
+    if (!("geolocation" in navigator)) {
+      if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = '⚠️ GPS tidak didukung perangkat/browser ini.'; }
+      return;
+    }
+    if (statusEl) { statusEl.style.color = 'var(--accent)'; statusEl.innerText = '📡 Mengambil lokasi GPS Anda saat ini... pastikan Anda sedang berdiri tepat di titik Monre RS.'; }
+    navigator.geolocation.getCurrentPosition((pos) => {
+      document.getElementById('monreSetLat').value = pos.coords.latitude.toFixed(6);
+      document.getElementById('monreSetLng').value = pos.coords.longitude.toFixed(6);
+      const accuracy = pos.coords.accuracy || 0;
+      if (statusEl) {
+        statusEl.style.color = accuracy > 30 ? 'var(--warning)' : 'var(--success)';
+        statusEl.innerText = accuracy > 30
+          ? `⚠️ Lokasi terisi (akurasi ±${Math.round(accuracy)}m — kurang presisi, sebaiknya coba lagi di luar ruangan/dekat jendela untuk sinyal GPS lebih baik), lalu klik "Simpan Setting" jika sudah yakin.`
+          : `✅ Lokasi terisi (akurasi ±${Math.round(accuracy)}m). Periksa nilai Lat/Lng di atas, lalu klik "Simpan Setting" untuk mengaktifkannya.`;
+      }
+    }, () => {
+      if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = '⚠️ Akses GPS ditolak. Izinkan akses lokasi di browser untuk memakai fitur ini.'; }
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  }
+
+  function saveMonreSettings() {
+    const statusEl = document.getElementById('monreSetStatus');
+    const lat = parseFloat(document.getElementById('monreSetLat').value);
+    const lng = parseFloat(document.getElementById('monreSetLng').value);
+    const radius = parseFloat(document.getElementById('monreSetRadius').value);
+    const cutoff = document.getElementById('monreSetCutoff').value;
+
+    if (isNaN(lat) || lat < -90 || lat > 90) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = '⚠️ Latitude tidak valid (harus angka antara -90 s/d 90).'; return; }
+    if (isNaN(lng) || lng < -180 || lng > 180) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = '⚠️ Longitude tidak valid (harus angka antara -180 s/d 180).'; return; }
+    if (isNaN(radius) || radius < 10 || radius > 5000) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = '⚠️ Radius toleransi tidak valid (masukkan antara 10 - 5000 meter).'; return; }
+    if (!cutoff || !/^\d{2}:\d{2}$/.test(cutoff)) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = '⚠️ Jam batas absen belum diisi.'; return; }
+
+    const payload = {
+      lat, lng, radiusMeters: radius, cutoffTime: cutoff,
+      updatedAt: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' }),
+      updatedBy: currentUsername || 'admin'
+    };
+    statusEl.style.color = 'var(--accent)'; statusEl.innerText = '💾 Menyimpan...';
+    db.ref('app_settings/monre').set(payload, (err) => {
+      if (err) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = '⚠️ Gagal menyimpan: ' + (err.message || err); return; }
+      statusEl.style.color = 'var(--success)';
+      statusEl.innerText = `✅ Tersimpan. Lokasi & jam batas absen Monre baru langsung berlaku untuk SEMUA residen mulai sekarang (realtime, tidak perlu refresh/deploy ulang).`;
+      logSystemChange('Mengubah setting lokasi GPS & jam batas Absen Monre', `Lat ${lat}, Lng ${lng}, Radius ${radius}m, Jam batas ${cutoff} WITA`);
+    });
+  }
+
+  // ================= PENGECUALIAN WAJIB ABSEN MONRE =================
+  // Residen stase Wahidin_COT/Wahidin_Luar_COT SECARA DEFAULT wajib Absen Monre. Sebagian divisi
+  // tetap "stase Wahidin" di data roster TAPI secara kebijakan operasional TIDAK wajib hadir Monre
+  // (jadwal/lokasi kerja mereka berbeda) — default berikut dipakai selama admin belum pernah
+  // menyimpan daftarnya sendiri di app_settings/monreExemptDivisi.
+  const DEFAULT_MONRE_EXEMPT_DIVISI = ["Resusitasi", "ICU", "Bedah Thoraks", "Bedah Anak"];
+  let monreExemptDivisiFormPopulatedOnce = false;
+
+  function listenMonreExemptSettings() {
+    db.ref('app_settings/monreExemptDivisi').on('value', snap => {
+      const v = snap.val();
+      const list = Array.isArray(v) ? v : DEFAULT_MONRE_EXEMPT_DIVISI;
+      if (!monreExemptDivisiFormPopulatedOnce) {
+        const el = document.getElementById('monreExemptDivisiInput');
+        if (el) { el.value = list.join(', '); monreExemptDivisiFormPopulatedOnce = true; }
+      }
+    });
+    const todayStr = todayDateStrWITA();
+    db.ref(`monre_exemption_log/${todayStr}`).on('value', snap => {
+      renderMonreExemptManualTable(snap.val() || {}, todayStr);
+    });
+  }
+
+  function saveMonreExemptDivisi() {
+    const statusEl = document.getElementById('monreExemptDivisiStatus');
+    const raw = document.getElementById('monreExemptDivisiInput').value.trim();
+    const list = raw.split(',').map(x => x.trim()).filter(x => x.length > 0);
+    if (list.length === 0) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = '⚠️ Daftar tidak boleh kosong — kosongkan lewat isi ulang default jika ingin reset, jangan hapus semua.'; return; }
+    statusEl.style.color = 'var(--accent)'; statusEl.innerText = '💾 Menyimpan...';
+    db.ref('app_settings/monreExemptDivisi').set(list, (err) => {
+      if (err) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = '⚠️ Gagal menyimpan: ' + (err.message || err); return; }
+      statusEl.style.color = 'var(--success)';
+      statusEl.innerText = `✅ Tersimpan (${list.length} divisi dikecualikan). Berlaku realtime untuk semua residen.`;
+      logSystemChange('Mengubah daftar divisi dikecualikan dari Absen Monre', list.join(', '));
+    });
+  }
+
+  function populateMonreExemptManualResidenSelect() {
+    const sel = document.getElementById('monreExemptManualResiden');
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">-- Pilih Residen --</option>' +
+      (MASTER_RESIDENTS || []).map(r => `<option value="${r.inisial}">${r.nama} (${r.inisial})</option>`).join('');
+    if (current) sel.value = current;
+  }
+
+  function catatMonreExemptionManual() {
+    const sel = document.getElementById('monreExemptManualResiden');
+    const alasanEl = document.getElementById('monreExemptManualAlasan');
+    const inisial = sel.value;
+    const alasan = alasanEl.value.trim();
+    if (!inisial) { alert('Pilih residen terlebih dahulu.'); return; }
+    if (!alasan) { alert('Isi alasan pengecualian.'); return; }
+    const todayStr = todayDateStrWITA();
+    const payload = {
+      alasan, dicatatOleh: currentUsername || 'Admin',
+      waktu: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' })
+    };
+    db.ref(`monre_exemption_log/${todayStr}/${inisial}`).set(payload, (err) => {
+      if (err) { alert('Gagal mencatat: ' + (err.message || err)); return; }
+      logSystemChange('Mencatat pengecualian manual Absen Monre hari ini', `${inisial} — ${alasan}`);
+      sel.value = ''; alasanEl.value = 'Jaga Malam';
+    });
+  }
+
+  function hapusMonreExemptionManual(inisial) {
+    const todayStr = todayDateStrWITA();
+    if (!confirm(`Hapus pengecualian Absen Monre hari ini untuk ${inisial}? Residen ini akan kembali WAJIB Absen Monre hari ini.`)) return;
+    db.ref(`monre_exemption_log/${todayStr}/${inisial}`).remove();
+    logSystemChange('Menghapus pengecualian manual Absen Monre hari ini', inisial);
+  }
+
+  function renderMonreExemptManualTable(data, todayStr) {
+    const tbody = document.getElementById('monreExemptManualTableBody');
+    if (!tbody) return;
+    const entries = Object.entries(data);
+    if (entries.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-light);">Belum ada pengecualian manual untuk hari ini.</td></tr>'; return; }
+    tbody.innerHTML = entries.map(([inisial, v]) => `
+      <tr>
+        <td>${inisial}</td>
+        <td>${v.alasan || '-'}</td>
+        <td>${v.dicatatOleh || '-'}</td>
+        <td>${v.waktu || '-'}</td>
+        <td><button class="btn btn-danger" style="padding:3px 8px; font-size:10px;" onclick="hapusMonreExemptionManual('${inisial}')"><i class="fa-solid fa-trash"></i></button></td>
+      </tr>`).join('');
+  }
+
+  // Cek apakah akun Residen yang sedang login dikecualikan dari kewajiban Absen Monre hari ini.
+  // Urutan pengecekan: (1) pengecualian manual hari ini (paling eksplisit, mis. Jaga Malam) ->
+  // (2) lokasiTugas roster BUKAN Wahidin_COT/Wahidin_Luar_COT (sedang stase di luar RS Wahidin,
+  // mis. RS Satelit/Afiliasi/Jejaring Eksternal) -> (3) nama divisi cocok daftar dikecualikan Admin
+  // (default: Resusitasi, ICU, Bedah Thoraks/BTKV, Bedah Anak). Kalau tidak ada roster sama sekali
+  // untuk residen ini (belum diupload Chief / inisial tidak cocok), TETAP dianggap wajib (perilaku
+  // lama) — supaya kekosongan data tidak diam-diam berarti "bebas dari kewajiban".
+  function checkMonreExemptionForCurrentUser() {
+    const gateBox = document.getElementById('gpsGateBox');
+    const exemptBox = document.getElementById('monreExemptionBox');
+    const exemptText = document.getElementById('monreExemptionText');
+    const showRequired = () => { if (gateBox) gateBox.style.display = 'block'; if (exemptBox) exemptBox.style.display = 'none'; };
+    const showExempt = (reason) => {
+      if (gateBox) gateBox.style.display = 'none';
+      if (exemptBox) exemptBox.style.display = 'block';
+      if (exemptText) exemptText.innerText = `Anda TIDAK diwajibkan Absen Monre hari ini — ${reason}. Ketidakhadiran Monre TIDAK akan tercatat sebagai pelanggaran.`;
+    };
+
+    if (currentUserRole !== 'residen' || !currentUsername) { showRequired(); return; }
+    const inisial = currentUsername.toUpperCase().trim();
+    const todayStr = todayDateStrWITA();
+
+    Promise.all([
+      db.ref('residen_stase_periods').once('value'),
+      db.ref('app_settings/monreExemptDivisi').once('value'),
+      db.ref(`monre_exemption_log/${todayStr}/${inisial}`).once('value')
+    ]).then(([staseSnap, exemptDivisiSnap, manualSnap]) => {
+      if (manualSnap.exists()) {
+        const m = manualSnap.val();
+        showExempt(`dicatat manual oleh ${m.dicatatOleh || 'Admin'}: "${m.alasan || 'Pengecualian'}"`);
+        return;
+      }
+
+      allStasePeriods = staseSnap.val() || {};
+      pickActiveStasePeriode();
+      const rosterEntry = residenStaseCurrent[inisial];
+
+      if (!rosterEntry) { showRequired(); return; }
+
+      if (rosterEntry.lokasiTugas && rosterEntry.lokasiTugas !== 'Wahidin_COT' && rosterEntry.lokasiTugas !== 'Wahidin_Luar_COT') {
+        showExempt(`stase Anda saat ini "${rosterEntry.divisi || '-'}" (${String(rosterEntry.lokasiTugas).replace(/_/g,' ')}) — bukan bertugas di RS Wahidin`);
+        return;
+      }
+
+      const exemptDivisiRaw = exemptDivisiSnap.val();
+      const exemptList = Array.isArray(exemptDivisiRaw) ? exemptDivisiRaw : DEFAULT_MONRE_EXEMPT_DIVISI;
+      const divisiUp = (rosterEntry.divisi || '').toUpperCase();
+      const matched = exemptList.find(x => divisiUp.includes(String(x).toUpperCase().trim()));
+      if (matched) { showExempt(`divisi stase Anda ("${rosterEntry.divisi}") termasuk daftar dikecualikan Admin`); return; }
+
+      showRequired();
+    }).catch(ex => {
+      console.error('Gagal memeriksa status pengecualian Absen Monre:', ex);
+      showRequired(); // gagal cek -> jangan diam-diam melewatkan kewajiban, default ke perilaku lama (wajib)
+    });
+  }
+
+  function forceShowMonreGateAnyway() {
+    const exemptBox = document.getElementById('monreExemptionBox');
+    const gateBox = document.getElementById('gpsGateBox');
+    if (exemptBox) exemptBox.style.display = 'none';
+    if (gateBox) gateBox.style.display = 'block';
+  }
+
+  // Menutup celah "residen yang WAJIB Monre tapi tidak pernah mencoba absen sama sekali (bukan cuma
+  // telat) tidak pernah tercatat sebagai pelanggaran" — dipicu manual oleh Chief/Admin, membandingkan
+  // roster wajib (dikurangi pengecualian divisi & manual) hari ini terhadap attendance_logs hari ini.
+  // Dedupe per residen per hari lewat monre_noshow_flagged supaya tidak dobel-catat kalau tombol
+  // ini ditekan berkali-kali.
+  function cekResidenBelumAbsenMonre() {
+    const resultBox = document.getElementById('monreNoShowResultBox');
+    if (resultBox) resultBox.innerText = '🔍 Memeriksa...';
+    const todayStr = todayDateStrWITA();
+
+    Promise.all([
+      db.ref('residen_stase_periods').once('value'),
+      db.ref('app_settings/monreExemptDivisi').once('value'),
+      db.ref(`monre_exemption_log/${todayStr}`).once('value'),
+      db.ref(`attendance_logs/${todayStr}`).once('value'),
+      db.ref(`monre_noshow_flagged/${todayStr}`).once('value')
+    ]).then(([staseSnap, exemptDivisiSnap, manualExemptSnap, attendanceSnap, flaggedSnap]) => {
+      allStasePeriods = staseSnap.val() || {};
+      const pickResult = pickActiveStasePeriode();
+      if (pickResult.status === 'none') {
+        if (resultBox) resultBox.innerText = '⚠️ Belum ada data roster stase yang diupload — tidak bisa menentukan siapa yang wajib Absen Monre hari ini.';
+        return;
+      }
+      const staleNote = pickResult.status === 'stale' ? '\n⚠️ CATATAN: roster yang dipakai sudah KEDALUWARSA (tidak ada periode yang mencakup tanggal hari ini) — hasil di bawah mungkin tidak akurat, upload roster terbaru dulu.' : '';
+
+      const exemptDivisiRaw = exemptDivisiSnap.val();
+      const exemptList = Array.isArray(exemptDivisiRaw) ? exemptDivisiRaw : DEFAULT_MONRE_EXEMPT_DIVISI;
+      const manualExempt = manualExemptSnap.val() || {};
+      const alreadyFlagged = flaggedSnap.val() || {};
+      // attendance_logs disimpan dengan key currentUsername APA ADANYA (bukan selalu sudah huruf
+      // besar), sedangkan roster stase & pengecekan ini memakai inisial huruf besar. Dinormalisasi
+      // ke huruf besar dulu supaya residen yang usernya kebetulan huruf kecil tidak salah ditandai
+      // "belum absen" padahal sudah absen.
+      const attendanceRaw = attendanceSnap.val() || {};
+      const attendance = {};
+      Object.keys(attendanceRaw).forEach(k => { attendance[k.toUpperCase().trim()] = attendanceRaw[k]; });
+
+      const wajib = [], dikecualikan = [], sudahHadir = [], baruDicatat = [];
+
+      Object.entries(residenStaseCurrent).forEach(([inisial, r]) => {
+        if (r.lokasiTugas !== 'Wahidin_COT' && r.lokasiTugas !== 'Wahidin_Luar_COT') return; // bukan stase Wahidin, di luar cakupan Monre
+        if (manualExempt[inisial]) { dikecualikan.push(`${inisial} (manual: ${manualExempt[inisial].alasan || '-'})`); return; }
+        const divisiUp = (r.divisi || '').toUpperCase();
+        const matched = exemptList.find(x => divisiUp.includes(String(x).toUpperCase().trim()));
+        if (matched) { dikecualikan.push(`${inisial} (divisi ${r.divisi})`); return; }
+        wajib.push(inisial);
+        if (attendance[inisial]) { sudahHadir.push(inisial); return; }
+        if (alreadyFlagged[inisial]) { return; } // sudah pernah dicatat pelanggarannya hari ini, jangan dobel
+        autoRecordDisciplineViolation(inisial, "DIS-01", `Tidak melakukan Absen Monre sama sekali hari ini (Batas ${MONRE_SETTINGS.cutoffTime || '06:30'} WITA, dicek manual oleh ${currentUsername})`);
+        db.ref(`monre_noshow_flagged/${todayStr}/${inisial}`).set({ waktu: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' }), dicatatOleh: currentUsername || 'Admin' });
+        baruDicatat.push(inisial);
+      });
+
+      logSystemChange('Cek residen belum Absen Monre', `Wajib: ${wajib.length}, Sudah hadir: ${sudahHadir.length}, Baru dicatat pelanggaran: ${baruDicatat.length}, Dikecualikan: ${dikecualikan.length}`);
+
+      if (resultBox) {
+        resultBox.innerText =
+          `Total wajib Absen Monre hari ini: ${wajib.length}\n` +
+          `✅ Sudah Absen: ${sudahHadir.length}${sudahHadir.length ? ' (' + sudahHadir.join(', ') + ')' : ''}\n` +
+          `🚨 BARU dicatat pelanggaran (belum absen sama sekali): ${baruDicatat.length}${baruDicatat.length ? ' (' + baruDicatat.join(', ') + ')' : ''}\n` +
+          `ℹ️ Dikecualikan dari kewajiban: ${dikecualikan.length}${dikecualikan.length ? '\n   - ' + dikecualikan.join('\n   - ') : ''}` +
+          staleNote;
+      }
+    }).catch(ex => {
+      console.error('Gagal cek residen belum Absen Monre:', ex);
+      if (resultBox) resultBox.innerText = '⚠️ Gagal memeriksa: ' + (ex.message || ex);
+    });
+  }
 
   const dpjpMapping = {
     "SKA": "Prof. DR. dr. Syafri Kamsul Arif, Sp.An-TI, Subsp.T.I (K), Subsp.An.Kv.(K)",
@@ -2512,6 +2923,10 @@
       registerPresenceOnline();
       if (isAdmin) listenOnlineUsersForAdmin();
       listenResidentHoursAnalysis();
+      // Setting lokasi GPS & jam batas Absen Monre — didengarkan untuk SEMUA role yang login (bukan
+      // cuma admin), karena Residen butuh MONRE_SETTINGS terkini saat melakukan Absensi Monre. Form
+      // pengaturannya sendiri hanya terlihat di menu Admin, tapi nilainya dipakai lintas-role.
+      listenMonreSettings();
 
       // Akun DPJP (Konsulen): Live Monitoring otomatis default ke "DPJP Anestesi Saya" begitu login,
       // supaya langsung melihat pasien mereka sendiri saja tanpa perlu ganti filter manual dulu.
@@ -2563,12 +2978,14 @@
         initIKVEDropdowns();
         listenIKVESummary();
         if(isAdmin) renderMasterResidentTable();
+        if(isAdmin) populateMonreExemptManualResidenSelect();
         if (!loginGreetingShown) { loginGreetingShown = true; showLoginGreeting(); }
       });
 
       if(isAdmin) listenAdminApprovalAndAttendance();
       if(isAdmin) listenAccessGrantAdminQueue();
       if(isAdmin) initVisiteCapacityAnalysis();
+      if(isAdmin) listenMonreExemptSettings();
       if(currentUserRole === 'konsulen') listenAccessGrantApprovalForKonsulen();
 
       // Akses form Pencatatan Pelanggaran & Reward (IKVE):
@@ -2647,8 +3064,31 @@
 
       if (passOk) {
         if (ud.approved) {
+          // Face ID WAJIB untuk akun Residen: jika akun ini sudah mendaftarkan wajah (faceDescriptor
+          // 128-angka tersimpan), password saja TIDAK CUKUP lagi untuk masuk — password hanya
+          // membuktikan identitas sampai tahap ini, sesi baru benar-benar dibuka lewat
+          // verifyFaceLoginAndEnter() setelah wajah cocok. Ini menutup celah "orang lain tahu/menebak
+          // password residen lalu login sebagai residen tsb" tanpa wajah asli pemilik akun.
+          const role = ud.role || "residen";
+          const hasFace = ud.faceDescriptor && Array.isArray(ud.faceDescriptor) && ud.faceDescriptor.length === 128;
+          if (role === "residen" && hasFace) {
+            document.getElementById("loginError").style.display = "none";
+            const panel = document.getElementById('faceLoginPanel');
+            const statusEl = document.getElementById('faceLoginStatus');
+            if (panel && (panel.style.display === 'none' || !panel.style.display)) toggleFaceLoginPanel();
+            if (statusEl) {
+              statusEl.style.color = 'var(--accent)';
+              statusEl.innerText = '🔒 Password benar. Akun ini WAJIB verifikasi wajah — klik "Mulai Kamera" lalu "Verifikasi & Masuk" untuk membuka akun.';
+            }
+            startFaceLoginCamera();
+            return;
+          }
+          // Residen yang BELUM mendaftarkan wajah: diizinkan masuk via password (grace period, supaya
+          // tidak terjadi deadlock "harus login untuk daftar wajah, tapi tidak bisa login tanpa wajah"),
+          // TAPI navigasinya langsung dikunci ke halaman Dashboard Saya sampai wajah didaftarkan —
+          // lihat guard di switchPage() dan flag residentFaceEnrollRequired.
           safeSession.setItem("loggedUser", ud.username);
-          safeSession.setItem("loggedRole", ud.role || "residen");
+          safeSession.setItem("loggedRole", role);
           safeSession.setItem("loggedDivisiChief", ud.divisiChief || "");
           document.getElementById("loginError").style.display = "none";
           checkSession();
@@ -2737,14 +3177,30 @@
   // Tampilkan status pendaftaran wajah akun sendiri di Dashboard Saya (dipanggil dari
   // renderResidentPersonalDashboard supaya selalu sinkron dengan data terbaru).
   function renderFaceEnrollStatusBadge() {
-    const badge = document.getElementById('resDashFaceEnrollStatusBadge');
-    if (!badge || !currentUsername) return;
+    if (!currentUsername) return;
     db.ref(`users_accounts/${currentUsername}/faceDescriptor`).once('value', snap => {
       const has = snap.exists() && Array.isArray(snap.val()) && snap.val().length === 128;
+
+      // Face ID WAJIB bagi Residen: selama akun Residen ini belum mendaftarkan wajah, kunci
+      // navigasi mereka ke Dashboard Saya saja (lihat guard di switchPage()) supaya pendaftaran
+      // tidak ditunda tanpa batas — begitu wajah didaftarkan, flag ini otomatis lepas dan menu
+      // lain kembali normal (dipanggil ulang oleh captureAndSaveFaceEnroll()).
+      const wasRequired = residentFaceEnrollRequired;
+      residentFaceEnrollRequired = (currentUserRole === 'residen' && !has);
+      if (residentFaceEnrollRequired && !wasRequired) {
+        const activePage = document.querySelector('.tab-page.active-page');
+        if (activePage && activePage.id !== 'page-dashboardsaya') {
+          alert('🔒 Face ID sekarang WAJIB untuk akun Residen. Silakan daftarkan wajah Anda di bawah ini sebelum mengakses menu lain.');
+          switchPage('page-dashboardsaya');
+        }
+      }
+
+      const badge = document.getElementById('resDashFaceEnrollStatusBadge');
+      if (!badge) return;
       badge.style.color = has ? 'var(--success)' : 'var(--warning)';
       badge.innerHTML = has
         ? '<i class="fa-solid fa-circle-check"></i> Wajah Anda sudah terdaftar — Face ID aktif untuk akun ini. Daftarkan ulang jika wajah berubah signifikan (kacamata baru, dsb).'
-        : '<i class="fa-solid fa-circle-exclamation"></i> Wajah Anda BELUM terdaftar — "Masuk dengan Wajah" belum bisa dipakai untuk akun ini.';
+        : '<i class="fa-solid fa-circle-exclamation"></i> Wajah Anda BELUM terdaftar — akun Residen WAJIB mendaftarkan wajah. Menu lain terkunci sampai pendaftaran selesai.';
     });
   }
 
@@ -2840,6 +3296,10 @@
   let faceEnrollStream = null;
   let FACE_MODELS_LOADED_FULL = false;
   const FACE_LOGIN_MATCH_THRESHOLD = 0.5; // euclideanDistance faceapi — makin kecil makin ketat (umum: 0.6)
+  // true jika akun Residen yang sedang login BELUM mendaftarkan Face ID (masuk lewat masa tenggang
+  // password-only). Selama true, switchPage() mengunci navigasi ke Dashboard Saya saja — lihat guard
+  // di switchPage() dan yang men-set flag ini di renderFaceEnrollStatusBadge().
+  let residentFaceEnrollRequired = false;
 
   function resetAbsensiGate() {
     stopFaceCam();
@@ -2850,10 +3310,16 @@
     const gateBox = document.getElementById('gpsGateBox');
     const gateStatus = document.getElementById('gpsGateStatus');
     const monreStatus = document.getElementById('monreStatus');
+    const exemptBox = document.getElementById('monreExemptionBox');
     if (faceSec) faceSec.style.display = 'none';
-    if (gateBox) gateBox.style.display = 'block';
+    // Gerbang GPS disembunyikan dulu sampai status pengecualian (checkMonreExemptionForCurrentUser)
+    // selesai dicek, supaya residen yang memang dikecualikan hari ini tidak sempat melihat form GPS
+    // yang pasti akan gagal untuk mereka (mis. sedang stase di RS Satelit/Jejaring Eksternal).
+    if (gateBox) gateBox.style.display = 'none';
     if (gateStatus) { gateStatus.style.color = ''; gateStatus.innerText = 'Menunggu izin lokasi GPS...'; }
     if (monreStatus) monreStatus.innerText = '';
+    if (exemptBox) exemptBox.style.display = 'none';
+    checkMonreExemptionForCurrentUser();
   }
 
   // PART 4: Ray-casting — cek apakah satu titik [lat,lng] berada di dalam poligon (array titik
@@ -2884,7 +3350,12 @@
     if (btnGPS) btnGPS.disabled = true;
 
     navigator.geolocation.getCurrentPosition((pos) => {
-      const d = calculateDistanceMeters(pos.coords.latitude, pos.coords.longitude, MONRE_LAT, MONRE_LNG);
+      // Memakai MONRE_SETTINGS (bisa disetel Admin lewat Panel Admin > "Setting Lokasi GPS & Jam
+      // Batas Absen Monre") — BUKAN lagi konstanta MONRE_LAT/MONRE_LNG/MAX_RADIUS_METERS yang
+      // hardcode di kode. MONRE_LAT/LNG/MAX_RADIUS_METERS hanya dipakai sebagai fallback selama
+      // admin belum pernah menyimpan setting (lihat listenMonreSettings()).
+      const activeLat = MONRE_SETTINGS.lat, activeLng = MONRE_SETTINGS.lng, activeRadius = MONRE_SETTINGS.radiusMeters;
+      const d = calculateDistanceMeters(pos.coords.latitude, pos.coords.longitude, activeLat, activeLng);
       const accuracy = pos.coords.accuracy || 0;
       if (btnGPS) btnGPS.disabled = false;
 
@@ -2893,13 +3364,13 @@
       const usingPolygon = HOSPITAL_GEOFENCE_POLYGON.length >= 3;
       const isInsideFence = usingPolygon
         ? isPointInPolygon([pos.coords.latitude, pos.coords.longitude], HOSPITAL_GEOFENCE_POLYGON)
-        : (d <= MAX_RADIUS_METERS);
+        : (d <= activeRadius);
       // Mitigasi drift sinyal GPS di dalam gedung (multipath): kalau titik tampak di LUAR batas
       // TAPI akurasi device buruk (>GPS_DRIFT_ACCURACY_THRESHOLD_M) dan posisi masih masuk akal
       // (selisih jarak <= radius + akurasi), tetap loloskan ke Face ID — TAPI ditandai berbeda
       // (bukan lolos bersih) dan dicatat ke Log Audit supaya Chief bisa meninjau kasus batas ini,
       // bukan diam-diam disamakan dengan verifikasi GPS yang bersih.
-      const driftTolerated = !isInsideFence && !usingPolygon && accuracy > GPS_DRIFT_ACCURACY_THRESHOLD_M && d <= (MAX_RADIUS_METERS + accuracy);
+      const driftTolerated = !isInsideFence && !usingPolygon && accuracy > GPS_DRIFT_ACCURACY_THRESHOLD_M && d <= (activeRadius + accuracy);
 
       if (isInsideFence || driftTolerated) {
         // FAKTOR 1 (GPS) LOLOS -> buka FAKTOR 2 (Face ID)
@@ -2908,7 +3379,7 @@
         gateStatus.innerText = driftTolerated
           ? `⚠️ Sinyal GPS lemah/terbiaskan gedung (akurasi ±${Math.round(accuracy)}m, jarak terhitung ${Math.round(d)}m). Tetap dilanjutkan ke verifikasi wajah, tercatat untuk ditinjau Chief.`
           : `✅ Lokasi GPS Terverifikasi (${Math.round(d)}m dari RS${usingPolygon?', mode poligon':''}). Membuka Kamera Face ID...`;
-        if (driftTolerated) logSystemChange('Absensi: toleransi drift sinyal GPS', `${currentUsername} — jarak ${Math.round(d)}m, akurasi ±${Math.round(accuracy)}m (radius izin ${MAX_RADIUS_METERS}m)`);
+        if (driftTolerated) logSystemChange('Absensi: toleransi drift sinyal GPS', `${currentUsername} — jarak ${Math.round(d)}m, akurasi ±${Math.round(accuracy)}m (radius izin ${activeRadius}m)`);
         document.getElementById('gpsGateBox').style.display = 'none';
         document.getElementById('faceCamSection').style.display = 'block';
         startFaceRecognitionCamera();
@@ -2916,8 +3387,8 @@
         // FAKTOR 1 GAGAL -> sistem terkunci, absensi otomatis ditolak, Face ID TIDAK dibuka
         gpsGateVerifiedDistance = null;
         gateStatus.style.color = 'var(--danger)';
-        gateStatus.innerText = `❌ DITOLAK OTOMATIS: Anda berada ${Math.round(d)}m dari lokasi RS (radius maksimal ${MAX_RADIUS_METERS}m, akurasi GPS ±${Math.round(accuracy)}m). Sistem Terkunci — Face ID tidak diaktifkan.`;
-        autoRecordDisciplineViolation(currentUsername, "DIS-02", `Absen di luar lokasi/radius Monre (${Math.round(d)} meter dari lokasi, radius izin ${MAX_RADIUS_METERS}m, akurasi GPS ±${Math.round(accuracy)}m)`);
+        gateStatus.innerText = `❌ DITOLAK OTOMATIS: Anda berada ${Math.round(d)}m dari lokasi RS (radius maksimal ${activeRadius}m, akurasi GPS ±${Math.round(accuracy)}m). Sistem Terkunci — Face ID tidak diaktifkan.`;
+        autoRecordDisciplineViolation(currentUsername, "DIS-02", `Absen di luar lokasi/radius Monre (${Math.round(d)} meter dari lokasi, radius izin ${activeRadius}m, akurasi GPS ±${Math.round(accuracy)}m)`);
       }
     }, () => {
       if (btnGPS) btnGPS.disabled = false;
@@ -2939,15 +3410,23 @@
       if (typeof faceapi !== 'undefined') {
         await Promise.all([
           faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models'),
-          faceapi.nets.faceLandmark64Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models')
+          faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models')
         ]);
       }
 
       el.innerText = '🔍 Mengidentifikasi Wajah... Tatap Kamera.';
       detectFaceLoop();
     } catch (err) {
+      // Sebelumnya pesan ini SELALU muncul (walau kamera sebenarnya diizinkan) karena bug nama model
+      // faceapi yang salah ("faceLandmark64Net" — tidak ada di library, harusnya "faceLandmark68Net")
+      // membuat Promise.all selalu gagal dan jatuh ke catch ini, sehingga Absensi Monre TIDAK PERNAH
+      // sampai ke Face ID sama sekali walau GPS sudah lolos — sudah diperbaiki di atas. try/catch ini
+      // juga sekarang mematikan stream kamera yang mungkin sudah terlanjur menyala sebelum error,
+      // supaya lampu kamera device tidak tetap menyala percuma setelah gagal.
+      console.error('Gagal memulai Face Recognition Absensi Monre:', err);
+      if (faceStream) { faceStream.getTracks().forEach(t => t.stop()); faceStream = null; }
       el.style.color = 'var(--danger)';
-      el.innerText = '⚠️ Akses Kamera Ditolak / Tidak Didukung.';
+      el.innerText = '⚠️ Akses Kamera Ditolak / Tidak Didukung (' + (err && err.message ? err.message : 'error tidak diketahui') + ').';
     }
   }
 
@@ -3024,18 +3503,23 @@
     const now = new Date();
     const tStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
     const dStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-    const isLate = now.getHours() > 7 || (now.getHours() === 7 && now.getMinutes() > 10);
+    // Jam batas absen memakai MONRE_SETTINGS.cutoffTime (bisa disetel Admin, default "06:30" WITA)
+    // — BUKAN lagi hardcode 07:10 seperti sebelumnya. Ini yang tadinya membuat keterlambatan tidak
+    // konsisten dengan jam Monre sebenarnya (06:30) dan tidak selalu tercatat sebagai pelanggaran.
+    const [cutoffH, cutoffM] = (MONRE_SETTINGS.cutoffTime || "06:30").split(':').map(Number);
+    const isLate = now.getHours() > cutoffH || (now.getHours() === cutoffH && now.getMinutes() > cutoffM);
+    const cutoffLabel = `${String(cutoffH).padStart(2,'0')}:${String(cutoffM).padStart(2,'0')}`;
     const payloadBase = { residen: currentUsername, waktu: tStr, jarakMeters: Math.round(d), faceVerified: true, fotoWajahBase64: capturedFacePhotoBase64 || '' };
 
     if (!isLate) {
       el.style.color = 'var(--success)';
-      el.innerText = `✅ SUKSES HADIR TEPAT WAKTU (GPS ${Math.round(d)}m, Face ID Terverifikasi) Jam ${tStr}`;
+      el.innerText = `✅ SUKSES HADIR TEPAT WAKTU (GPS ${Math.round(d)}m, Face ID Terverifikasi) Jam ${tStr} (Batas ${cutoffLabel} WITA)`;
       db.ref(`attendance_logs/${dStr}/${currentUsername}`).set({ ...payloadBase, status: "Hadir Tepat Waktu" });
     } else {
       el.style.color = 'var(--warning)';
-      el.innerText = `⚠️ TERLAMBAT (GPS ${Math.round(d)}m) Jam ${tStr}. Terintegrasi ke Pelaporan Disiplin IKVE.`;
+      el.innerText = `⚠️ TERLAMBAT (GPS ${Math.round(d)}m) Jam ${tStr} (Batas ${cutoffLabel} WITA). Terintegrasi ke Pelaporan Disiplin IKVE.`;
       db.ref(`attendance_logs/${dStr}/${currentUsername}`).set({ ...payloadBase, status: "Terlambat" });
-      autoRecordDisciplineViolation(currentUsername, "DIS-01", `Terlambat Absen Morning Report (Jam: ${tStr}, Radius: ${Math.round(d)}m)`);
+      autoRecordDisciplineViolation(currentUsername, "DIS-01", `Terlambat Absen Morning Report (Jam: ${tStr}, Batas: ${cutoffLabel} WITA, Radius: ${Math.round(d)}m)`);
     }
 
     const btnAbsen = document.getElementById('btnDoAttendance');
@@ -5979,7 +6463,12 @@ Ruangan: [Ruangan Asal]`;
       const isUrgency = isUrgencyStatusText(st);
       const isDikerja = isSelesai || hasMulaiTime;
       const isOptimalisasiText = !isSelesai && isOptimalisasiStatus(st);
-      const isBatalText = st !== '' && !isUrgency && !isSelesai && !isOptimalisasiText;
+      // "Sedang berlangsung" (diisi otomatis oleh applyAutoStatusOnMulai begitu jam Mulai terisi
+      // tapi status masih kosong) BUKAN pembatalan — sebelumnya baris ini ikut diwarnai merah
+      // ("status-merah"/Batal Murni) walau pasiennya sedang aktif dikerjakan. Dikecualikan di sini
+      // sama seperti di isBatalStatus() supaya warna baris konsisten dengan hitungan dashboard.
+      const isOngoingText = isOngoingStatus(st);
+      const isBatalText = st !== '' && !isUrgency && !isSelesai && !isOptimalisasiText && !isOngoingText;
       const statusClass = isOptimalisasiText ? 'status-optimalisasi' : isBatalText ? 'status-merah' : isUrgency ? 'status-urgency' : isDikerja ? 'status-selesai' : '';
 
       let cardOpt = statusOptions.map(o=>`<option value="${o}" ${st===o?'selected':''}>${o}</option>`).join('');
@@ -6688,6 +7177,18 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
     const st = (statusCatatan || '').toLowerCase();
     return st.includes('urgency') || st.includes('emergency');
   }
+  // BUG NYATA yang diperbaiki di sini: applyAutoStatusOnMulai() otomatis mengisi statusCatatan
+  // dengan teks literal "Sedang berlangsung" begitu jam Mulai diisi TAPI status laporan masih kosong
+  // (supaya kolom status tidak menggantung kosong). isBatalStatus() sebelumnya menganggap "batal"
+  // untuk SEMUA statusCatatan yang tidak kosong, bukan urgency, dan bukan "sudah dikerja" — sehingga
+  // pasien yang statusnya justru "Sedang berlangsung" (masih aktif dikerjakan, BUKAN batal) ikut
+  // terhitung sebagai Batal Murni di dashboard, Analisis & Basis Kebijakan, warna baris tabel (jadi
+  // merah, bukan hijau), dan kasus per-divisi di modul Kapasitas Visite. isOngoingStatus() di bawah
+  // mengecualikan status ini secara eksplisit, sama seperti urgency/emergency dan "sudah dikerja"
+  // sudah dikecualikan sebelumnya.
+  function isOngoingStatus(statusCatatan) {
+    return (statusCatatan || '').toLowerCase().includes('sedang berlangsung');
+  }
   // isBatalStatus = payung UMUM (batal murni + optimalisasi digabung) — dipertahankan untuk
   // kompatibilitas kode lama yang masih memakainya sebagai kategori "belum selesai & bukan urgency".
   function isBatalStatus(statusCatatan) {
@@ -6695,7 +7196,8 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
     const stLower = st.toLowerCase();
     const isUrgency = isUrgencyStatusText(st);
     const isSelesai = stLower.includes('sudah dikerja');
-    return st.trim() !== '' && !isUrgency && !isSelesai;
+    const isOngoing = isOngoingStatus(st);
+    return st.trim() !== '' && !isUrgency && !isSelesai && !isOngoing;
   }
   // isTrueBatalStatus = HANYA batal murni, TIDAK termasuk Optimalisasi.
   function isTrueBatalStatus(statusCatatan) {
