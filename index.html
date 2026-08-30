@@ -835,6 +835,17 @@
             </div>
           </div>
         </div>
+
+        <!-- JADWAL RS MITRA TERJADWAL: residen RS Mitra Husada/RSAD Pelamonia TIDAK 100% eksternal —
+             mayoritas hari mereka DI Wahidin, hanya hari tertentu benar-benar di RS mitra. Lihat
+             resolveResidenWahidinStatusForDate() di bagian JS. -->
+        <div style="margin-top:14px; padding-top:14px; border-top:1px solid rgba(251,113,133,0.25);">
+          <div style="font-weight:800; font-size:11px; color:#fda4af; margin-bottom:6px;"><i class="fa-solid fa-calendar-week"></i> Jadwal RS Mitra Terjadwal (Bukan 100% Eksternal)</div>
+          <p style="font-size:9.5px; color:var(--text-light); margin:0 0 6px 0;">Residen ber-stase di RS mitra berikut dianggap ADA di Wahidin di HARI-HARI SELAIN yang dituliskan (dihitung ke kapasitas divisi spesialisasi aslinya, mis. "RS Mitra Husada/THT" → dihitung ke divisi "THT" pada hari mereka di Wahidin). Satu baris per RS, format "Nama RS: Hari1, Hari2".</p>
+          <textarea id="wahidinPartnerScheduleInput" class="login-input" style="margin:0; min-height:60px; resize:vertical;" placeholder="Mitra Husada: Rabu, Sabtu&#10;Pelamonia: Senin"></textarea>
+          <button class="btn btn-warning" style="width:100%; margin-top:8px; font-weight:800;" onclick="saveWahidinPartnerSchedule()"><i class="fa-solid fa-floppy-disk"></i> Simpan Jadwal RS Mitra</button>
+          <p id="wahidinPartnerScheduleStatus" style="font-size:11px; margin:8px 0 0 0; color:var(--text-light);"></p>
+        </div>
       </div>
 
       <!-- BAGIAN INTI — selalu tampil, ini yang dicek setiap hari. Satu kalimat kesimpulan otomatis
@@ -3704,6 +3715,94 @@
     }
   }
 
+  // ================= JADWAL RS MITRA TERJADWAL (BUKAN 100% EKSTERNAL) =================
+  // Sebagian residen ber-stase di RS mitra TIDAK di sana penuh minggu — mereka MAYORITAS hari ada
+  // di Wahidin, dan HANYA pada hari tertentu benar-benar di RS mitra tsb (dikonfirmasi eksplisit):
+  //   - RS Mitra Husada: TIDAK di Wahidin hari Rabu & Sabtu (hari lain DI Wahidin)
+  //   - RSAD Pelamonia: TIDAK di Wahidin hari Senin (hari lain DI Wahidin)
+  // Roster upload menyimpan mereka dengan lokasiTugas='Jejaring_External' & divisi = nama RS mitra
+  // + spesialisasi (mis. "RS Mitra Husada/THT", "RSAD Pelamonia/Bedah Digestif") — kalau dibiarkan
+  // apa adanya, modul Kapasitas Visite akan menganggap mereka TIDAK PERNAH ada di Wahidin sama sekali,
+  // padahal mayoritas hari mereka ADA. resolveResidenWahidinStatusForDate() di bawah mengoreksi ini:
+  // pada hari mereka DI Wahidin, dihitung sebagai kapasitas Wahidin_COT pada divisi SPESIALISASI asli
+  // mereka (bagian setelah "/"), bukan pada nama RS mitra itu sendiri (yang tidak akan pernah cocok
+  // dengan data jadwal pasien apapun). "RS Polisi Bhayangkara" SENGAJA tidak dimasukkan default ini —
+  // belum ada konfirmasi jadwal terjadwalnya, tetap diperlakukan 100% eksternal seperti sebelumnya.
+  const DEFAULT_WAHIDIN_PARTNER_SCHEDULE = [
+    { keyword: 'Mitra Husada', days: [3, 6] }, // Rabu=3, Sabtu=6
+    { keyword: 'Pelamonia', days: [1] } // Senin=1
+  ];
+  let WAHIDIN_PARTNER_SCHEDULE = DEFAULT_WAHIDIN_PARTNER_SCHEDULE;
+  const INDO_DAY_NAMES = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  let wahidinPartnerScheduleFormPopulatedOnce = false;
+
+  function listenWahidinPartnerSchedule() {
+    db.ref('app_settings/wahidinPartnerSchedule').on('value', snap => {
+      const v = snap.val();
+      WAHIDIN_PARTNER_SCHEDULE = (Array.isArray(v) && v.length > 0) ? v : DEFAULT_WAHIDIN_PARTNER_SCHEDULE;
+      if (!wahidinPartnerScheduleFormPopulatedOnce) {
+        const el = document.getElementById('wahidinPartnerScheduleInput');
+        if (el) {
+          el.value = WAHIDIN_PARTNER_SCHEDULE.map(r => `${r.keyword}: ${r.days.map(d => INDO_DAY_NAMES[d]).join(', ')}`).join('\n');
+          wahidinPartnerScheduleFormPopulatedOnce = true;
+        }
+      }
+      renderVisiteCapacityAnalysis();
+      renderAutoMLLockoutEarlyWarning();
+    });
+  }
+
+  function saveWahidinPartnerSchedule() {
+    const statusEl = document.getElementById('wahidinPartnerScheduleStatus');
+    const raw = document.getElementById('wahidinPartnerScheduleInput').value.trim();
+    const dayNameToNum = { 'minggu':0,'senin':1,'selasa':2,'rabu':3,'kamis':4,'jumat':5,"jum'at":5,'sabtu':6 };
+    const lines = raw.split('\n').map(l => l.trim()).filter(l => l);
+    const parsed = [];
+    for (const line of lines) {
+      const [keywordPart, daysPart] = line.split(':');
+      if (!keywordPart || !daysPart) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = `⚠️ Format baris salah: "${line}". Format yang benar: "Nama RS: Hari1, Hari2" (mis. "Mitra Husada: Rabu, Sabtu").`; return; }
+      const days = daysPart.split(',').map(d => dayNameToNum[d.trim().toLowerCase()]).filter(d => d !== undefined);
+      if (days.length === 0) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = `⚠️ Tidak ada nama hari valid di baris: "${line}".`; return; }
+      parsed.push({ keyword: keywordPart.trim(), days });
+    }
+    statusEl.style.color = 'var(--accent)'; statusEl.innerText = '💾 Menyimpan...';
+    db.ref('app_settings/wahidinPartnerSchedule').set(parsed, (err) => {
+      if (err) { statusEl.style.color = 'var(--danger)'; statusEl.innerText = '⚠️ Gagal menyimpan: ' + (err.message || err); return; }
+      statusEl.style.color = 'var(--success)';
+      statusEl.innerText = `✅ Tersimpan (${parsed.length} RS mitra terjadwal). Berlaku realtime untuk semua sesi.`;
+      logSystemChange('Mengubah jadwal RS mitra terjadwal (Kapasitas Visite)', JSON.stringify(parsed));
+    });
+  }
+
+  // Mengembalikan status SATU residen pada SATU tanggal: apakah hari itu mereka ada di Wahidin, dan
+  // divisi mana yang relevan untuk dihitung (divisi spesialisasi asli untuk residen RS mitra
+  // terjadwal, atau divisi apa adanya untuk residen lain).
+  function resolveResidenWahidinStatusForDate(r, dateStr) {
+    if (r.lokasiTugas === 'Wahidin_COT') return { atWahidin: true, effectiveDivisi: r.divisi };
+    const divisiStr = r.divisi || '';
+    const rule = WAHIDIN_PARTNER_SCHEDULE.find(x => divisiStr.toLowerCase().includes(String(x.keyword).toLowerCase()));
+    if (!rule) return { atWahidin: false, effectiveDivisi: r.divisi }; // bukan RS mitra terjadwal -> ikuti lokasiTugas asli (sudah bukan Wahidin_COT)
+    const dow = new Date(dateStr + 'T00:00:00').getDay();
+    if (rule.days.includes(dow)) return { atWahidin: false, effectiveDivisi: r.divisi }; // hari ini jadwal ke RS mitra
+    const slashIdx = divisiStr.indexOf('/');
+    const effectiveDivisi = slashIdx >= 0 ? divisiStr.slice(slashIdx + 1).trim() : divisiStr;
+    return { atWahidin: true, effectiveDivisi: effectiveDivisi || divisiStr };
+  }
+
+  // Mengubah roster mentah menjadi "roster efektif hari ini": residen RS mitra terjadwal yang HARI
+  // INI ada di Wahidin diperlakukan sebagai Wahidin_COT pada divisi spesialisasi aslinya; sisanya
+  // tidak berubah. Dipakai di renderVisiteCapacityAnalysis() & populateTarikMendadakResidenSelect()
+  // supaya keduanya konsisten (residen yang dihitung sebagai kapasitas hari ini juga BISA dicatat
+  // "ditarik mendadak" hari itu, tidak setengah-setengah).
+  function buildEffectiveStaseListForDate(rosterObj, dateStr) {
+    return Object.values(rosterObj).map(r => {
+      if (r.lokasiTugas === 'Wahidin_COT') return r;
+      const resolved = resolveResidenWahidinStatusForDate(r, dateStr);
+      if (resolved.atWahidin) return { ...r, divisi: resolved.effectiveDivisi, lokasiTugas: 'Wahidin_COT', _isPartnerScheduleResolved: true, _originalDivisi: r.divisi };
+      return r;
+    });
+  }
+
   function initVisiteCapacityAnalysis() {
     const card = document.getElementById('visiteCapacityCard');
     if (card) card.style.display = 'block';
@@ -3719,14 +3818,15 @@
       tugasLuarCOTToday = snap.val() || {};
       renderVisiteCapacityAnalysis();
     });
+    listenWahidinPartnerSchedule();
   }
 
   function populateTarikMendadakResidenSelect() {
     const sel = document.getElementById('tarikMendadakResiden');
     if (!sel) return;
-    const entries = Object.values(residenStaseCurrent).filter(r => r.lokasiTugas === 'Wahidin_COT').sort((a,b) => (a.divisi||'').localeCompare(b.divisi||'') || (a.nama||'').localeCompare(b.nama||''));
+    const entries = buildEffectiveStaseListForDate(residenStaseCurrent, todayDateStrWITA()).filter(r => r.lokasiTugas === 'Wahidin_COT').sort((a,b) => (a.divisi||'').localeCompare(b.divisi||'') || (a.nama||'').localeCompare(b.nama||''));
     sel.innerHTML = entries.length
-      ? entries.map(r => `<option value="${r.inisial}">${r.nama} (${r.inisial}) — ${r.divisi}</option>`).join('')
+      ? entries.map(r => `<option value="${r.inisial}">${r.nama} (${r.inisial}) — ${r.divisi}${r._isPartnerScheduleResolved ? ' (RS mitra, hari ini di Wahidin)' : ''}</option>`).join('')
       : '<option value="">-- Upload data stase dahulu --</option>';
   }
 
@@ -3835,8 +3935,14 @@
     const keterangan = document.getElementById('tarikMendadakKeterangan').value.trim();
     if (!inisial) return alert('⚠️ Pilih residen yang ditarik terlebih dahulu (pastikan data stase sudah diupload).');
     const r = residenStaseCurrent[inisial];
+    // Untuk residen RS mitra terjadwal (mis. Mitra Husada/Pelamonia) yang hari ini "ada di Wahidin",
+    // catat memakai DIVISI SPESIALISASI efektif (mis. "THT"), BUKAN nama RS mitra mentah ("RS Mitra
+    // Husada/THT") — supaya cocok dengan baris divisi yang sama di tabel Kapasitas Visite (lihat
+    // resolveResidenWahidinStatusForDate() & buildEffectiveStaseListForDate()). Kalau tidak, pencatatan
+    // "ditarik mendadak" untuk mereka diam-diam tidak pernah mengurangi kapasitas divisi manapun.
+    const effectiveDivisi = r ? resolveResidenWahidinStatusForDate(r, todayDateStrWITA()).effectiveDivisi : '-';
     const payload = {
-      inisial, divisi: r ? r.divisi : '-', lokasiTujuan, keterangan,
+      inisial, divisi: r ? effectiveDivisi : '-', lokasiTujuan, keterangan,
       dicatatOleh: currentUsername, waktu: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Makassar' }),
       timestampMs: Date.now()
     };
@@ -3870,11 +3976,17 @@
       return;
     }
 
-    // Divisi dari roster stase (Wahidin_COT saja yang relevan untuk kapasitas lantai COT) digabung
-    // dengan divisi yang punya kasus terjadwal (activeSheetData) — supaya divisi yang ada kasus tapi
-    // (secara data) belum ada residen ber-stase COT ikut ditandai, bukan diam-diam hilang dari tabel.
+    // "Roster efektif hari ini": residen RS mitra terjadwal (Mitra Husada/Pelamonia, lihat
+    // buildEffectiveStaseListForDate()) yang HARI INI ada di Wahidin ikut dihitung sebagai kapasitas
+    // Wahidin_COT pada divisi spesialisasi aslinya — bukan lagi selalu dianggap 100% eksternal.
+    const todayStr = todayDateStrWITA();
+    const effectiveStaseList = buildEffectiveStaseListForDate(residenStaseCurrent, todayStr);
+
+    // Divisi dari roster stase EFEKTIF (Wahidin_COT saja yang relevan untuk kapasitas lantai COT)
+    // digabung dengan divisi yang punya kasus terjadwal (activeSheetData) — supaya divisi yang ada
+    // kasus tapi (secara data) belum ada residen ber-stase COT ikut ditandai, bukan diam-diam hilang.
     const divisiSet = new Set();
-    staseList.forEach(r => { if (r.divisi) divisiSet.add(r.divisi); });
+    effectiveStaseList.forEach(r => { if (r.divisi) divisiSet.add(r.divisi); });
     (activeSheetData||[]).forEach(p => { if (p.divisi && p.divisi !== '-') divisiSet.add(p.divisi.trim()); });
 
     const tarikMendadakArr = Object.values(tugasLuarCOTToday);
@@ -3883,7 +3995,7 @@
     const statusCounts = { aman: 0, rawan: 0, blockout: 0, tidakDiketahui: 0 };
 
     Array.from(divisiSet).sort().forEach(divisi => {
-      const anggotaCOT = staseList.filter(r => r.divisi === divisi && r.lokasiTugas === 'Wahidin_COT');
+      const anggotaCOT = effectiveStaseList.filter(r => r.divisi === divisi && r.lokasiTugas === 'Wahidin_COT');
       const totalWahidinCOT = anggotaCOT.length;
       const mendadakDivisiIni = tarikMendadakArr.filter(t => t.divisi === divisi && anggotaCOT.some(a => a.inisial === t.inisial));
       const ditarikMendadak = mendadakDivisiIni.length;
@@ -3967,7 +4079,7 @@
     waText += `Total ${staseList.length} residen ter-data pada roster stase aktif, mencakup ${divisiSet.size} divisi.\n\n`;
     waText += `*RINGKASAN KAPASITAS PER DIVISI:*\n`;
     Array.from(divisiSet).sort().forEach(divisi => {
-      const anggotaCOT = staseList.filter(r => r.divisi === divisi && r.lokasiTugas === 'Wahidin_COT');
+      const anggotaCOT = effectiveStaseList.filter(r => r.divisi === divisi && r.lokasiTugas === 'Wahidin_COT');
       const mendadakDivisiIni = tarikMendadakArr.filter(t => t.divisi === divisi && anggotaCOT.some(a => a.inisial === t.inisial));
       const kapasitasBersih = Math.max(0, anggotaCOT.length - mendadakDivisiIni.length);
       const kasusDivisi = (activeSheetData||[]).filter(p => (p.divisi||'').trim() === divisi && !isTrueBatalStatus(p.statusCatatan));
@@ -7572,8 +7684,11 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
       const tugasRaw = tugasSnap.val() || {};
       const logRaw = logSnap.val() || {};
 
+      // Kapasitas dasar BESOK (bukan hari ini) — memakai buildEffectiveStaseListForDate(tomorrow)
+      // supaya residen RS mitra terjadwal (Mitra Husada/Pelamonia) ikut terhitung kalau BESOK
+      // memang jadwal mereka di Wahidin, dan tidak terhitung kalau besok jadwal ke RS mitra.
       const totalCOTPerDivisi = {};
-      Object.values(residenStaseCurrent).forEach(r => {
+      buildEffectiveStaseListForDate(residenStaseCurrent, tomorrow).forEach(r => {
         if (r.lokasiTugas === 'Wahidin_COT') totalCOTPerDivisi[r.divisi] = (totalCOTPerDivisi[r.divisi] || 0) + 1;
       });
       if (Object.keys(totalCOTPerDivisi).length === 0) {
