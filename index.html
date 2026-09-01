@@ -216,6 +216,21 @@
     .metric-card.danger { border-top-color: var(--danger); }
     .metric-card h4 { margin: 0 0 8px 0; font-size: 10px; color: var(--text-light); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
     .metric-card .value { font-size: 26px; font-weight: 900; color: #fff; letter-spacing: -0.5px; }
+
+    /* ================= KARTU STATISTIK RINGKAS + PITA KESIMPULAN (AutoML, Kapasitas Visite) =========
+       Dipakai bersama supaya AutoML dan Analisis Beban Kerja/Visite terasa SATU bahasa visual, bukan
+       dua gaya berbeda: angka besar dulu (bisa dipindai sekilas), lalu SATU kalimat kesimpulan bahasa
+       awam di pita berwarna di bawahnya ("apa yang perlu dilakukan"), bukan menambah lebih banyak
+       grafik/tabel padat teks. */
+    .mini-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin-bottom: 10px; }
+    .mini-stat-tile { background: rgba(15,23,42,0.55); border-radius: 14px; padding: 12px 10px; text-align: center; border: 1px solid var(--border); }
+    .mini-stat-tile .mst-num { font-size: 22px; font-weight: 900; color: #fff; line-height: 1.15; }
+    .mini-stat-tile .mst-label { font-size: 9px; font-weight: 700; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 4px; }
+    .insight-banner { border-radius: 12px; padding: 10px 14px; font-size: 11.5px; font-weight: 700; line-height: 1.5; margin-bottom: 10px; }
+    .insight-banner.ok { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.4); color: #6ee7b7; }
+    .insight-banner.warn { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.4); color: #fde68a; }
+    .insight-banner.danger { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.4); color: #fca5a5; }
+    .insight-banner.info { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4); color: #93c5fd; }
     .metric-badge { position: absolute; top: 16px; right: 16px; font-size: 10px; padding: 3px 8px; border-radius: 8px; font-weight: 700; background: rgba(255,255,255,0.06); }
 
     .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
@@ -556,9 +571,11 @@
     </div>
   </div>
   <div id="globalSearchWrap" style="position:relative; flex:1; max-width:320px; min-width:0; margin:0 10px;">
-    <input type="text" id="globalPatientSearch" placeholder="🔍 Cari nama pasien (semua data)..." autocomplete="off"
+    <input type="text" id="globalPatientSearch" placeholder="🔍 Cari pasien — nama, RM, divisi, atau DPJP..." autocomplete="off"
       oninput="renderGlobalSearchResults()" onfocus="renderGlobalSearchResults()"
-      style="width:100%; padding:9px 12px; border-radius:12px; border:1px solid var(--border); font-size:12px; background:rgba(15,23,42,0.6); color:white;">
+      style="width:100%; padding:9px 12px; border-radius:12px; border:1px solid var(--border); font-size:12px; background:rgba(15,23,42,0.6); color:white; transition:border-color 0.15s, box-shadow 0.15s;"
+      onfocusin="this.style.borderColor='var(--accent)'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.25)';"
+      onfocusout="this.style.borderColor='var(--border)'; this.style.boxShadow='none';">
     <div id="globalSearchResultsPanel" style="display:none; position:absolute; top:calc(100% + 6px); left:0; right:0; max-height:420px; overflow-y:auto; background:#0f172a; border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.5); z-index:1200;"></div>
   </div>
   <div style="display:flex; align-items:center; gap:12px;">
@@ -740,13 +757,13 @@
            historis masih sedikit, ditandai jelas "keyakinan rendah" — TIDAK berpura-pura presisi. -->
       <div class="card" style="border-color: rgba(139, 92, 246, 0.4); background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(49, 39, 79, 0.5) 100%);">
         <div class="card-title" style="color: #a78bfa;"><i class="fa-solid fa-wand-magic-sparkles"></i> AutoML — Proyeksi Beban Pasien &amp; Kebutuhan OK Besok</div>
-        <canvas id="chartOperator" height="130"></canvas>
-        <div style="margin-top: 10px; font-size: 11px; color: var(--text-light); display: flex; flex-direction: column; gap: 4px;">
-          <div><b>Proyeksi Beban Besok:</b> <span id="automlNextDayLoad">Menghitung...</span></div>
-          <div><b>Proyeksi OK Aktif Besok:</b> <span id="automlORDemand">Menghitung...</span></div>
-          <div><b>Saran Sumber Daya:</b> <span id="automlResourceAdvisory">Menghitung...</span></div>
-          <div id="automlConfidenceNote" style="font-size:9.5px; opacity:0.75; margin-top:4px;"></div>
+        <div class="mini-stat-grid" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="mini-stat-tile"><div class="mst-num" id="automlNextDayLoadNum">-</div><div class="mst-label">Proyeksi Beban Besok</div><div id="automlNextDayLoadSub" style="font-size:9px; color:var(--text-light); margin-top:2px;"></div></div>
+          <div class="mini-stat-tile"><div class="mst-num" id="automlORDemandNum">-</div><div class="mst-label">Proyeksi OK Aktif Besok</div></div>
         </div>
+        <div id="automlResourceAdvisory" class="insight-banner ok">Menghitung proyeksi...</div>
+        <canvas id="chartOperator" height="130"></canvas>
+        <div id="automlConfidenceNote" style="font-size:9.5px; opacity:0.75; margin-top:8px;"></div>
       </div>
     </div>
 
@@ -754,7 +771,10 @@
     <div class="card" style="border-top:4px solid #f472b6; background:linear-gradient(135deg, rgba(30,41,59,0.85) 0%, rgba(60,20,45,0.35) 100%);">
       <div class="card-title" style="color:#f9a8d4;"><i class="fa-solid fa-robot"></i> AutoML — Prediksi Risiko Pembatalan per Divisi</div>
       <p style="font-size:10px; color:var(--text-light); margin:0 0 10px 0;">Dihitung dari tren tingkat pembatalan murni (isTrueBatalStatus, sudah termasuk perbaikan "Sedang berlangsung" tidak lagi salah dihitung batal) 28 hari terakhir per divisi — otomatis diperbarui, tidak perlu retraining manual.</p>
-      <div style="overflow-x:auto;">
+      <div class="mini-stat-grid" id="automlPembatalanStatTiles" style="grid-template-columns: repeat(3, 1fr);"></div>
+      <div id="automlPembatalanInsight" class="insight-banner ok">Menghitung...</div>
+      <h5 class="collapsible-header" onclick="toggleCollapseCard(this)" style="font-size:10.5px; color:#f9a8d4; margin:8px 0; cursor:pointer; display:flex; justify-content:space-between; align-items:center;"><span><i class="fa-solid fa-table-list"></i> Lihat Rincian per Divisi</span><i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:10px;"></i></h5>
+      <div class="collapsible-body" style="display:none; overflow-x:auto;">
         <table class="bantex-table" style="background:rgba(15,23,42,0.6);">
           <thead><tr><th style="text-align:left;">Divisi</th><th>Rata-rata Batal (28 Hari)</th><th>Tren</th><th>Proyeksi Besok</th><th>Risiko</th></tr></thead>
           <tbody id="automlRisikoPembatalanBody"><tr><td colspan="5" style="text-align:center; color:var(--text-light);">Menghitung...</td></tr></tbody>
@@ -766,7 +786,10 @@
     <div class="card" style="border-top:4px solid #fbbf24; background:linear-gradient(135deg, rgba(30,41,59,0.85) 0%, rgba(60,45,10,0.35) 100%);">
       <div class="card-title" style="color:#fde68a;"><i class="fa-solid fa-robot"></i> AutoML — Prediksi Risiko Burnout Residen</div>
       <p style="font-size:10px; color:var(--text-light); margin:0 0 10px 0;">Membandingkan kecepatan jam kerja 7 hari terakhir vs 14 hari terakhir per residen, lalu memproyeksikan total jam bulan ini pada kecepatan TERKINI — memakai ambang batas yang SAMA dengan Resident Burnout Index yang sudah ada (&gt;80 jam Peringatan, &gt;100 jam Kritis), supaya tidak ada dua definisi "burnout" berbeda di sistem ini.</p>
-      <div style="overflow-x:auto; max-height:280px;">
+      <div class="mini-stat-grid" id="automlBurnoutStatTiles" style="grid-template-columns: repeat(2, 1fr);"></div>
+      <div id="automlBurnoutInsight" class="insight-banner ok">Menghitung...</div>
+      <h5 class="collapsible-header" onclick="toggleCollapseCard(this)" style="font-size:10.5px; color:#fde68a; margin:8px 0; cursor:pointer; display:flex; justify-content:space-between; align-items:center;"><span><i class="fa-solid fa-table-list"></i> Lihat Rincian per Residen</span><i class="fa-solid fa-chevron-down collapse-chevron" style="font-size:10px;"></i></h5>
+      <div class="collapsible-body" style="display:none; overflow-x:auto; max-height:280px;">
         <table class="bantex-table" style="background:rgba(15,23,42,0.6);">
           <thead><tr><th style="text-align:left;">Residen</th><th>Jam Kerja Bulan Ini</th><th>Kecepatan 7 Hari Terakhir</th><th>Proyeksi Akhir Bulan</th><th>Status</th></tr></thead>
           <tbody id="automlRisikoBurnoutBody"><tr><td colspan="5" style="text-align:center; color:var(--text-light);">Menghitung...</td></tr></tbody>
@@ -849,9 +872,12 @@
         </div>
       </div>
 
-      <!-- BAGIAN INTI — selalu tampil, ini yang dicek setiap hari. Satu kalimat kesimpulan otomatis
-           di atas tabel, supaya bisa langsung ditangkap sekilas tanpa harus membaca semua baris/warna
-           status satu-satu ("grafik/tabel mudah dimengerti dengan penjelasan singkat analisisnya"). -->
+      <!-- BAGIAN INTI — selalu tampil, ini yang dicek setiap hari. Kartu statistik ringkas (jumlah
+           divisi aman/rawan/BLOCKOUT) dulu supaya bisa dipindai sekilas, lalu SATU kalimat kesimpulan
+           bahasa awam di bawahnya, baru tabel rincian — sama seperti gaya AutoML di atas, supaya
+           satu bahasa visual di seluruh sistem ("grafik/tabel mudah dimengerti dengan penjelasan
+           singkat analisisnya"). -->
+      <div id="visiteCapacityStatTiles" class="mini-stat-grid" style="grid-template-columns: repeat(3, 1fr);"></div>
       <div id="visiteCapacitySummaryLine" style="font-size:12px; font-weight:700; margin-bottom:10px;"></div>
       <div style="overflow-x:auto; margin-bottom:12px;">
         <table class="bantex-table" style="text-align:center; font-size:11px;">
@@ -906,6 +932,7 @@
           <button class="btn btn-warning" style="padding:8px 14px; font-size:11px; font-weight:800;" onclick="reconstructVisiteCapacityForDate(document.getElementById('visiteHistDateInput').value)"><i class="fa-solid fa-magnifying-glass"></i> Tampilkan</button>
         </div>
         <div id="visiteHistNote" style="font-size:10.5px; margin-bottom:8px; color:var(--text-light);">Pilih tanggal lalu klik "Tampilkan".</div>
+        <div id="visiteHistStatTiles" class="mini-stat-grid" style="grid-template-columns: repeat(3, 1fr);"></div>
         <div id="visiteHistSummaryLine" style="font-size:12px; font-weight:700; margin-bottom:10px;"></div>
         <div style="overflow-x:auto; margin-bottom:12px;">
           <table class="bantex-table" style="text-align:center; font-size:11px;">
@@ -1882,6 +1909,20 @@
         <p id="monreSetStatus" style="font-size:11px; margin:10px 0 0 0; color:var(--text-light);"></p>
       </div>
 
+      <!-- AUTO-HIDE PASIEN SELESAI DI LIST EMERGENCY: pasien yang sudah Selesai otomatis dibersihkan
+           dari 'emergency_patients' sekian menit kemudian (data tetap aman, sudah tersalin ke Papan
+           Utama/daily_patient_log sejak Selesai) — supaya List Emergency tidak menumpuk pasien lama
+           dan tetap fokus ke antrean/pasien aktif. Lihat sweepAutoHideCompletedEmergency(). -->
+      <div style="background:rgba(15,23,42,0.6); padding:16px; border-radius:14px; border:2px solid #34d399; margin-bottom:20px;">
+        <h5 style="margin:0 0 10px 0; color:#6ee7b7;"><i class="fa-solid fa-broom"></i> Auto-Hide Pasien Selesai (List Emergency)</h5>
+        <p style="font-size:10px; color:var(--text-light); margin:0 0 12px 0;">Pasien yang sudah ditandai Selesai di List Pasien Emergency WA akan otomatis dihapus dari list tersebut setelah durasi ini — data pasiennya TETAP AMAN karena sudah otomatis tersalin ke Papan Utama/riwayat harian sejak Selesai.</p>
+        <div style="display:flex; gap:8px; align-items:end;">
+          <div class="form-group" style="margin:0; flex:1;"><label style="font-size:9.5px;">Durasi (menit)</label><input type="number" id="emergencyAutoHideMinutesInput" class="login-input" style="margin:0;" min="1" value="20"></div>
+          <button class="btn btn-success" style="padding:8px 14px; font-size:11px; font-weight:800;" onclick="saveEmergencyAutoHideSetting()"><i class="fa-solid fa-floppy-disk"></i> Simpan</button>
+        </div>
+        <p id="emergencyAutoHideMinutesStatus" style="font-size:11px; margin:8px 0 0 0; color:var(--text-light);"></p>
+      </div>
+
       <!-- PENGECUALIAN ABSEN MONRE: divisi/stase yang TIDAK diwajibkan Absen Monre meski sedang -->
       <!-- stase Wahidin (mis. Resusitasi, ICU, BTKV, Bedah Anak — bertugas di titik lain RS/jam -->
       <!-- berbeda), PLUS pengecualian manual harian (Jaga Malam / ad-hoc) per residen. -->
@@ -2677,6 +2718,14 @@
     }, 5000);
   }
   let emergencyPatientsList = []; // Global variable data emergency
+  // Pasien Selesai di List Emergency otomatis dibersihkan (dihapus dari node emergency_patients)
+  // sekian menit setelah ditandai Selesai — datanya TIDAK hilang, karena begitu Selesai sudah
+  // otomatis tersalin ke Papan Utama/daily_patient_log (lihat completeEmergencyWithResidenPrompt).
+  // List Emergency hanya untuk operasional aktif (antre/berlangsung), bukan arsip — kalau pasien
+  // Selesai menumpuk lama di sana, list jadi ramai dan sulit dipindai untuk kerja aktif.
+  const DEFAULT_EMERGENCY_COMPLETED_AUTO_HIDE_MINUTES = 20;
+  let EMERGENCY_COMPLETED_AUTO_HIDE_MINUTES = DEFAULT_EMERGENCY_COMPLETED_AUTO_HIDE_MINUTES;
+  let emergencyAutoHideSweepTimer = null;
 
   // ================= AKUN KHUSUS CHIEF & WAKIL CHIEF =================
   // Akses setara Admin (full access semua menu), namun SETIAP perubahan sistem yang
@@ -3221,7 +3270,7 @@
       }
 
       const now = new Date(); document.getElementById('monthlyFilterPicker').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-      initReportForm(); initCharts(); listenRealtimeData(); listenEmergencyPatients(); updateRealtimeClock(); checkAndShowHolidayBanner(); renderWATemplateBox();
+      initReportForm(); initCharts(); listenRealtimeData(); listenEmergencyAutoHideSetting(); listenEmergencyPatients(); updateRealtimeClock(); checkAndShowHolidayBanner(); renderWATemplateBox();
       // AutoML dipanggil SETELAH initCharts() (bukan sebelumnya) karena renderAutoMLBebanPasienBesok()
       // menulis langsung ke chartOperatorInstance — kalau dipanggil lebih dulu, chart belum ada dan
       // hasilnya diam-diam tidak pernah ter-render sampai ada trigger lain.
@@ -4164,6 +4213,16 @@
     return `ℹ️ Belum ada divisi yang bisa dinilai ${contextLabel} — data OK aktif dan/atau roster COT belum lengkap untuk ${totalDivisi} divisi yang terdeteksi.`;
   }
 
+  // Kartu statistik ringkas (Aman/Rawan/BLOCKOUT) — dipakai BERSAMA visiteCapacitySummaryToHTML() di
+  // atas oleh tampilan live (hari ini) maupun Riwayat (tanggal lampau), dari statusCounts yang SAMA
+  // PERSIS, supaya kartu dan kalimat kesimpulan tidak pernah berbeda angka satu sama lain.
+  function visiteCapacityStatTilesHTML(statusCounts) {
+    return `
+      <div class="mini-stat-tile" style="border-color:rgba(16,185,129,0.4);"><div class="mst-num" style="color:#6ee7b7;">${statusCounts.aman||0}</div><div class="mst-label">Aman</div></div>
+      <div class="mini-stat-tile" style="border-color:rgba(245,158,11,0.4);"><div class="mst-num" style="color:#fde68a;">${statusCounts.rawan||0}</div><div class="mst-label">Rawan</div></div>
+      <div class="mini-stat-tile" style="border-color:rgba(239,68,68,0.4);"><div class="mst-num" style="color:#fca5a5;">${statusCounts.blockout||0}</div><div class="mst-label">BLOCKOUT</div></div>`;
+  }
+
   // Rekomendasi Anchor Visite & Emergency untuk tiap divisi BLOCKOUT: 1 residen Middle (diutamakan)
   // atau Junior dari anggota Wahidin_COT divisi tsb yang BELUM tercatat ditarik mendadak — dikunci di
   // luar OK mulai pukul 14:00 WITA supaya tetap ada yang merespons visite emergency & mengejar laporan
@@ -4200,10 +4259,12 @@
     if (!tbody) return;
 
     const staseList = Object.values(residenStaseCurrent);
+    const tilesElEmpty = document.getElementById('visiteCapacityStatTiles');
     if (staseList.length === 0) {
       tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">Menunggu data stase residen diupload...</td></tr>';
       if (alertBox) alertBox.innerHTML = '';
       if (summaryEl) summaryEl.innerText = '';
+      if (tilesElEmpty) tilesElEmpty.innerHTML = '';
       if (waPreviewEl) waPreviewEl.innerText = 'Upload data stase residen dahulu untuk menghasilkan ringkasan.';
       return;
     }
@@ -4218,6 +4279,8 @@
     const { divisiSet, rows, lockoutDivisi, statusCounts } = computeVisiteCapacityTable(effectiveStaseList, tarikMendadakArr, activeSheetData);
 
     tbody.innerHTML = visiteCapacityRowsToHTML(rows);
+    const tilesEl = document.getElementById('visiteCapacityStatTiles');
+    if (tilesEl) tilesEl.innerHTML = visiteCapacityStatTilesHTML(statusCounts);
     if (summaryEl) summaryEl.innerHTML = visiteCapacitySummaryToHTML(statusCounts, divisiSet.size, 'hari ini');
     if (alertBox) alertBox.innerHTML = visiteCapacityAlertToHTML(lockoutDivisi, '(Hari Ini)');
 
@@ -4278,10 +4341,12 @@
     if (dateStr > todayStr) { if (noteEl) noteEl.innerText = '⚠️ Tidak bisa menampilkan tanggal di masa depan.'; tbody.innerHTML=''; if(alertBox) alertBox.innerHTML=''; if(summaryEl) summaryEl.innerHTML=''; return; }
 
     const rosterForDate = findStasePeriodRosterForDate(dateStr);
+    const histTilesEl = document.getElementById('visiteHistStatTiles');
     if (!rosterForDate) {
       tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">Tidak ada roster periode stase yang mencakup tanggal ini.</td></tr>';
       if (alertBox) alertBox.innerHTML = '';
       if (summaryEl) summaryEl.innerHTML = '';
+      if (histTilesEl) histTilesEl.innerHTML = '';
       if (noteEl) noteEl.innerText = '⚠️ Data tidak lengkap: belum ada roster stase yang diupload untuk periode yang mencakup tanggal ini.';
       return;
     }
@@ -4301,6 +4366,7 @@
       const tglLabel = new Date(dateStr + 'T00:00:00').toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
       tbody.innerHTML = rows.length ? visiteCapacityRowsToHTML(rows) : '<tr><td colspan="6" style="color:#888;">Tidak ada divisi terdeteksi untuk tanggal ini.</td></tr>';
+      if (histTilesEl) histTilesEl.innerHTML = visiteCapacityStatTilesHTML(statusCounts);
       if (summaryEl) summaryEl.innerHTML = visiteCapacitySummaryToHTML(statusCounts, divisiSet.size, `pada ${tglLabel}`);
       if (alertBox) alertBox.innerHTML = visiteCapacityAlertToHTML(lockoutDivisi, `(${tglLabel})`);
       if (noteEl) {
@@ -5057,7 +5123,15 @@ Ruangan: [Ruangan Asal]`;
               actionButtons = `<button class="btn btn-success" style="padding:4px 8px; font-size:10px;" onclick="completeEmergencyWithResidenPrompt('${p.id}')">🏁 Selesai & Integrasi Papan Utama</button><button class="btn btn-danger" style="padding:4px 8px; font-size:10px;" onclick="deleteEmergencyPatient('${p.id}')">🗑️ Hapus</button>`;
             }
           } else {
-            actionButtons = `<span style="font-size:10px; font-weight:800; color:var(--success);">Selesai (${p.selesai})</span><button class="btn btn-danger" style="padding:2px 6px; font-size:9px;" onclick="deleteEmergencyPatient('${p.id}')">🗑️ Hapus</button>`;
+            // Countdown otomatis-hilang — supaya jelas kapan kartu ini akan dibersihkan sendiri oleh
+            // sweepAutoHideCompletedEmergency(), bukan tiba-tiba hilang tanpa penjelasan.
+            let autoHideNote = '';
+            if (p.selesaiTimestampMs) {
+              const elapsedMin = (Date.now() - p.selesaiTimestampMs) / 60000;
+              const remainMin = Math.max(0, Math.ceil(EMERGENCY_COMPLETED_AUTO_HIDE_MINUTES - elapsedMin));
+              autoHideNote = `<span style="font-size:9px; color:var(--text-light); display:block;">🧹 Otomatis hilang dari List Emergency dalam ${remainMin} menit (data tetap aman di Papan Utama)</span>`;
+            }
+            actionButtons = `<span style="font-size:10px; font-weight:800; color:var(--success);">Selesai (${p.selesai})</span><button class="btn btn-danger" style="padding:2px 6px; font-size:9px;" onclick="deleteEmergencyPatient('${p.id}')">🗑️ Hapus</button>${autoHideNote}`;
           }
 
           const cardHTML = `
@@ -5103,6 +5177,61 @@ Ruangan: [Ruangan Asal]`;
       renderBantexTable();
       renderActiveStatusLists();
       recalculateDashboardAndReport();
+
+      sweepAutoHideCompletedEmergency();
+    });
+
+    // Listener realtime Firebase ('on value') HANYA terpicu saat datanya berubah — waktu terus
+    // berjalan meski tidak ada perubahan data sama sekali, jadi pasien Selesai yang "menunggu waktu
+    // habis" tidak akan pernah otomatis tersapu tanpa pemicu berkala seperti ini.
+    if (!emergencyAutoHideSweepTimer) {
+      emergencyAutoHideSweepTimer = setInterval(sweepAutoHideCompletedEmergency, 60 * 1000);
+    }
+  }
+
+  // Menghapus permanen entri Selesai di 'emergency_patients' yang sudah melewati ambang waktu
+  // EMERGENCY_COMPLETED_AUTO_HIDE_MINUTES sejak selesaiTimestampMs — AMAN karena begitu Selesai,
+  // datanya sudah otomatis tersalin ke Papan Utama/daily_patient_log (satu-satunya efek di sini
+  // adalah membersihkan tampilan List Emergency, bukan menghapus riwayat kerja pasien).
+  // Entri Selesai LAMA (dari sebelum fitur ini ada) tidak punya selesaiTimestampMs — diberi
+  // timestamp SEKARANG saat pertama kali terdeteksi (bukan langsung dihapus paksa) supaya tidak ada
+  // penghapusan massal mengejutkan begitu fitur ini pertama kali aktif; entri itu baru benar-benar
+  // hilang EMERGENCY_COMPLETED_AUTO_HIDE_MINUTES kemudian, sama seperti entri baru.
+  function sweepAutoHideCompletedEmergency() {
+    const now = Date.now();
+    const thresholdMs = EMERGENCY_COMPLETED_AUTO_HIDE_MINUTES * 60 * 1000;
+    const needsBackfill = (emergencyPatientsList || []).some(p => p.statusType === 'completed' && !p.selesaiTimestampMs);
+    const expiredIds = (emergencyPatientsList || [])
+      .filter(p => p.statusType === 'completed' && p.selesaiTimestampMs && (now - p.selesaiTimestampMs) >= thresholdMs)
+      .map(p => p.id);
+    if (!needsBackfill && expiredIds.length === 0) return;
+
+    db.ref('emergency_patients').transaction(currentVal => {
+      let data = toArraySafe(currentVal);
+      data = data.map(p => (p.statusType === 'completed' && !p.selesaiTimestampMs) ? { ...p, selesaiTimestampMs: now } : p);
+      if (expiredIds.length > 0) data = data.filter(p => !expiredIds.includes(p.id));
+      return data;
+    }, (error) => { if (error) console.error('Gagal membersihkan pasien Selesai kedaluwarsa:', error); });
+  }
+
+  function listenEmergencyAutoHideSetting() {
+    db.ref('app_settings/emergencyCompletedAutoHideMinutes').on('value', snap => {
+      const v = snap.val();
+      EMERGENCY_COMPLETED_AUTO_HIDE_MINUTES = (typeof v === 'number' && v > 0) ? v : DEFAULT_EMERGENCY_COMPLETED_AUTO_HIDE_MINUTES;
+      const input = document.getElementById('emergencyAutoHideMinutesInput');
+      if (input && document.activeElement !== input) input.value = EMERGENCY_COMPLETED_AUTO_HIDE_MINUTES;
+      sweepAutoHideCompletedEmergency();
+    });
+  }
+
+  function saveEmergencyAutoHideSetting() {
+    const val = parseInt(document.getElementById('emergencyAutoHideMinutesInput').value, 10);
+    if (!val || val < 1) { alert('⚠️ Masukkan jumlah menit yang valid (minimal 1).'); return; }
+    db.ref('app_settings/emergencyCompletedAutoHideMinutes').set(val, (err) => {
+      const statusEl = document.getElementById('emergencyAutoHideMinutesStatus');
+      if (err) { if (statusEl) statusEl.innerText = '❌ Gagal menyimpan: ' + err.message; return; }
+      if (statusEl) statusEl.innerText = `✅ Tersimpan — pasien Selesai kini otomatis hilang dari List Emergency setelah ${val} menit.`;
+      logSystemChange('Mengubah durasi auto-hide pasien Selesai di List Emergency', `${val} menit`);
     });
   }
 
@@ -5154,6 +5283,9 @@ Ruangan: [Ruangan Asal]`;
       p.statusEmergencyTahap = 'selesai';
       p.selesai = HHMM;
       p.residen = finalResiden;
+      // Timestamp epoch (bukan cuma "HH:MM") — dipakai sweepAutoHideCompletedEmergency() untuk
+      // menghitung "sudah berapa menit sejak Selesai" secara akurat, termasuk lintas hari.
+      p.selesaiTimestampMs = Date.now();
       completedPatientSnapshot = { ...p };
       return data;
     }, (error, committed) => {
@@ -6459,6 +6591,9 @@ Ruangan: [Ruangan Asal]`;
           if (!rec.selesai) rec.selesai = HHMM;
           rec.statusType = 'completed';
           rec.statusEmergencyTahap = 'selesai';
+          // Sama seperti completeEmergencyWithResidenPrompt() — timestamp epoch dipakai
+          // sweepAutoHideCompletedEmergency() untuk menghitung jeda waktu sebelum otomatis dibersihkan.
+          if (!rec.selesaiTimestampMs) rec.selesaiTimestampMs = Date.now();
         }
         data[idx] = rec;
         return data;
@@ -6778,18 +6913,19 @@ Ruangan: [Ruangan Asal]`;
     if (!kwRaw) { panel.style.display = 'none'; globalSearchResultsCache = []; return; }
     const kw = kwRaw.toUpperCase();
 
+    // Dicocokkan ke Nama/RM (utama) DITAMBAH Divisi/DPJP Anestesi/Ruangan — supaya pencarian "pasien
+    // siapa saja di THT" atau "pasien dr. X" juga langsung ketemu, tidak harus tahu nama/RM persis.
+    const matchesKw = (p) => (p.nama||'').toUpperCase().includes(kw) || (p.rm||'').toUpperCase().includes(kw)
+      || (p.divisi||'').toUpperCase().includes(kw) || (p.dpjpAnestesi||'').toUpperCase().includes(kw) || (p.kamar||p.ruangan||'').toUpperCase().includes(kw);
+
     const results = [];
     Object.keys(allSheetsData || {}).forEach(sheetName => {
       (allSheetsData[sheetName] || []).forEach((p, idx) => {
-        if ((p.nama||'').toUpperCase().includes(kw) || (p.rm||'').toUpperCase().includes(kw)) {
-          results.push({ type: 'elektif', sheetName, idx, p });
-        }
+        if (matchesKw(p)) results.push({ type: 'elektif', sheetName, idx, p });
       });
     });
     (emergencyPatientsList || []).forEach(p => {
-      if ((p.nama||'').toUpperCase().includes(kw) || (p.rm||'').toUpperCase().includes(kw)) {
-        results.push({ type: 'emergency', p });
-      }
+      if (matchesKw(p)) results.push({ type: 'emergency', p });
     });
 
     globalSearchResultsCache = results.slice(0, 25);
@@ -8114,15 +8250,17 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
       const bebanForecast = computeSeasonalAdaptiveForecast(bebanMap, tomorrow);
       const okForecast = computeSeasonalAdaptiveForecast(okMap, tomorrow);
 
-      const elLoad = document.getElementById('automlNextDayLoad');
-      const elOR = document.getElementById('automlORDemand');
+      const elLoadNum = document.getElementById('automlNextDayLoadNum');
+      const elLoadSub = document.getElementById('automlNextDayLoadSub');
+      const elORNum = document.getElementById('automlORDemandNum');
       const elAdv = document.getElementById('automlResourceAdvisory');
       const elConf = document.getElementById('automlConfidenceNote');
 
       if (bebanForecast.forecast === null) {
-        if (elLoad) elLoad.innerText = 'Belum ada data historis (riwayat daily_patient_log masih kosong)';
-        if (elOR) elOR.innerText = '-';
-        if (elAdv) elAdv.innerText = '-';
+        if (elLoadNum) elLoadNum.innerText = '-';
+        if (elLoadSub) elLoadSub.innerText = 'Belum ada data historis';
+        if (elORNum) elORNum.innerText = '-';
+        if (elAdv) { elAdv.className = 'insight-banner info'; elAdv.innerText = 'Belum cukup riwayat daily_patient_log untuk membuat proyeksi — data akan mulai muncul setelah beberapa hari berjalan.'; }
         if (elConf) elConf.innerText = '';
         if (chartOperatorInstance) { chartOperatorInstance.data.labels = []; chartOperatorInstance.data.datasets[0].data = []; chartOperatorInstance.update(); }
         return;
@@ -8134,13 +8272,17 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
       const pctChange = avgBeban > 0 ? Math.round(((bebanForecast.forecast - avgBeban) / avgBeban) * 100) : 0;
       const pctLabel = pctChange > 0 ? `+${pctChange}%` : `${pctChange}%`;
 
-      if (elLoad) elLoad.innerText = `~${bebanRounded} Pasien (${pctLabel} dari rata-rata ${Math.round(avgBeban)})`;
-      if (elOR) elOR.innerText = `~${okRounded} Kamar OK Aktif`;
+      if (elLoadNum) elLoadNum.innerText = `~${bebanRounded}`;
+      if (elLoadSub) elLoadSub.innerText = `Pasien (${pctLabel} dari rata-rata ${Math.round(avgBeban)})`;
+      if (elORNum) elORNum.innerText = `~${okRounded}`;
 
-      let advisory = 'Beban diproyeksikan normal — kapasitas standar cukup.';
-      if (pctChange >= 20) advisory = '⚠️ Beban diproyeksikan NAIK signifikan — pertimbangkan tambahan staf jaga OK/PACU.';
-      else if (pctChange <= -20) advisory = 'Beban diproyeksikan turun dari rata-rata — evaluasi kebutuhan staf standby.';
-      if (elAdv) elAdv.innerText = advisory;
+      // SATU kalimat kesimpulan bahasa awam ("apa yang perlu dilakukan"), bukan tabel angka —
+      // warna pita mengikuti tingkat urgensi supaya bisa dipindai sekilas tanpa membaca teksnya dulu.
+      let advisory = '✅ Beban diproyeksikan normal — kapasitas standar cukup, tidak perlu penyesuaian staf.';
+      let advisoryClass = 'ok';
+      if (pctChange >= 20) { advisory = '⚠️ Beban diproyeksikan NAIK signifikan besok — pertimbangkan tambahan staf jaga OK/PACU.'; advisoryClass = 'warn'; }
+      else if (pctChange <= -20) { advisory = 'ℹ️ Beban diproyeksikan turun dari rata-rata — evaluasi kebutuhan staf standby besok.'; advisoryClass = 'info'; }
+      if (elAdv) { elAdv.className = 'insight-banner ' + advisoryClass; elAdv.innerText = advisory; }
 
       if (elConf) elConf.innerText = `${AUTOML_CONFIDENCE_LABEL[bebanForecast.confidence] || bebanForecast.confidence} (berdasarkan ${bebanForecast.sampleSize} hari data historis, ${bebanForecast.method})`;
 
@@ -8197,8 +8339,15 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
         })
         .sort((a, b) => b.forecastPct - a.forecastPct);
 
+      const tilesEl = document.getElementById('automlPembatalanStatTiles');
+      const insightEl = document.getElementById('automlPembatalanInsight');
       if (!tbody) return;
-      if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-light);">Belum cukup data historis per divisi (minimal 5 kasus dalam 28 hari terakhir).</td></tr>'; return; }
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-light);">Belum cukup data historis per divisi (minimal 5 kasus dalam 28 hari terakhir).</td></tr>';
+        if (tilesEl) tilesEl.innerHTML = '';
+        if (insightEl) { insightEl.className = 'insight-banner info'; insightEl.innerText = 'Belum cukup data historis per divisi untuk membuat proyeksi risiko pembatalan (minimal 5 kasus dalam 28 hari terakhir).'; }
+        return;
+      }
       tbody.innerHTML = rows.map(r => `
         <tr>
           <td style="text-align:left;">${r.div}</td>
@@ -8207,6 +8356,31 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
           <td>${r.forecastPct}%${r.confidence === 'rendah' ? ' <span style="opacity:0.6;">(keyakinan rendah)</span>' : ''}</td>
           <td style="color:${r.risikoColor}; font-weight:800;">${r.risiko}</td>
         </tr>`).join('');
+
+      // Kartu ringkas: berapa divisi di tiap kategori risiko — supaya kesimpulannya bisa dipindai
+      // sekilas TANPA harus membaca seluruh baris tabel rincian di bawahnya.
+      const nTinggi = rows.filter(r => r.risiko === 'Tinggi').length;
+      const nSedang = rows.filter(r => r.risiko === 'Sedang').length;
+      const nRendah = rows.filter(r => r.risiko === 'Rendah').length;
+      if (tilesEl) {
+        tilesEl.innerHTML = `
+          <div class="mini-stat-tile" style="border-color:rgba(239,68,68,0.4);"><div class="mst-num" style="color:#fca5a5;">${nTinggi}</div><div class="mst-label">Risiko Tinggi</div></div>
+          <div class="mini-stat-tile" style="border-color:rgba(245,158,11,0.4);"><div class="mst-num" style="color:#fde68a;">${nSedang}</div><div class="mst-label">Risiko Sedang</div></div>
+          <div class="mini-stat-tile" style="border-color:rgba(16,185,129,0.4);"><div class="mst-num" style="color:#6ee7b7;">${nRendah}</div><div class="mst-label">Risiko Rendah</div></div>`;
+      }
+      if (insightEl) {
+        if (nTinggi > 0) {
+          const topDiv = rows.find(r => r.risiko === 'Tinggi');
+          insightEl.className = 'insight-banner danger';
+          insightEl.innerText = `⚠️ ${nTinggi} divisi berisiko TINGGI besok, terparah: ${topDiv.div} (proyeksi ${topDiv.forecastPct}% batal) — siapkan cadangan jadwal/komunikasi lebih awal ke divisi ini.`;
+        } else if (nSedang > 0) {
+          insightEl.className = 'insight-banner warn';
+          insightEl.innerText = `${nSedang} divisi berisiko sedang besok — perlu dipantau, belum perlu tindakan mendesak.`;
+        } else {
+          insightEl.className = 'insight-banner ok';
+          insightEl.innerText = `✅ Seluruh ${rows.length} divisi berisiko rendah besok — tidak ada tindakan khusus yang perlu disiapkan.`;
+        }
+      }
     });
   }
 
@@ -8255,8 +8429,15 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
       .filter(r => r.sampleDays >= 3) // data historis terlalu sedikit -> jangan diproyeksikan
       .sort((a,b) => b.projectedTotal - a.projectedTotal);
 
+      const tilesEl = document.getElementById('automlBurnoutStatTiles');
+      const insightEl = document.getElementById('automlBurnoutInsight');
       if (!tbody) return;
-      if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-light);">Belum cukup data jam kerja historis (minimal 3 hari tercatat per residen).</td></tr>'; return; }
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-light);">Belum cukup data jam kerja historis (minimal 3 hari tercatat per residen).</td></tr>';
+        if (tilesEl) tilesEl.innerHTML = '';
+        if (insightEl) { insightEl.className = 'insight-banner info'; insightEl.innerText = 'Belum cukup data jam kerja historis untuk memproyeksikan risiko burnout (minimal 3 hari tercatat per residen).'; }
+        return;
+      }
       tbody.innerHTML = rows.map(r => {
         const resObj = MASTER_RESIDENTS.find(x => x.inisial === r.inisial);
         const nama = resObj ? resObj.nama : r.inisial;
@@ -8269,6 +8450,29 @@ ${highLoad.length ? `- Beban Tinggi: ${highLoad.join(', ')}` : ''}
           <td style="color:${r.color}; font-weight:800;">${r.status}</td>
         </tr>`;
       }).join('');
+
+      const nKritis = rows.filter(r => r.projectedTotal > 100).length;
+      const nPeringatan = rows.filter(r => r.projectedTotal > 80 && r.projectedTotal <= 100).length;
+      if (tilesEl) {
+        tilesEl.innerHTML = `
+          <div class="mini-stat-tile" style="border-color:rgba(239,68,68,0.4);"><div class="mst-num" style="color:#fca5a5;">${nKritis}</div><div class="mst-label">Diproyeksikan Kritis</div></div>
+          <div class="mini-stat-tile" style="border-color:rgba(245,158,11,0.4);"><div class="mst-num" style="color:#fde68a;">${nPeringatan}</div><div class="mst-label">Diproyeksikan Peringatan</div></div>`;
+      }
+      if (insightEl) {
+        if (nKritis > 0) {
+          const top = rows.find(r => r.projectedTotal > 100);
+          const resObj = MASTER_RESIDENTS.find(x => x.inisial === top.inisial);
+          const namaTop = resObj ? resObj.nama : top.inisial;
+          insightEl.className = 'insight-banner danger';
+          insightEl.innerText = `🔴 ${nKritis} residen diproyeksikan KRITIS (>100 jam) akhir bulan ini, terberat: ${namaTop} (proyeksi ${top.projectedTotal.toFixed(1)} jam) — pertimbangkan rotasi/pengurangan beban segera.`;
+        } else if (nPeringatan > 0) {
+          insightEl.className = 'insight-banner warn';
+          insightEl.innerText = `🟡 ${nPeringatan} residen diproyeksikan masuk zona Peringatan (>80 jam) akhir bulan ini — perlu dipantau.`;
+        } else {
+          insightEl.className = 'insight-banner ok';
+          insightEl.innerText = `✅ Tidak ada residen yang diproyeksikan melewati ambang batas jam kerja bulan ini.`;
+        }
+      }
     });
   }
 
